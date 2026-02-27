@@ -21,6 +21,7 @@ from app.models.branch import Branch
 from app.models.daily_rating import DailyRating
 from app.models.plan import Plan
 from app.models.report import Report
+from app.models.review import Review
 from app.models.user import User, UserRole
 from app.models.visit import Visit
 
@@ -399,6 +400,82 @@ class ReportService:
         )
         return report_data
 
+    async def generate_branch_analytics(
+        self,
+        organization_id: uuid.UUID,
+        branch_id: uuid.UUID,
+        target_date: date,
+    ) -> dict:
+        """Generate comprehensive analytics for a single branch.
+
+        Composes revenue, client, shift, top-barber, and aggregate data
+        into a single response for the chef analytics dashboard.
+        """
+        month_start = target_date.replace(day=1)
+
+        # Branch name
+        branch = await self._get_branch(branch_id)
+        branch_name = branch.name if branch else "Unknown"
+
+        # Revenue
+        revenue_today = await self._sum_revenue(branch_id, target_date, target_date)
+        revenue_mtd = await self._sum_revenue(branch_id, month_start, target_date)
+
+        # Plan
+        plan = await self._get_plan(branch_id, month_start)
+        plan_target = plan.target_amount if plan else 0
+        plan_pct = round((revenue_mtd / plan_target) * 100, 1) if plan_target > 0 else 0.0
+
+        # Visits count (for avg check)
+        visits_today = await self._count_visits(branch_id, target_date, target_date)
+        visits_mtd = await self._count_visits(branch_id, month_start, target_date)
+        avg_check_today = revenue_today // visits_today if visits_today > 0 else 0
+        avg_check_mtd = revenue_mtd // visits_mtd if visits_mtd > 0 else 0
+
+        # Clients
+        clients_today = await self._count_unique_clients(branch_id, target_date, target_date)
+        new_clients_mtd = await self._count_new_clients(
+            branch_id, organization_id, month_start, target_date
+        )
+        total_clients_mtd = await self._count_unique_clients(branch_id, month_start, target_date)
+        returning_clients_mtd = total_clients_mtd - new_clients_mtd
+
+        # Shift
+        barbers_in_shift = await self._count_barbers_in_shift(branch_id, target_date)
+        barbers_total = await self._count_barbers_total(branch_id)
+
+        # Top barbers (monthly)
+        top_barbers = await self._get_top_barbers(branch_id, month_start, target_date)
+
+        # Aggregates
+        total_products_mtd = await self._sum_products(branch_id, month_start, target_date)
+        total_extras_mtd = await self._sum_extras(branch_id, month_start, target_date)
+        avg_review_score = await self._avg_review_score(branch_id, month_start, target_date)
+
+        return {
+            "branch_id": str(branch_id),
+            "branch_name": branch_name,
+            "date": str(target_date),
+            "revenue_today": revenue_today,
+            "revenue_mtd": revenue_mtd,
+            "plan_target": plan_target,
+            "plan_percentage": plan_pct,
+            "avg_check_today": avg_check_today,
+            "avg_check_mtd": avg_check_mtd,
+            "visits_today": visits_today,
+            "visits_mtd": visits_mtd,
+            "clients_today": clients_today,
+            "new_clients_mtd": new_clients_mtd,
+            "returning_clients_mtd": returning_clients_mtd,
+            "total_clients_mtd": total_clients_mtd,
+            "barbers_in_shift": barbers_in_shift,
+            "barbers_total": barbers_total,
+            "top_barbers": top_barbers,
+            "total_products_mtd": total_products_mtd,
+            "total_extras_mtd": total_extras_mtd,
+            "avg_review_score": avg_review_score,
+        }
+
     # ------------------------------------------------------------------
     # Report retrieval (for API)
     # ------------------------------------------------------------------
@@ -605,6 +682,121 @@ class ReportService:
         )
         result = await self.db.execute(stmt)
         return list(result.all())
+
+    async def _get_branch(self, branch_id: uuid.UUID) -> Branch | None:
+        """Load a single branch by ID."""
+        result = await self.db.execute(select(Branch).where(Branch.id == branch_id))
+        return result.scalar_one_or_none()
+
+    async def _count_visits(
+        self,
+        branch_id: uuid.UUID,
+        date_from: date,
+        date_to: date,
+    ) -> int:
+        """Count completed visits for a branch in a date range."""
+        stmt = select(sa_func.count()).where(
+            Visit.branch_id == branch_id,
+            Visit.date >= date_from,
+            Visit.date <= date_to,
+            Visit.status == "completed",
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
+
+    async def _sum_products(
+        self,
+        branch_id: uuid.UUID,
+        date_from: date,
+        date_to: date,
+    ) -> int:
+        """Sum products_count for completed visits in a date range."""
+        stmt = select(sa_func.coalesce(sa_func.sum(Visit.products_count), 0)).where(
+            Visit.branch_id == branch_id,
+            Visit.date >= date_from,
+            Visit.date <= date_to,
+            Visit.status == "completed",
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
+
+    async def _sum_extras(
+        self,
+        branch_id: uuid.UUID,
+        date_from: date,
+        date_to: date,
+    ) -> int:
+        """Sum extras_count for completed visits in a date range."""
+        stmt = select(sa_func.coalesce(sa_func.sum(Visit.extras_count), 0)).where(
+            Visit.branch_id == branch_id,
+            Visit.date >= date_from,
+            Visit.date <= date_to,
+            Visit.status == "completed",
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
+
+    async def _avg_review_score(
+        self,
+        branch_id: uuid.UUID,
+        date_from: date,
+        date_to: date,
+    ) -> float | None:
+        """Average review rating for a branch in a date range."""
+        stmt = select(sa_func.avg(Review.rating)).where(
+            Review.branch_id == branch_id,
+            Review.created_at >= date_from,
+            Review.created_at <= date_to,
+        )
+        result = await self.db.execute(stmt)
+        avg = result.scalar_one()
+        return round(avg, 2) if avg is not None else None
+
+    async def _get_top_barbers(
+        self,
+        branch_id: uuid.UUID,
+        month_start: date,
+        month_end: date,
+    ) -> list[dict]:
+        """Get top barbers by revenue for the month from DailyRating data."""
+        if month_start.month == 12:
+            next_month = month_start.replace(year=month_start.year + 1, month=1)
+        else:
+            next_month = month_start.replace(month=month_start.month + 1)
+
+        stmt = (
+            select(
+                DailyRating.barber_id,
+                User.name,
+                sa_func.coalesce(sa_func.sum(DailyRating.revenue), 0).label("total_revenue"),
+                sa_func.avg(DailyRating.total_score).label("avg_score"),
+                sa_func.count(DailyRating.id).filter(DailyRating.rank == 1).label("wins"),
+                sa_func.count(DailyRating.id).label("days_worked"),
+            )
+            .join(User, User.id == DailyRating.barber_id)
+            .where(
+                DailyRating.branch_id == branch_id,
+                DailyRating.date >= month_start,
+                DailyRating.date < next_month,
+            )
+            .group_by(DailyRating.barber_id, User.name)
+            .order_by(sa_func.sum(DailyRating.revenue).desc())
+            .limit(10)
+        )
+        result = await self.db.execute(stmt)
+        rows = result.all()
+
+        return [
+            {
+                "barber_id": str(row.barber_id),
+                "name": row.name,
+                "revenue": row.total_revenue or 0,
+                "avg_score": round(row.avg_score, 2) if row.avg_score else 0.0,
+                "wins": row.wins or 0,
+                "days_worked": row.days_worked or 0,
+            }
+            for row in rows
+        ]
 
     async def _save_report(
         self,

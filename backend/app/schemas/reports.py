@@ -160,6 +160,49 @@ class KombatMonthlyReport(BaseModel):
 # --- Generic report response ---
 
 
+class TopBarber(BaseModel):
+    """Top barber entry in branch analytics."""
+
+    barber_id: str
+    name: str
+    revenue: int
+    avg_score: float
+    wins: int
+    days_worked: int
+
+
+class BranchAnalytics(BaseModel):
+    """Comprehensive analytics for a single branch."""
+
+    branch_id: str
+    branch_name: str
+    date: str
+    # Revenue
+    revenue_today: int
+    revenue_mtd: int
+    plan_target: int
+    plan_percentage: float
+    # Average check
+    avg_check_today: int
+    avg_check_mtd: int
+    visits_today: int
+    visits_mtd: int
+    # Clients
+    clients_today: int
+    new_clients_mtd: int
+    returning_clients_mtd: int
+    total_clients_mtd: int
+    # Shift
+    barbers_in_shift: int
+    barbers_total: int
+    # Top barbers (monthly)
+    top_barbers: list[TopBarber]
+    # Aggregates
+    total_products_mtd: int
+    total_extras_mtd: int
+    avg_review_score: float | None
+
+
 class ReportResponse(BaseModel):
     """Generic response wrapping a report's data."""
 

@@ -30,7 +30,7 @@ export interface MeResponse {
 export interface TabItem {
   path: string
   label: string
-  icon: string
+  icon: import('react').ReactNode
 }
 
 // --- Kombat types ---
@@ -394,6 +394,41 @@ export interface AdminHistoryResponse {
   branch_id: string
   month: string
   days: AdminDayResult[]
+}
+
+// --- Branch Analytics types ---
+
+export interface TopBarber {
+  barber_id: string
+  name: string
+  revenue: number
+  avg_score: number
+  wins: number
+  days_worked: number
+}
+
+export interface BranchAnalytics {
+  branch_id: string
+  branch_name: string
+  date: string
+  revenue_today: number
+  revenue_mtd: number
+  plan_target: number
+  plan_percentage: number
+  avg_check_today: number
+  avg_check_mtd: number
+  visits_today: number
+  visits_mtd: number
+  clients_today: number
+  new_clients_mtd: number
+  returning_clients_mtd: number
+  total_clients_mtd: number
+  barbers_in_shift: number
+  barbers_total: number
+  top_barbers: TopBarber[]
+  total_products_mtd: number
+  total_extras_mtd: number
+  avg_review_score: number | null
 }
 
 // --- WebSocket types ---

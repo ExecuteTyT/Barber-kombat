@@ -1,13 +1,14 @@
 import { Outlet } from 'react-router-dom'
 
+import { IconSwords, IconBuilding, IconTrendingUp, IconBarChart } from '../../components/Icons'
 import TabBar from '../../components/TabBar'
 import type { TabItem } from '../../types'
 
 const tabs: TabItem[] = [
-  { path: '/chef/kombat', label: 'Комбат', icon: '\u{2694}\u{FE0F}' },
-  { path: '/chef/branch', label: 'Филиал', icon: '\u{1F3EA}' },
-  { path: '/chef/pvr', label: 'ПВР', icon: '\u{1F4C8}' },
-  { path: '/chef/more', label: 'Ещё', icon: '\u{2699}\u{FE0F}' },
+  { path: '/chef/kombat', label: 'Комбат', icon: <IconSwords size={20} /> },
+  { path: '/chef/branch', label: 'Филиал', icon: <IconBuilding size={20} /> },
+  { path: '/chef/pvr', label: 'ПВР', icon: <IconTrendingUp size={20} /> },
+  { path: '/chef/analytics', label: 'Аналитика', icon: <IconBarChart size={20} /> },
 ]
 
 export default function ChefLayout() {

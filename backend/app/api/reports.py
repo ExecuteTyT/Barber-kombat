@@ -9,13 +9,14 @@ from datetime import date
 from typing import Annotated
 
 import structlog
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_role
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.schemas.reports import (
+    BranchAnalytics,
     ClientsReport,
     DailyRevenueReport,
     DayToDayReport,
@@ -176,3 +177,36 @@ async def get_bingo_monthly_report(
 
     data = await report_service.generate_kombat_monthly(current_user.organization_id, month_start)
     return KombatMonthlyReport(**data)
+
+
+# --- Branch analytics (chef dashboard) ---
+
+
+@router.get("/branch-analytics/{branch_id}", response_model=BranchAnalytics)
+async def get_branch_analytics(
+    branch_id: uuid.UUID,
+    current_user: Annotated[
+        User,
+        Depends(
+            require_role(UserRole.CHEF, UserRole.OWNER, UserRole.MANAGER, UserRole.ADMIN)
+        ),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    target_date: Annotated[
+        date | None, Query(description="Report date (defaults to today)")
+    ] = None,
+):
+    """Get comprehensive branch analytics. Chef can only access own branch."""
+    # Chef can only view their own branch
+    if current_user.role == UserRole.CHEF and current_user.branch_id != branch_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chef can only access own branch analytics",
+        )
+
+    report_date = target_date or date.today()
+    report_service = ReportService(db=db)
+    data = await report_service.generate_branch_analytics(
+        current_user.organization_id, branch_id, report_date
+    )
+    return BranchAnalytics(**data)

@@ -14,6 +14,7 @@ import ProgressScreen from './screens/barber/ProgressScreen'
 import HistoryScreen from './screens/barber/HistoryScreen'
 import ChefLayout from './screens/chef/ChefLayout'
 import BranchScreen from './screens/chef/BranchScreen'
+import ChefAnalyticsScreen from './screens/chef/ChefAnalyticsScreen'
 import ChefPVRScreen from './screens/chef/ChefPVRScreen'
 import OwnerLayout from './screens/owner/OwnerLayout'
 import DashboardScreen from './screens/owner/DashboardScreen'
@@ -24,14 +25,6 @@ import AdminLayout from './screens/admin/AdminLayout'
 import MetricsScreen from './screens/admin/MetricsScreen'
 import TasksScreen from './screens/admin/TasksScreen'
 import AdminHistoryScreen from './screens/admin/AdminHistoryScreen'
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="flex items-center justify-center p-8">
-      <h2 className="text-lg font-medium">{title}</h2>
-    </div>
-  )
-}
 
 const DEFAULT_ROUTES: Record<string, string> = {
   barber: '/barber/kombat',
@@ -116,7 +109,7 @@ function App() {
             <Route path="kombat" element={<KombatScreen />} />
             <Route path="branch" element={<BranchScreen />} />
             <Route path="pvr" element={<ChefPVRScreen />} />
-            <Route path="more" element={<Placeholder title="Ещё" />} />
+            <Route path="analytics" element={<ChefAnalyticsScreen />} />
             <Route index element={<Navigate to="kombat" replace />} />
           </Route>
 
