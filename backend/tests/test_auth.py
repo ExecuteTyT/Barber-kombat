@@ -138,7 +138,7 @@ class TestJWT:
             "iat": datetime.now(UTC),
             "exp": datetime.now(UTC) + timedelta(hours=1),
         }
-        token = pyjwt.encode(payload, "wrong-secret", algorithm="HS256")
+        token = pyjwt.encode(payload, "wrong-secret-that-is-long-enough!!", algorithm="HS256")
 
         with pytest.raises(pyjwt.InvalidSignatureError):
             decode_access_token(token)
