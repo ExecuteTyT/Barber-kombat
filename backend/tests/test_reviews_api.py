@@ -115,6 +115,7 @@ class TestSubmitReview:
     async def test_submit_positive_review(self):
         """Public endpoint creates a review without auth."""
         mock_db = AsyncMock()
+        mock_db.add = MagicMock()
         mock_redis = AsyncMock()
 
         # Validate branch exists

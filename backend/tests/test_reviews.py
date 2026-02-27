@@ -87,6 +87,7 @@ class TestCreateReview:
     async def test_positive_review_saved_as_processed(self):
         """Ratings 4-5 are saved with PROCESSED status, no notification."""
         mock_db = AsyncMock()
+        mock_db.add = MagicMock()
         mock_redis = AsyncMock()
         mock_redis.publish = AsyncMock()
 
@@ -115,6 +116,7 @@ class TestCreateReview:
     async def test_negative_review_saved_as_new(self):
         """Ratings 1-3 are saved with NEW status and trigger notification."""
         mock_db = AsyncMock()
+        mock_db.add = MagicMock()
         mock_redis = AsyncMock()
         mock_redis.publish = AsyncMock()
 
@@ -154,6 +156,7 @@ class TestCreateReview:
     async def test_threshold_boundary_rating_3(self):
         """Rating exactly at threshold (3) is treated as negative."""
         mock_db = AsyncMock()
+        mock_db.add = MagicMock()
         mock_redis = AsyncMock()
         mock_redis.publish = AsyncMock()
 
@@ -180,6 +183,7 @@ class TestCreateReview:
     async def test_threshold_boundary_rating_4(self):
         """Rating 4 is treated as positive (above threshold)."""
         mock_db = AsyncMock()
+        mock_db.add = MagicMock()
         mock_redis = AsyncMock()
         mock_redis.publish = AsyncMock()
 

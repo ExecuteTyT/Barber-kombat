@@ -516,6 +516,7 @@ class TestBranchEndpoints:
         user = make_user(role="owner")
 
         mock_db = AsyncMock()
+        mock_db.add = MagicMock()
         mock_redis = AsyncMock()
         mock_db.commit = AsyncMock()
 
@@ -611,6 +612,7 @@ class TestUserEndpoints:
         user = make_user(role="owner")
 
         mock_db = AsyncMock()
+        mock_db.add = MagicMock()
         mock_redis = AsyncMock()
         mock_db.commit = AsyncMock()
 
@@ -711,6 +713,7 @@ class TestNotificationEndpoints:
         user = make_user(role="owner")
 
         mock_db = AsyncMock()
+        mock_db.add = MagicMock()
         mock_redis = AsyncMock()
         mock_db.commit = AsyncMock()
 

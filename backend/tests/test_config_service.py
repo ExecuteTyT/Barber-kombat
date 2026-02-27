@@ -349,6 +349,7 @@ class TestBranchCRUD:
     @pytest.mark.asyncio
     async def test_create_branch(self):
         mock_db = AsyncMock()
+        mock_db.add = MagicMock()
         mock_redis = AsyncMock()
 
         service = ConfigService(db=mock_db, redis=mock_redis)
@@ -459,6 +460,7 @@ class TestUserCRUD:
     @pytest.mark.asyncio
     async def test_create_user(self):
         mock_db = AsyncMock()
+        mock_db.add = MagicMock()
         mock_redis = AsyncMock()
 
         service = ConfigService(db=mock_db, redis=mock_redis)
@@ -540,6 +542,7 @@ class TestNotificationCRUD:
     @pytest.mark.asyncio
     async def test_create_notification(self):
         mock_db = AsyncMock()
+        mock_db.add = MagicMock()
         mock_redis = AsyncMock()
 
         service = ConfigService(db=mock_db, redis=mock_redis)
