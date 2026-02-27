@@ -1,8 +1,9 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, type ReactNode } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useRawInitData } from '@telegram-apps/sdk-react'
 
 import { useAuthStore } from './stores/authStore'
+import type { UserRole } from './types'
 import { useDeepLink } from './hooks/useDeepLink'
 import { useTelegramTheme } from './hooks/useTelegramTheme'
 import DevToolbar from './components/DevToolbar'
@@ -33,6 +34,24 @@ const DEFAULT_ROUTES: Record<string, string> = {
   owner: '/owner/dashboard',
   admin: '/admin/metrics',
   manager: '/chef/kombat',
+}
+
+/** Which roles are allowed to access each route section */
+const SECTION_ROLES: Record<string, UserRole[]> = {
+  barber: ['barber'],
+  chef: ['chef', 'manager'],
+  owner: ['owner'],
+  admin: ['admin'],
+}
+
+function RoleGuard({ section, children }: { section: string; children: ReactNode }) {
+  const role = useAuthStore((s) => s.user?.role)
+  const allowed = SECTION_ROLES[section]
+  if (!role || !allowed?.includes(role)) {
+    const target = DEFAULT_ROUTES[role ?? 'barber'] ?? '/barber/kombat'
+    return <Navigate to={target} replace />
+  }
+  return <>{children}</>
 }
 
 function useInitDataSafe(): string | undefined {
@@ -99,14 +118,28 @@ function App() {
       {isDevMode && <DevToolbar />}
       <div className={isDevMode ? 'pb-10' : ''}>
         <Routes>
-          <Route path="/barber" element={<BarberLayout />}>
+          <Route
+            path="/barber"
+            element={
+              <RoleGuard section="barber">
+                <BarberLayout />
+              </RoleGuard>
+            }
+          >
             <Route path="kombat" element={<KombatScreen />} />
             <Route path="progress" element={<ProgressScreen />} />
             <Route path="history" element={<HistoryScreen />} />
             <Route index element={<Navigate to="kombat" replace />} />
           </Route>
 
-          <Route path="/chef" element={<ChefLayout />}>
+          <Route
+            path="/chef"
+            element={
+              <RoleGuard section="chef">
+                <ChefLayout />
+              </RoleGuard>
+            }
+          >
             <Route path="kombat" element={<ChefKombatScreen />} />
             <Route path="branch" element={<BranchScreen />} />
             <Route path="pvr" element={<ChefPVRScreen />} />
@@ -114,7 +147,14 @@ function App() {
             <Route index element={<Navigate to="kombat" replace />} />
           </Route>
 
-          <Route path="/owner" element={<OwnerLayout />}>
+          <Route
+            path="/owner"
+            element={
+              <RoleGuard section="owner">
+                <OwnerLayout />
+              </RoleGuard>
+            }
+          >
             <Route path="dashboard" element={<DashboardScreen />} />
             <Route path="branch/:branchId" element={<BranchScreen />} />
             <Route path="reports" element={<ReportsScreen />} />
@@ -123,7 +163,14 @@ function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
 
-          <Route path="/admin" element={<AdminLayout />}>
+          <Route
+            path="/admin"
+            element={
+              <RoleGuard section="admin">
+                <AdminLayout />
+              </RoleGuard>
+            }
+          >
             <Route path="metrics" element={<MetricsScreen />} />
             <Route path="tasks" element={<TasksScreen />} />
             <Route path="history" element={<AdminHistoryScreen />} />
