@@ -5,7 +5,6 @@ with inline keyboard buttons linking to the Mini App.
 """
 
 import re
-import uuid
 
 import structlog
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
@@ -51,11 +50,11 @@ def _miniapp_url(path: str = "") -> str:
     return base
 
 
-def _detail_keyboard(path: str, label: str = "\u041f\u043e\u0434\u0440\u043e\u0431\u043d\u0435\u0435 \u2192") -> InlineKeyboardMarkup:
+def _detail_keyboard(
+    path: str, label: str = "\u041f\u043e\u0434\u0440\u043e\u0431\u043d\u0435\u0435 \u2192"
+) -> InlineKeyboardMarkup:
     """Create an inline keyboard with a single 'Подробнее →' button."""
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton(label, url=_miniapp_url(path))]
-    ])
+    return InlineKeyboardMarkup([[InlineKeyboardButton(label, url=_miniapp_url(path))]])
 
 
 # ------------------------------------------------------------------
@@ -94,7 +93,9 @@ def format_kombat_report(report_data: dict, branch_data: dict) -> str:
             score = _escape_md(f"{entry['total_score']:.1f}")
             lines.append(f"{medal} {name} \u2014 *{score}*")
     else:
-        lines.append("_\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445 \u0437\u0430 \u0434\u0435\u043d\u044c_")
+        lines.append(
+            "_\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445 \u0437\u0430 \u0434\u0435\u043d\u044c_"
+        )
 
     return "\n".join(lines)
 
@@ -105,7 +106,7 @@ def format_kombat_monthly(report_data: dict, branch_data: dict) -> str:
     standings = branch_data.get("standings", [])
 
     lines = [
-        f"\U0001f3c6 *BARBER KOMBAT \u2014 \u0418\u0442\u043e\u0433\u0438 \u043c\u0435\u0441\u044f\u0446\u0430*",
+        "\U0001f3c6 *BARBER KOMBAT \u2014 \u0418\u0442\u043e\u0433\u0438 \u043c\u0435\u0441\u044f\u0446\u0430*",
         f"\U0001f4c5 {month}",
         "",
     ]
@@ -155,13 +156,17 @@ def format_revenue_report(report_data: dict) -> str:
 
         lines.append(f"\U0001f4cd *{name}*")
         lines.append(f"  \u0421\u0435\u0433\u043e\u0434\u043d\u044f: *{today}*")
-        lines.append(f"  \u041c\u0435\u0441\u044f\u0446: {mtd} \\({pct} \u043f\u043b\u0430\u043d\u0430\\)")
+        lines.append(
+            f"  \u041c\u0435\u0441\u044f\u0446: {mtd} \\({pct} \u043f\u043b\u0430\u043d\u0430\\)"
+        )
         lines.append(f"  \u0411\u0430\u0440\u0431\u0435\u0440\u044b: {barbers}")
         lines.append("")
 
     network_today = _format_money_escaped(report_data.get("network_total_today", 0))
     network_mtd = _format_money_escaped(report_data.get("network_total_mtd", 0))
-    lines.append(f"\U0001f310 *\u0421\u0435\u0442\u044c:* {network_today} \\(\u043c\u0435\u0441\u044f\u0446: {network_mtd}\\)")
+    lines.append(
+        f"\U0001f310 *\u0421\u0435\u0442\u044c:* {network_today} \\(\u043c\u0435\u0441\u044f\u0446: {network_mtd}\\)"
+    )
 
     return "\n".join(lines)
 
@@ -185,14 +190,11 @@ def format_day_to_day(report_data: dict) -> str:
     lines = [
         f"\U0001f4c8 *Day\\-to\\-Day* \u2014 {period_end}",
         "",
-        f"\U0001f4c5 *{_escape_md(current.get('name', ''))}:* "
-        f"{_format_money_escaped(cur_amount)}",
-        f"\U0001f4c5 *{_escape_md(prev.get('name', ''))}:* "
-        f"{_format_money_escaped(prev_amount)}",
-        f"\U0001f4c5 *{_escape_md(prev_prev.get('name', ''))}:* "
-        f"{_format_money_escaped(pp_amount)}",
+        f"\U0001f4c5 *{_escape_md(current.get('name', ''))}:* {_format_money_escaped(cur_amount)}",
+        f"\U0001f4c5 *{_escape_md(prev.get('name', ''))}:* {_format_money_escaped(prev_amount)}",
+        f"\U0001f4c5 *{_escape_md(prev_prev.get('name', ''))}:* {_format_money_escaped(pp_amount)}",
         "",
-        f"\U0001f4ca \u0421\u0440\u0430\u0432\u043d\u0435\u043d\u0438\u0435:",
+        "\U0001f4ca \u0421\u0440\u0430\u0432\u043d\u0435\u043d\u0438\u0435:",
         f"  \u0432\u0441\\. \u043f\u0440\u043e\u0448\u043b\\. \u043c\u0435\u0441\\.: *{_escape_md(comparison.get('vs_prev', '0.0%'))}*",
         f"  \u0432\u0441\\. \u043f\u043e\u0437\u0430\u043f\u0440\u043e\u0448\u043b\\.: *{_escape_md(comparison.get('vs_prev_prev', '0.0%'))}*",
     ]

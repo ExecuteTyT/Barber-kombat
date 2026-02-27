@@ -171,8 +171,11 @@ class TestGetBranchPVR:
 
         mock_db.execute = AsyncMock(
             side_effect=[
-                branch_result, barbers_result, config_result,
-                record1_result, record2_result,
+                branch_result,
+                barbers_result,
+                config_result,
+                record1_result,
+                record2_result,
             ]
         )
 
@@ -182,9 +185,7 @@ class TestGetBranchPVR:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/pvr/{BRANCH_ID}/current")
 
         assert response.status_code == 200
@@ -222,9 +223,7 @@ class TestGetBranchPVR:
         config_result = MagicMock()
         config_result.scalar_one_or_none.return_value = None
 
-        mock_db.execute = AsyncMock(
-            side_effect=[branch_result, barbers_result, config_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[branch_result, barbers_result, config_result])
 
         mock_redis = AsyncMock()
 
@@ -232,9 +231,7 @@ class TestGetBranchPVR:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/pvr/{BRANCH_ID}/current")
 
         assert response.status_code == 200
@@ -253,9 +250,7 @@ class TestGetBranchPVR:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/pvr/{BRANCH_ID}/current")
 
         assert response.status_code == 403
@@ -277,9 +272,7 @@ class TestGetBranchPVR:
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
         fake_id = uuid.uuid4()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/pvr/{fake_id}/current")
 
         assert response.status_code == 404
@@ -287,9 +280,7 @@ class TestGetBranchPVR:
     @pytest.mark.asyncio
     async def test_unauthenticated_401(self):
         """Returns 401/403 without authentication."""
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/pvr/{BRANCH_ID}/current")
 
         assert response.status_code in (401, 403)
@@ -344,9 +335,7 @@ class TestGetBarberPVR:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/pvr/barber/{BARBER_ID_1}")
 
         assert response.status_code == 200
@@ -372,9 +361,7 @@ class TestGetBarberPVR:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/pvr/barber/{BARBER_ID_2}")
 
         assert response.status_code == 403
@@ -416,9 +403,7 @@ class TestGetBarberPVR:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/pvr/barber/{BARBER_ID_1}")
 
         assert response.status_code == 200
@@ -442,9 +427,7 @@ class TestGetBarberPVR:
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
         fake_id = uuid.uuid4()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/pvr/barber/{fake_id}")
 
         assert response.status_code == 404
@@ -470,17 +453,13 @@ class TestGetThresholds:
         config_result2 = MagicMock()
         config_result2.scalar_one_or_none.return_value = None
 
-        mock_db.execute = AsyncMock(
-            side_effect=[config_result, config_result2]
-        )
+        mock_db.execute = AsyncMock(side_effect=[config_result, config_result2])
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/pvr/thresholds")
 
         assert response.status_code == 200
@@ -515,17 +494,13 @@ class TestGetThresholds:
         config_result2 = MagicMock()
         config_result2.scalar_one_or_none.return_value = config
 
-        mock_db.execute = AsyncMock(
-            side_effect=[config_result, config_result2]
-        )
+        mock_db.execute = AsyncMock(side_effect=[config_result, config_result2])
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/pvr/thresholds")
 
         assert response.status_code == 200
@@ -539,9 +514,7 @@ class TestGetThresholds:
     @pytest.mark.asyncio
     async def test_unauthenticated_401(self):
         """Returns 401/403 without authentication."""
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/pvr/thresholds")
 
         assert response.status_code in (401, 403)

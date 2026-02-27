@@ -72,7 +72,9 @@ function UnconfirmedSection({
         </div>
       )}
       {count === 0 && (
-        <p className="px-4 pb-3 text-sm text-[var(--tg-theme-hint-color)]">Все записи подтверждены</p>
+        <p className="px-4 pb-3 text-sm text-[var(--tg-theme-hint-color)]">
+          Все записи подтверждены
+        </p>
       )}
     </div>
   )

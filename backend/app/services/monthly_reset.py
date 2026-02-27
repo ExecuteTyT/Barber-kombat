@@ -14,7 +14,8 @@ import uuid
 from datetime import date
 
 import structlog
-from sqlalchemy import select, func as sa_func
+from sqlalchemy import func as sa_func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.branch import Branch
@@ -57,16 +58,12 @@ class MonthlyResetService:
 
         for branch in branches:
             # 2. Finalize ratings — determine the champion
-            champion = await self._finalize_branch_ratings(
-                org_id, branch.id, month_start
-            )
+            champion = await self._finalize_branch_ratings(org_id, branch.id, month_start)
             if champion:
                 champions_count += 1
 
             # 3. Generate kombat_monthly report (freeze prize fund + standings)
-            await self._save_monthly_report(
-                org_id, branch.id, month_start, champion
-            )
+            await self._save_monthly_report(org_id, branch.id, month_start, champion)
 
         # 4. Create new PVR records with zeroes for every active barber
         pvr_records_created = await self._create_new_pvr_records(org_id, next_month)
@@ -97,9 +94,7 @@ class MonthlyResetService:
         Returns:
             Aggregate summary.
         """
-        result = await self.db.execute(
-            select(Organization).where(Organization.is_active.is_(True))
-        )
+        result = await self.db.execute(select(Organization).where(Organization.is_active.is_(True)))
         orgs = result.scalars().all()
 
         orgs_processed = 0
@@ -190,16 +185,16 @@ class MonthlyResetService:
         # Build full standings (all barbers with wins)
         standings = []
         for row in rows:
-            name_result = await self.db.execute(
-                select(User.name).where(User.id == row.barber_id)
-            )
+            name_result = await self.db.execute(select(User.name).where(User.id == row.barber_id))
             name = name_result.scalar_one_or_none() or "Unknown"
-            standings.append({
-                "barber_id": str(row.barber_id),
-                "name": name,
-                "wins": row.wins,
-                "total_score": round(float(row.total_score), 2),
-            })
+            standings.append(
+                {
+                    "barber_id": str(row.barber_id),
+                    "name": name,
+                    "wins": row.wins,
+                    "total_score": round(float(row.total_score), 2),
+                }
+            )
 
         return {
             "barber_id": str(champion_barber_id),
@@ -221,9 +216,7 @@ class MonthlyResetService:
         last_day = calendar.monthrange(month_start.year, month_start.month)[1]
         month_end = month_start.replace(day=last_day)
 
-        revenue_stmt = select(
-            sa_func.coalesce(sa_func.sum(DailyRating.revenue), 0)
-        ).where(
+        revenue_stmt = select(sa_func.coalesce(sa_func.sum(DailyRating.revenue), 0)).where(
             DailyRating.branch_id == branch_id,
             DailyRating.date >= month_start,
             DailyRating.date <= month_end,

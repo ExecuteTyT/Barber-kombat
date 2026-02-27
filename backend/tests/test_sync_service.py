@@ -99,7 +99,9 @@ def record_multiple_products():
         ],
         goods_transactions=[
             YClientGoodsTransaction(id=50, title="Шампунь", cost=800.0, amount=2, good_id=100),
-            YClientGoodsTransaction(id=51, title="Воск для укладки", cost=500.0, amount=3, good_id=101),
+            YClientGoodsTransaction(
+                id=51, title="Воск для укладки", cost=500.0, amount=3, good_id=101
+            ),
         ],
         cost=4800.0,
         paid_full=1,
@@ -193,7 +195,7 @@ class TestCountExtras:
         assert count_extras(services, ["Воск", "Массаж головы"]) == 2
 
     def test_case_insensitive(self):
-        services = [{"title": "ВОСК"}]  # noqa: RUF001
+        services = [{"title": "ВОСК"}]
         assert count_extras(services, ["воск"]) == 1
 
     def test_whitespace_trimmed(self):
@@ -287,9 +289,7 @@ class TestMapRecordToVisitDict:
 
         assert result["products_count"] == 1  # 1 product with amount=1
 
-    def test_multiple_products_count(
-        self, record_multiple_products, org_id, branch_id, barber_id
-    ):
+    def test_multiple_products_count(self, record_multiple_products, org_id, branch_id, barber_id):
         result = map_record_to_visit_dict(
             record=record_multiple_products,
             organization_id=org_id,

@@ -7,7 +7,6 @@ import type {
   PVRThresholdsConfig,
   PVRThreshold,
   PlanNetworkEntry,
-  BranchConfig,
   UserConfig,
   UserRole,
 } from '../../types'
@@ -57,23 +56,21 @@ function WeightSlider({
 
 // --- Kombat weights section ---
 function KombatSection() {
-  const {
-    ratingWeights,
-    settingsSaving,
-    fetchRatingWeights,
-    saveRatingWeights,
-  } = useOwnerStore()
+  const { ratingWeights, settingsSaving, fetchRatingWeights, saveRatingWeights } = useOwnerStore()
 
   const [draft, setDraft] = useState<RatingWeightsConfig | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [prevWeights, setPrevWeights] = useState<RatingWeightsConfig | null>(null)
 
   useEffect(() => {
     fetchRatingWeights()
   }, [fetchRatingWeights])
 
-  useEffect(() => {
-    if (ratingWeights) setDraft({ ...ratingWeights })
-  }, [ratingWeights])
+  // Sync draft from store (adjusting state during render)
+  if (ratingWeights && ratingWeights !== prevWeights) {
+    setPrevWeights(ratingWeights)
+    setDraft({ ...ratingWeights })
+  }
 
   if (!draft) return <LoadingSkeleton lines={5} />
 
@@ -97,11 +94,31 @@ function KombatSection() {
   return (
     <div className="space-y-3">
       <p className="text-sm font-medium">Веса рейтинга (сумма = 100%)</p>
-      <WeightSlider label="Выручка" value={draft.revenue_weight} onChange={(v) => setDraft({ ...draft, revenue_weight: v })} />
-      <WeightSlider label="ЧС" value={draft.cs_weight} onChange={(v) => setDraft({ ...draft, cs_weight: v })} />
-      <WeightSlider label="Товары" value={draft.products_weight} onChange={(v) => setDraft({ ...draft, products_weight: v })} />
-      <WeightSlider label="Допы" value={draft.extras_weight} onChange={(v) => setDraft({ ...draft, extras_weight: v })} />
-      <WeightSlider label="Отзывы" value={draft.reviews_weight} onChange={(v) => setDraft({ ...draft, reviews_weight: v })} />
+      <WeightSlider
+        label="Выручка"
+        value={draft.revenue_weight}
+        onChange={(v) => setDraft({ ...draft, revenue_weight: v })}
+      />
+      <WeightSlider
+        label="ЧС"
+        value={draft.cs_weight}
+        onChange={(v) => setDraft({ ...draft, cs_weight: v })}
+      />
+      <WeightSlider
+        label="Товары"
+        value={draft.products_weight}
+        onChange={(v) => setDraft({ ...draft, products_weight: v })}
+      />
+      <WeightSlider
+        label="Допы"
+        value={draft.extras_weight}
+        onChange={(v) => setDraft({ ...draft, extras_weight: v })}
+      />
+      <WeightSlider
+        label="Отзывы"
+        value={draft.reviews_weight}
+        onChange={(v) => setDraft({ ...draft, reviews_weight: v })}
+      />
       <p className={`text-sm font-bold ${total === 100 ? 'text-emerald-500' : 'text-red-500'}`}>
         Итого: {total}%
       </p>
@@ -141,23 +158,21 @@ function KombatSection() {
 
 // --- PVR thresholds section ---
 function PVRSection() {
-  const {
-    pvrThresholds,
-    settingsSaving,
-    fetchPvrThresholds,
-    savePvrThresholds,
-  } = useOwnerStore()
+  const { pvrThresholds, settingsSaving, fetchPvrThresholds, savePvrThresholds } = useOwnerStore()
 
   const [draft, setDraft] = useState<PVRThresholdsConfig | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [prevThresholds, setPrevThresholds] = useState<PVRThresholdsConfig | null>(null)
 
   useEffect(() => {
     fetchPvrThresholds()
   }, [fetchPvrThresholds])
 
-  useEffect(() => {
-    if (pvrThresholds) setDraft({ ...pvrThresholds, thresholds: [...pvrThresholds.thresholds] })
-  }, [pvrThresholds])
+  // Sync draft from store (adjusting state during render)
+  if (pvrThresholds && pvrThresholds !== prevThresholds) {
+    setPrevThresholds(pvrThresholds)
+    setDraft({ ...pvrThresholds, thresholds: [...pvrThresholds.thresholds] })
+  }
 
   if (!draft) return <LoadingSkeleton lines={4} />
 
@@ -171,7 +186,10 @@ function PVRSection() {
     const last = draft.thresholds[draft.thresholds.length - 1]
     const newAmount = last ? last.amount + 10000000 : 30000000
     const newBonus = last ? last.bonus + 100000 : 100000
-    setDraft({ ...draft, thresholds: [...draft.thresholds, { amount: newAmount, bonus: newBonus }] })
+    setDraft({
+      ...draft,
+      thresholds: [...draft.thresholds, { amount: newAmount, bonus: newBonus }],
+    })
   }
 
   const removeThreshold = (idx: number) => {
@@ -398,7 +416,9 @@ function StaffSection() {
       >
         <option value="">Все филиалы</option>
         {branches.map((b) => (
-          <option key={b.id} value={b.id}>{b.name}</option>
+          <option key={b.id} value={b.id}>
+            {b.name}
+          </option>
         ))}
       </select>
 
@@ -418,7 +438,9 @@ function StaffSection() {
               onChange={(e) => handleRoleChange(u, e.target.value as UserRole)}
             >
               {Object.entries(ROLE_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
+                <option key={k} value={k}>
+                  {v}
+                </option>
               ))}
             </select>
             {u.grade && (
@@ -460,7 +482,10 @@ function NotificationsSection() {
   return (
     <div className="space-y-2">
       {notifications.map((n) => (
-        <div key={n.id} className="flex items-center justify-between rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-3">
+        <div
+          key={n.id}
+          className="flex items-center justify-between rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-3"
+        >
           <div>
             <p className="text-sm font-medium">{n.notification_type}</p>
             <p className="text-xs text-[var(--tg-theme-hint-color)]">
@@ -468,7 +493,9 @@ function NotificationsSection() {
               {n.schedule_time && ` \u{2022} ${n.schedule_time}`}
             </p>
           </div>
-          <span className={`text-xs ${n.is_enabled ? 'text-emerald-500' : 'text-[var(--tg-theme-hint-color)]'}`}>
+          <span
+            className={`text-xs ${n.is_enabled ? 'text-emerald-500' : 'text-[var(--tg-theme-hint-color)]'}`}
+          >
             {n.is_enabled ? 'Вкл' : 'Выкл'}
           </span>
         </div>

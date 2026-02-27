@@ -1,7 +1,7 @@
 """Tests for Config API endpoints."""
 
 import uuid
-from datetime import datetime, time, UTC
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -12,7 +12,6 @@ from app.database import get_db
 from app.main import app
 from app.models.user import UserRole
 from app.redis import get_redis
-
 
 # --- Test constants ---
 
@@ -142,9 +141,7 @@ class TestGetRatingWeights:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/config/rating-weights")
 
         assert response.status_code == 200
@@ -172,9 +169,7 @@ class TestGetRatingWeights:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/config/rating-weights")
 
         assert response.status_code == 200
@@ -184,9 +179,7 @@ class TestGetRatingWeights:
 
     @pytest.mark.asyncio
     async def test_unauthenticated_401(self):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/config/rating-weights")
 
         assert response.status_code in (401, 403)
@@ -215,18 +208,14 @@ class TestPutRatingWeights:
         config_result = MagicMock()
         config_result.scalar_one_or_none.return_value = config
 
-        mock_db.execute = AsyncMock(
-            side_effect=[upsert_result, branches_result, config_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[upsert_result, branches_result, config_result])
         mock_db.commit = AsyncMock()
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 "/api/v1/config/rating-weights",
                 json={
@@ -256,9 +245,7 @@ class TestPutRatingWeights:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 "/api/v1/config/rating-weights",
                 json={
@@ -286,9 +273,7 @@ class TestPutRatingWeights:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 "/api/v1/config/rating-weights",
                 json={
@@ -316,9 +301,7 @@ class TestPutRatingWeights:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 "/api/v1/config/rating-weights",
                 json={
@@ -346,9 +329,7 @@ class TestPutRatingWeights:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 "/api/v1/config/rating-weights",
                 json={
@@ -385,9 +366,7 @@ class TestPVRThresholds:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/config/pvr-thresholds")
 
         assert response.status_code == 200
@@ -412,9 +391,7 @@ class TestPVRThresholds:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/config/pvr-thresholds")
 
         assert response.status_code == 200
@@ -441,9 +418,7 @@ class TestPVRThresholds:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 "/api/v1/config/pvr-thresholds",
                 json={
@@ -469,9 +444,7 @@ class TestPVRThresholds:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 "/api/v1/config/pvr-thresholds",
                 json={
@@ -497,9 +470,7 @@ class TestPVRThresholds:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 "/api/v1/config/pvr-thresholds",
                 json={
@@ -532,9 +503,7 @@ class TestBranchEndpoints:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/config/branches")
 
         assert response.status_code == 200
@@ -563,9 +532,7 @@ class TestBranchEndpoints:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/config/branches",
                 json={"name": "New Branch", "address": "456 Oak Ave"},
@@ -589,12 +556,8 @@ class TestBranchEndpoints:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get(
-                f"/api/v1/config/branches/{uuid.uuid4()}"
-            )
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(f"/api/v1/config/branches/{uuid.uuid4()}")
 
         assert response.status_code == 404
 
@@ -609,9 +572,7 @@ class TestBranchEndpoints:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/config/branches")
 
         assert response.status_code == 403
@@ -637,9 +598,7 @@ class TestUserEndpoints:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/config/users")
 
         assert response.status_code == 200
@@ -668,9 +627,7 @@ class TestUserEndpoints:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/config/users",
                 json={
@@ -699,12 +656,8 @@ class TestUserEndpoints:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get(
-                f"/api/v1/config/users/{uuid.uuid4()}"
-            )
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(f"/api/v1/config/users/{uuid.uuid4()}")
 
         assert response.status_code == 404
 
@@ -719,9 +672,7 @@ class TestUserEndpoints:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/config/users")
 
         assert response.status_code == 403
@@ -747,9 +698,7 @@ class TestNotificationEndpoints:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/config/notifications")
 
         assert response.status_code == 200
@@ -777,9 +726,7 @@ class TestNotificationEndpoints:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/config/notifications",
                 json={
@@ -809,12 +756,8 @@ class TestNotificationEndpoints:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.delete(
-                f"/api/v1/config/notifications/{NOTIF_ID}"
-            )
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.delete(f"/api/v1/config/notifications/{NOTIF_ID}")
 
         assert response.status_code == 204
 
@@ -833,12 +776,8 @@ class TestNotificationEndpoints:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.delete(
-                f"/api/v1/config/notifications/{uuid.uuid4()}"
-            )
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.delete(f"/api/v1/config/notifications/{uuid.uuid4()}")
 
         assert response.status_code == 404
 
@@ -853,9 +792,7 @@ class TestNotificationEndpoints:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/config/notifications")
 
         assert response.status_code == 403

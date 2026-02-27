@@ -18,9 +18,7 @@ export default function TabBar({ items }: TabBarProps) {
           to={item.path}
           className={({ isActive }) =>
             `flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors ${
-              isActive
-                ? 'text-[var(--tg-theme-button-color)]'
-                : 'text-[var(--tg-theme-hint-color)]'
+              isActive ? 'text-[var(--tg-theme-button-color)]' : 'text-[var(--tg-theme-hint-color)]'
             }`
           }
         >

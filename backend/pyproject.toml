@@ -21,7 +21,10 @@ select = [
     "TCH",  # flake8-type-checking
     "RUF",  # ruff-specific
 ]
-ignore = ["E501"]
+ignore = [
+    "E501",    # line too long
+    "RUF001",  # ambiguous unicode — project uses Cyrillic (Russian UI text)
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

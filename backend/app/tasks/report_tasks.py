@@ -32,9 +32,7 @@ async def _generate_daily(target_date: date | None = None) -> dict:
     errors = 0
 
     async with async_session() as db:
-        result = await db.execute(
-            select(Organization).where(Organization.is_active.is_(True))
-        )
+        result = await db.execute(select(Organization).where(Organization.is_active.is_(True)))
         orgs = result.scalars().all()
 
         for org in orgs:
@@ -72,9 +70,7 @@ async def _generate_day_to_day(target_date: date | None = None) -> dict:
     errors = 0
 
     async with async_session() as db:
-        result = await db.execute(
-            select(Organization).where(Organization.is_active.is_(True))
-        )
+        result = await db.execute(select(Organization).where(Organization.is_active.is_(True)))
         orgs = result.scalars().all()
 
         for org in orgs:
@@ -115,9 +111,7 @@ async def _generate_monthly(target_month: date | None = None) -> dict:
     errors = 0
 
     async with async_session() as db:
-        result = await db.execute(
-            select(Organization).where(Organization.is_active.is_(True))
-        )
+        result = await db.execute(select(Organization).where(Organization.is_active.is_(True)))
         orgs = result.scalars().all()
 
         for org in orgs:

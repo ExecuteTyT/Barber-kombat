@@ -47,9 +47,7 @@ async def _poll_all_branches() -> dict:
 
             for branch in branches:
                 try:
-                    synced = await sync_service.sync_records(
-                        branch.id, today, today
-                    )
+                    synced = await sync_service.sync_records(branch.id, today, today)
                     total_synced += synced
                     branches_processed += 1
 
@@ -149,9 +147,7 @@ async def _full_sync_all_branches() -> dict:
                     staff_synced += s_count
 
                     # Sync all records from yesterday
-                    r_count = await sync_service.sync_records(
-                        branch.id, yesterday, yesterday
-                    )
+                    r_count = await sync_service.sync_records(branch.id, yesterday, yesterday)
                     total_synced += r_count
                     branches_processed += 1
 

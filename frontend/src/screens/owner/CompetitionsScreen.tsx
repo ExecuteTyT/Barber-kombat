@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useWebSocket } from '../../hooks/useWebSocket'
@@ -57,12 +57,15 @@ function PVRRow({ barber }: { barber: BarberPVRResponse }) {
         <span className="text-sm font-medium">{barber.name}</span>
         {barber.thresholds_reached.length > 0 && (
           <span className="ml-1.5 text-xs text-emerald-500">
-            {'\u{2705}'}{barber.thresholds_reached.length}
+            {'\u{2705}'}
+            {barber.thresholds_reached.length}
           </span>
         )}
       </div>
       <div className="text-right">
-        <span className="font-bold tabular-nums text-sm">{formatMoney(barber.cumulative_revenue)}</span>
+        <span className="font-bold tabular-nums text-sm">
+          {formatMoney(barber.cumulative_revenue)}
+        </span>
         {barber.bonus_amount > 0 && (
           <p className="text-xs text-emerald-500">+{formatMoney(barber.bonus_amount)}</p>
         )}
@@ -80,21 +83,19 @@ export default function CompetitionsScreen() {
   // Kombat
   const { todayRating, fetchTodayRating, applyRatingUpdate } = useKombatStore()
   // PVR
-  const { branchPvr, thresholds, fetchBranchPvr, fetchThresholds } = usePvrStore()
+  const { branchPvr, fetchBranchPvr, fetchThresholds } = usePvrStore()
 
-  const branches = revenue?.branches ?? []
+  const branches = useMemo(() => revenue?.branches ?? [], [revenue])
 
   // Load branch list
   useEffect(() => {
     if (!revenue) fetchDashboard()
   }, [revenue, fetchDashboard])
 
-  // Auto-select first branch
-  useEffect(() => {
-    if (branches.length > 0 && !selectedBranchId) {
-      setSelectedBranchId(branches[0].branch_id)
-    }
-  }, [branches, selectedBranchId])
+  // Auto-select first branch (adjusting state during render)
+  if (branches.length > 0 && !selectedBranchId) {
+    setSelectedBranchId(branches[0].branch_id)
+  }
 
   // Fetch data when branch changes
   useEffect(() => {
@@ -127,10 +128,10 @@ export default function CompetitionsScreen() {
 
       {/* Tabs */}
       <div className="mx-4 mt-3 flex gap-2">
-        {([
+        {[
           { key: 'kombat' as Tab, label: 'Barber Kombat' },
           { key: 'pvr' as Tab, label: 'ПВР' },
-        ]).map((t) => (
+        ].map((t) => (
           <button
             key={t.key}
             type="button"
@@ -163,8 +164,8 @@ export default function CompetitionsScreen() {
 
       {/* Content */}
       <div className="mx-4 mt-3">
-        {tab === 'kombat' && (
-          todayRating ? (
+        {tab === 'kombat' &&
+          (todayRating ? (
             <div className="rounded-xl bg-[var(--tg-theme-secondary-bg-color)]">
               {/* Header */}
               <div className="flex items-center justify-between px-3 pb-1 pt-3">
@@ -202,14 +203,15 @@ export default function CompetitionsScreen() {
             </div>
           ) : (
             <LoadingSkeleton lines={6} />
-          )
-        )}
+          ))}
 
-        {tab === 'pvr' && (
-          branchPvr ? (
+        {tab === 'pvr' &&
+          (branchPvr ? (
             <div className="rounded-xl bg-[var(--tg-theme-secondary-bg-color)]">
               <div className="px-3 pb-1 pt-3">
-                <span className="text-sm font-medium">ПВР \u{2022} {branchPvr.month}</span>
+                <span className="text-sm font-medium">
+                  ПВР \u{2022} {branchPvr.month}
+                </span>
               </div>
               <div className="divide-y divide-[var(--tg-theme-hint-color)]/10">
                 {[...branchPvr.barbers]
@@ -226,8 +228,7 @@ export default function CompetitionsScreen() {
             </div>
           ) : (
             <LoadingSkeleton lines={6} />
-          )
-        )}
+          ))}
       </div>
     </div>
   )

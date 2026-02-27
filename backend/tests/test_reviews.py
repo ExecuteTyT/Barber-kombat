@@ -8,8 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.models.review import ReviewStatus
-from app.services.reviews import ReviewService, _NEGATIVE_THRESHOLD, _OVERDUE_HOURS
-
+from app.services.reviews import _NEGATIVE_THRESHOLD, _OVERDUE_HOURS, ReviewService
 
 # --- Helpers ---
 
@@ -62,7 +61,9 @@ def make_barber(barber_id: uuid.UUID = BARBER_ID, name: str = "Pavel") -> MagicM
     return barber
 
 
-def make_client(client_id: uuid.UUID = CLIENT_ID, name: str = "Ivan", phone: str = "+79001234567") -> MagicMock:
+def make_client(
+    client_id: uuid.UUID = CLIENT_ID, name: str = "Ivan", phone: str = "+79001234567"
+) -> MagicMock:
     client = MagicMock()
     client.id = client_id
     client.name = name
@@ -91,7 +92,7 @@ class TestCreateReview:
 
         service = ReviewService(db=mock_db, redis=mock_redis)
 
-        review = await service.create_review(
+        await service.create_review(
             organization_id=ORG_ID,
             branch_id=BRANCH_ID,
             barber_id=BARBER_ID,
@@ -129,7 +130,7 @@ class TestCreateReview:
 
         mock_db.execute = AsyncMock(side_effect=[barber_result, branch_result])
 
-        review = await service.create_review(
+        await service.create_review(
             organization_id=ORG_ID,
             branch_id=BRANCH_ID,
             barber_id=BARBER_ID,
@@ -360,9 +361,7 @@ class TestGetAlarum:
         barber_result = MagicMock()
         barber_result.scalar_one_or_none.return_value = make_barber()
 
-        mock_db.execute = AsyncMock(
-            side_effect=[count_result, reviews_result, barber_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[count_result, reviews_result, barber_result])
 
         service = ReviewService(db=mock_db, redis=mock_redis)
         reviews, total = await service.get_alarum(organization_id=ORG_ID)
@@ -466,9 +465,7 @@ class TestSendOverdueReminders:
         branch_result = MagicMock()
         branch_result.scalar_one_or_none.return_value = make_branch()
 
-        mock_db.execute = AsyncMock(
-            side_effect=[overdue_result, barber_result, branch_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[overdue_result, barber_result, branch_result])
 
         service = ReviewService(db=mock_db, redis=mock_redis)
         sent = await service.send_overdue_reminders()

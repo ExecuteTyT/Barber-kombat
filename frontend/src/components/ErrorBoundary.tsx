@@ -31,9 +31,7 @@ export default class ErrorBoundary extends Component<Props, State> {
           <p className="text-lg font-medium text-[var(--tg-theme-text-color)]">
             Что-то пошло не так
           </p>
-          <p className="text-sm text-[var(--tg-theme-hint-color)]">
-            {this.state.error?.message}
-          </p>
+          <p className="text-sm text-[var(--tg-theme-hint-color)]">{this.state.error?.message}</p>
           <button
             onClick={() => window.location.reload()}
             className="rounded-lg bg-[var(--tg-theme-button-color)] px-6 py-2 text-[var(--tg-theme-button-text-color)]"

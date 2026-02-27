@@ -20,19 +20,27 @@ function formatMoney(kopecks: number): string {
 
 function getRankColor(rank: number): string {
   switch (rank) {
-    case 1: return 'bg-amber-400 text-amber-950'
-    case 2: return 'bg-gray-300 text-gray-800'
-    case 3: return 'bg-amber-700 text-amber-100'
-    default: return 'bg-[var(--tg-theme-secondary-bg-color)] text-[var(--tg-theme-hint-color)]'
+    case 1:
+      return 'bg-amber-400 text-amber-950'
+    case 2:
+      return 'bg-gray-300 text-gray-800'
+    case 3:
+      return 'bg-amber-700 text-amber-100'
+    default:
+      return 'bg-[var(--tg-theme-secondary-bg-color)] text-[var(--tg-theme-hint-color)]'
   }
 }
 
 function getRankMedal(rank: number): string {
   switch (rank) {
-    case 1: return '\u{1F947}'
-    case 2: return '\u{1F948}'
-    case 3: return '\u{1F949}'
-    default: return ''
+    case 1:
+      return '\u{1F947}'
+    case 2:
+      return '\u{1F948}'
+    case 3:
+      return '\u{1F949}'
+    default:
+      return ''
   }
 }
 
@@ -75,11 +83,7 @@ function DayDetail({ entry, onClose }: { entry: DailyScoreEntry; onClose: () => 
     <div className="mx-4 mt-2 rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-4">
       <div className="flex items-center justify-between">
         <span className="font-medium">{label}</span>
-        <button
-          type="button"
-          className="text-[var(--tg-theme-hint-color)]"
-          onClick={onClose}
-        >
+        <button type="button" className="text-[var(--tg-theme-hint-color)]" onClick={onClose}>
           \u{2715}
         </button>
       </div>
@@ -168,12 +172,7 @@ function Calendar({
       ))}
 
       {/* Selected day detail */}
-      {selectedEntry && (
-        <DayDetail
-          entry={selectedEntry}
-          onClose={() => setSelectedDay(null)}
-        />
-      )}
+      {selectedEntry && <DayDetail entry={selectedEntry} onClose={() => setSelectedDay(null)} />}
     </div>
   )
 }
@@ -212,8 +211,7 @@ export default function HistoryScreen() {
     }
   }
 
-  const isCurrentMonth =
-    viewYear === now.getFullYear() && viewMonth === now.getMonth() + 1
+  const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth() + 1
 
   if (isLoading && !barberStats) {
     return (
@@ -259,11 +257,7 @@ export default function HistoryScreen() {
 
       {/* Calendar */}
       <div className="mt-3">
-        <Calendar
-          year={viewYear}
-          month={viewMonth}
-          scores={barberStats?.daily_scores ?? []}
-        />
+        <Calendar year={viewYear} month={viewMonth} scores={barberStats?.daily_scores ?? []} />
       </div>
 
       {/* Monthly summary */}
@@ -281,7 +275,9 @@ export default function HistoryScreen() {
             </div>
             <div className="flex justify-between">
               <span className="text-[var(--tg-theme-hint-color)]">Выручка</span>
-              <span className="font-bold tabular-nums">{formatMoney(barberStats.total_revenue)}</span>
+              <span className="font-bold tabular-nums">
+                {formatMoney(barberStats.total_revenue)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-[var(--tg-theme-hint-color)]">Средний ЧС</span>

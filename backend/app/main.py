@@ -16,8 +16,8 @@ from app.api.config import router as config_router
 from app.api.kombat import router as kombat_router
 from app.api.plans import router as plans_router
 from app.api.pvr import router as pvr_router
-from app.api.reviews import router as reviews_router
 from app.api.reports import router as reports_router
+from app.api.reviews import router as reviews_router
 from app.api.webhooks import router as webhooks_router
 from app.auth.jwt import decode_access_token
 from app.config import settings

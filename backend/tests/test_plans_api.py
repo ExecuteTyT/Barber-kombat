@@ -1,7 +1,6 @@
 """Tests for Plans API endpoints."""
 
 import uuid
-from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -181,9 +180,7 @@ class TestGetBranchPlan:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/plans/{BRANCH_ID}")
 
         assert response.status_code == 403
@@ -234,9 +231,7 @@ class TestGetBranchPlan:
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
         fake_id = uuid.uuid4()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/plans/{fake_id}")
 
         assert response.status_code == 404
@@ -244,9 +239,7 @@ class TestGetBranchPlan:
     @pytest.mark.asyncio
     async def test_unauthenticated_401(self):
         """Returns 401/403 without authentication."""
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/plans/{BRANCH_ID}")
 
         assert response.status_code in (401, 403)
@@ -289,12 +282,13 @@ class TestUpsertBranchPlan:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        with patch(
-            "app.api.plans.PlanService.upsert_plan", new_callable=AsyncMock
-        ) as mock_upsert, patch(
-            "app.api.plans.PlanService.get_plan_with_details",
-            new_callable=AsyncMock,
-            return_value=plan_data,
+        with (
+            patch("app.api.plans.PlanService.upsert_plan", new_callable=AsyncMock) as mock_upsert,
+            patch(
+                "app.api.plans.PlanService.get_plan_with_details",
+                new_callable=AsyncMock,
+                return_value=plan_data,
+            ),
         ):
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -321,9 +315,7 @@ class TestUpsertBranchPlan:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 f"/api/v1/plans/{BRANCH_ID}",
                 json={"month": "2026-02-01", "target_amount": 240_000_000},
@@ -343,9 +335,7 @@ class TestUpsertBranchPlan:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 f"/api/v1/plans/{BRANCH_ID}",
                 json={"month": "2026-02-01", "target_amount": 240_000_000},
@@ -365,9 +355,7 @@ class TestUpsertBranchPlan:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 f"/api/v1/plans/{BRANCH_ID}",
                 json={"month": "2026-02-01", "target_amount": 0},
@@ -408,12 +396,13 @@ class TestUpsertBranchPlan:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        with patch(
-            "app.api.plans.PlanService.upsert_plan", new_callable=AsyncMock
-        ), patch(
-            "app.api.plans.PlanService.get_plan_with_details",
-            new_callable=AsyncMock,
-            return_value=plan_data,
+        with (
+            patch("app.api.plans.PlanService.upsert_plan", new_callable=AsyncMock),
+            patch(
+                "app.api.plans.PlanService.get_plan_with_details",
+                new_callable=AsyncMock,
+                return_value=plan_data,
+            ),
         ):
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -497,9 +486,7 @@ class TestGetNetworkPlans:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/plans/network/all")
 
         assert response.status_code == 403
@@ -516,9 +503,7 @@ class TestGetNetworkPlans:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/plans/network/all")
 
         assert response.status_code == 403

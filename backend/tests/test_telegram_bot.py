@@ -1,7 +1,7 @@
 """Tests for Telegram bot formatters and send logic."""
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -11,14 +11,13 @@ from app.integrations.telegram.bot import (
     _format_money,
     _format_money_escaped,
     _miniapp_url,
-    format_kombat_report,
-    format_kombat_monthly,
-    format_revenue_report,
     format_day_to_day,
-    format_pvr_bell,
+    format_kombat_monthly,
+    format_kombat_report,
     format_negative_review,
+    format_pvr_bell,
+    format_revenue_report,
 )
-
 
 # --- Test helpers ---
 
@@ -331,7 +330,10 @@ class TestFormatNegativeReview:
             created_at="2026-02-22 15:30",
         )
 
-        assert "\u041d\u0435\u0433\u0430\u0442\u0438\u0432\u043d\u044b\u0439 \u043e\u0442\u0437\u044b\u0432" in text
+        assert (
+            "\u041d\u0435\u0433\u0430\u0442\u0438\u0432\u043d\u044b\u0439 \u043e\u0442\u0437\u044b\u0432"
+            in text
+        )
         assert "8 марта" in text
         assert "Павел" in text
         assert "Иван" in text
@@ -401,9 +403,7 @@ class TestTelegramBotSendMessage:
         mock_tg_bot = AsyncMock()
         bot._bot = mock_tg_bot
 
-        kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("Test", url="https://example.com")]
-        ])
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("Test", url="https://example.com")]])
         result = await bot.send_message(chat_id=-100123, text="hello", reply_markup=kb)
 
         assert result is True

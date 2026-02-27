@@ -4,7 +4,11 @@ interface LoadingSkeletonProps {
   className?: string
 }
 
-export default function LoadingSkeleton({ lines = 3, circle, className = '' }: LoadingSkeletonProps) {
+export default function LoadingSkeleton({
+  lines = 3,
+  circle,
+  className = '',
+}: LoadingSkeletonProps) {
   if (circle) {
     return (
       <div

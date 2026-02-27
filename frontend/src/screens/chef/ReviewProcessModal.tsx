@@ -12,11 +12,7 @@ interface ReviewProcessModalProps {
   ) => Promise<boolean>
 }
 
-export default function ReviewProcessModal({
-  review,
-  onClose,
-  onSubmit,
-}: ReviewProcessModalProps) {
+export default function ReviewProcessModal({ review, onClose, onSubmit }: ReviewProcessModalProps) {
   const [comment, setComment] = useState('')
   const [status, setStatus] = useState<'in_progress' | 'processed'>(
     review.status === 'new' ? 'in_progress' : 'processed',
@@ -44,10 +40,7 @@ export default function ReviewProcessModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       {/* Modal */}
       <div
@@ -74,9 +67,7 @@ export default function ReviewProcessModal({
             {review.barber_name}
             {review.client_name && ` \u{2022} ${review.client_name}`}
           </p>
-          {review.comment && (
-            <p className="mt-2 text-sm">{review.comment}</p>
-          )}
+          {review.comment && <p className="mt-2 text-sm">{review.comment}</p>}
         </div>
 
         {/* Status selector */}
@@ -122,9 +113,7 @@ export default function ReviewProcessModal({
         </div>
 
         {error && (
-          <p className="mt-2 text-sm text-[var(--tg-theme-destructive-text-color)]">
-            {error}
-          </p>
+          <p className="mt-2 text-sm text-[var(--tg-theme-destructive-text-color)]">{error}</p>
         )}
 
         {/* Actions */}

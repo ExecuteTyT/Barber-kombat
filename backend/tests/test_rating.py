@@ -206,19 +206,34 @@ class TestAssignRanks:
     def test_basic_ranking(self):
         entries = [
             _BarberScoredData(
-                barber_id=uuid.uuid4(), barber_name="A",
-                revenue=10000, cs_value=1.0, products_count=0,
-                extras_count=0, reviews_avg=None, total_score=95,
+                barber_id=uuid.uuid4(),
+                barber_name="A",
+                revenue=10000,
+                cs_value=1.0,
+                products_count=0,
+                extras_count=0,
+                reviews_avg=None,
+                total_score=95,
             ),
             _BarberScoredData(
-                barber_id=uuid.uuid4(), barber_name="B",
-                revenue=8000, cs_value=1.0, products_count=0,
-                extras_count=0, reviews_avg=None, total_score=87,
+                barber_id=uuid.uuid4(),
+                barber_name="B",
+                revenue=8000,
+                cs_value=1.0,
+                products_count=0,
+                extras_count=0,
+                reviews_avg=None,
+                total_score=87,
             ),
             _BarberScoredData(
-                barber_id=uuid.uuid4(), barber_name="C",
-                revenue=12000, cs_value=1.0, products_count=0,
-                extras_count=0, reviews_avg=None, total_score=100,
+                barber_id=uuid.uuid4(),
+                barber_name="C",
+                revenue=12000,
+                cs_value=1.0,
+                products_count=0,
+                extras_count=0,
+                reviews_avg=None,
+                total_score=100,
             ),
         ]
         result = RatingEngine._assign_ranks(entries)
@@ -232,14 +247,24 @@ class TestAssignRanks:
     def test_tie_broken_by_revenue(self):
         entries = [
             _BarberScoredData(
-                barber_id=uuid.uuid4(), barber_name="Low Revenue",
-                revenue=5000, cs_value=1.0, products_count=0,
-                extras_count=0, reviews_avg=None, total_score=80,
+                barber_id=uuid.uuid4(),
+                barber_name="Low Revenue",
+                revenue=5000,
+                cs_value=1.0,
+                products_count=0,
+                extras_count=0,
+                reviews_avg=None,
+                total_score=80,
             ),
             _BarberScoredData(
-                barber_id=uuid.uuid4(), barber_name="High Revenue",
-                revenue=15000, cs_value=1.0, products_count=0,
-                extras_count=0, reviews_avg=None, total_score=80,
+                barber_id=uuid.uuid4(),
+                barber_name="High Revenue",
+                revenue=15000,
+                cs_value=1.0,
+                products_count=0,
+                extras_count=0,
+                reviews_avg=None,
+                total_score=80,
             ),
         ]
         result = RatingEngine._assign_ranks(entries)
@@ -251,9 +276,14 @@ class TestAssignRanks:
     def test_single_entry(self):
         entries = [
             _BarberScoredData(
-                barber_id=uuid.uuid4(), barber_name="Solo",
-                revenue=10000, cs_value=1.0, products_count=0,
-                extras_count=0, reviews_avg=None, total_score=50,
+                barber_id=uuid.uuid4(),
+                barber_name="Solo",
+                revenue=10000,
+                cs_value=1.0,
+                products_count=0,
+                extras_count=0,
+                reviews_avg=None,
+                total_score=50,
             ),
         ]
         result = RatingEngine._assign_ranks(entries)
@@ -271,22 +301,37 @@ class TestScoreBarbers:
 
         raw_data = [
             _BarberRawData(
-                barber_id=uuid.uuid4(), barber_name="Pavel",
-                haircut_price=160_000, revenue=1_350_000,
-                visits_count=5, cs_value=1.45,
-                products_count=2, extras_count=3, reviews_avg=4.5,
+                barber_id=uuid.uuid4(),
+                barber_name="Pavel",
+                haircut_price=160_000,
+                revenue=1_350_000,
+                visits_count=5,
+                cs_value=1.45,
+                products_count=2,
+                extras_count=3,
+                reviews_avg=4.5,
             ),
             _BarberRawData(
-                barber_id=uuid.uuid4(), barber_name="Leo",
-                haircut_price=160_000, revenue=1_230_000,
-                visits_count=4, cs_value=1.52,
-                products_count=1, extras_count=2, reviews_avg=4.8,
+                barber_id=uuid.uuid4(),
+                barber_name="Leo",
+                haircut_price=160_000,
+                revenue=1_230_000,
+                visits_count=4,
+                cs_value=1.52,
+                products_count=1,
+                extras_count=2,
+                reviews_avg=4.8,
             ),
             _BarberRawData(
-                barber_id=uuid.uuid4(), barber_name="Mark",
-                haircut_price=160_000, revenue=650_000,
-                visits_count=3, cs_value=1.61,
-                products_count=3, extras_count=1, reviews_avg=None,
+                barber_id=uuid.uuid4(),
+                barber_name="Mark",
+                haircut_price=160_000,
+                revenue=650_000,
+                visits_count=3,
+                cs_value=1.61,
+                products_count=3,
+                extras_count=1,
+                reviews_avg=None,
             ),
         ]
 
@@ -321,16 +366,26 @@ class TestScoreBarbers:
 
         raw_data = [
             _BarberRawData(
-                barber_id=uuid.uuid4(), barber_name="A",
-                haircut_price=160_000, revenue=0,
-                visits_count=0, cs_value=0.0,
-                products_count=0, extras_count=0, reviews_avg=None,
+                barber_id=uuid.uuid4(),
+                barber_name="A",
+                haircut_price=160_000,
+                revenue=0,
+                visits_count=0,
+                cs_value=0.0,
+                products_count=0,
+                extras_count=0,
+                reviews_avg=None,
             ),
             _BarberRawData(
-                barber_id=uuid.uuid4(), barber_name="B",
-                haircut_price=160_000, revenue=0,
-                visits_count=0, cs_value=0.0,
-                products_count=0, extras_count=0, reviews_avg=None,
+                barber_id=uuid.uuid4(),
+                barber_name="B",
+                haircut_price=160_000,
+                revenue=0,
+                visits_count=0,
+                cs_value=0.0,
+                products_count=0,
+                extras_count=0,
+                reviews_avg=None,
             ),
         ]
 
@@ -422,10 +477,16 @@ class TestRecalculate:
 
         visits = [
             # Pavel: 2 visits, total revenue 1,350,000
-            make_visit(b1.id, revenue=900_000, services_revenue=800_000, extras_count=2, products_count=1),
-            make_visit(b1.id, revenue=450_000, services_revenue=400_000, extras_count=1, products_count=0),
+            make_visit(
+                b1.id, revenue=900_000, services_revenue=800_000, extras_count=2, products_count=1
+            ),
+            make_visit(
+                b1.id, revenue=450_000, services_revenue=400_000, extras_count=1, products_count=0
+            ),
             # Leo: 1 visit, total revenue 500_000
-            make_visit(b2.id, revenue=500_000, services_revenue=450_000, extras_count=0, products_count=2),
+            make_visit(
+                b2.id, revenue=500_000, services_revenue=450_000, extras_count=0, products_count=2
+            ),
             # Mark: no visits
         ]
 
@@ -486,7 +547,9 @@ class TestRecalculate:
         b1 = make_barber("Solo Barber", 160_000, branch_id)
 
         visits = [
-            make_visit(b1.id, revenue=500_000, services_revenue=400_000, extras_count=1, products_count=1),
+            make_visit(
+                b1.id, revenue=500_000, services_revenue=400_000, extras_count=1, products_count=1
+            ),
         ]
 
         engine, _, _ = self._setup_engine(

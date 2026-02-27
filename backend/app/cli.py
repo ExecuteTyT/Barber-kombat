@@ -41,9 +41,7 @@ def cli():
     help="Owner's Telegram ID",
 )
 @click.option("--owner-name", required=True, help="Owner's display name")
-@click.option(
-    "--branch-name", default="Main Branch", help="First branch name"
-)
+@click.option("--branch-name", default="Main Branch", help="First branch name")
 @click.option("--branch-address", default="", help="Branch address")
 @click.option(
     "--yclients-company-id",
@@ -218,7 +216,9 @@ async def _seed_demo():
         )
         db.add_all([branch1, branch2])
         await db.flush()
-        click.echo(f"[OK] Branches: '{branch1.name}' (id={branch1.id}), '{branch2.name}' (id={branch2.id})")
+        click.echo(
+            f"[OK] Branches: '{branch1.name}' (id={branch1.id}), '{branch2.name}' (id={branch2.id})"
+        )
 
         # ---- 3. Users ----
         # Barbers for branch 1
@@ -312,7 +312,13 @@ async def _seed_demo():
             prize_gold_pct=0.5,
             prize_silver_pct=0.3,
             prize_bronze_pct=0.1,
-            extra_services=["воск", "камуфляж головы", "камуфляж бороды", "массаж", "премиум помывка"],
+            extra_services=[
+                "воск",
+                "камуфляж головы",
+                "камуфляж бороды",
+                "массаж",
+                "премиум помывка",
+            ],
         )
         db.add(rating_config)
 
@@ -354,9 +360,16 @@ async def _seed_demo():
 
         # ---- 7. Demo Clients ----
         client_names = [
-            "Андрей К.", "Борис М.", "Виктор Н.", "Григорий П.",
-            "Денис С.", "Евгений Т.", "Жора У.", "Захар Ф.",
-            "Игорь Х.", "Константин Ц.",
+            "Андрей К.",
+            "Борис М.",
+            "Виктор Н.",
+            "Григорий П.",
+            "Денис С.",
+            "Евгений Т.",
+            "Жора У.",
+            "Захар Ф.",
+            "Игорь Х.",
+            "Константин Ц.",
         ]
         clients = []
         for i, cn in enumerate(client_names):
@@ -390,7 +403,9 @@ async def _seed_demo():
                     cs_value = round(random.uniform(1.5, 3.5), 2)
                     products_count = random.randint(0, 5)
                     extras_count = random.randint(0, 4)
-                    reviews_avg = round(random.uniform(3.5, 5.0), 1) if random.random() > 0.3 else None
+                    reviews_avg = (
+                        round(random.uniform(3.5, 5.0), 1) if random.random() > 0.3 else None
+                    )
 
                     # Compute rough normalized scores
                     rev_score = min(100.0, (revenue / 2_500_000) * 100)
@@ -400,12 +415,29 @@ async def _seed_demo():
                     rev_review_score = ((reviews_avg / 5.0) * 100) if reviews_avg else 0.0
 
                     total = round(
-                        rev_score * 0.20 + cs_score * 0.20 + prod_score * 0.25
-                        + ext_score * 0.25 + rev_review_score * 0.10,
+                        rev_score * 0.20
+                        + cs_score * 0.20
+                        + prod_score * 0.25
+                        + ext_score * 0.25
+                        + rev_review_score * 0.10,
                         2,
                     )
-                    scores.append((barber, total, revenue, cs_value, products_count, extras_count, reviews_avg,
-                                   rev_score, cs_score, prod_score, ext_score, rev_review_score))
+                    scores.append(
+                        (
+                            barber,
+                            total,
+                            revenue,
+                            cs_value,
+                            products_count,
+                            extras_count,
+                            reviews_avg,
+                            rev_score,
+                            cs_score,
+                            prod_score,
+                            ext_score,
+                            rev_review_score,
+                        )
+                    )
 
                     # Accumulate plan revenue
                     if plan_acc == "b1":
@@ -416,10 +448,20 @@ async def _seed_demo():
                 # Sort by total desc for ranking
                 scores.sort(key=lambda x: x[1], reverse=True)
 
-                for rank, (barber, total, revenue, cs_value, products_count, extras_count,
-                           reviews_avg, rev_score, cs_score, prod_score, ext_score, rev_review_score) in enumerate(
-                    scores, 1
-                ):
+                for rank, (
+                    barber,
+                    total,
+                    revenue,
+                    cs_value,
+                    products_count,
+                    extras_count,
+                    reviews_avg,
+                    rev_score,
+                    cs_score,
+                    prod_score,
+                    ext_score,
+                    rev_review_score,
+                ) in enumerate(scores, 1):
                     dr = DailyRating(
                         organization_id=org_id,
                         branch_id=branch.id,
@@ -443,7 +485,7 @@ async def _seed_demo():
                     # Create 2-4 visits per barber per day
                     num_visits = random.randint(2, 4)
                     visit_revenue_each = revenue // num_visits
-                    for v_idx in range(num_visits):
+                    for _v_idx in range(num_visits):
                         client = random.choice(clients)
                         v = Visit(
                             organization_id=org_id,
@@ -463,13 +505,21 @@ async def _seed_demo():
                         db.add(v)
                         yclients_record_seq += 1
 
-        click.echo(f"[OK] Created 7 days of daily ratings and visits")
+        click.echo("[OK] Created 7 days of daily ratings and visits")
 
         # Update plan current amounts
         plan1.current_amount = plan1_revenue_total
-        plan1.percentage = round((plan1_revenue_total / plan1.target_amount) * 100, 1) if plan1.target_amount else 0
+        plan1.percentage = (
+            round((plan1_revenue_total / plan1.target_amount) * 100, 1)
+            if plan1.target_amount
+            else 0
+        )
         plan2.current_amount = plan2_revenue_total
-        plan2.percentage = round((plan2_revenue_total / plan2.target_amount) * 100, 1) if plan2.target_amount else 0
+        plan2.percentage = (
+            round((plan2_revenue_total / plan2.target_amount) * 100, 1)
+            if plan2.target_amount
+            else 0
+        )
 
         # ---- 9. PVR Records (current month) ----
         for barber in all_barbers:
@@ -480,10 +530,12 @@ async def _seed_demo():
             current_threshold = None
             for t in pvr_config.thresholds:
                 if cum_revenue >= t["amount"]:
-                    thresholds_reached.append({
-                        "amount": t["amount"],
-                        "reached_at": str(today - timedelta(days=random.randint(1, 7))),
-                    })
+                    thresholds_reached.append(
+                        {
+                            "amount": t["amount"],
+                            "reached_at": str(today - timedelta(days=random.randint(1, 7))),
+                        }
+                    )
                     bonus = t["bonus"]
                     current_threshold = t["amount"]
                 else:
@@ -638,7 +690,7 @@ def monthly_reset(month: str, org_id: str | None):
         target_month = date(int(parts[0]), int(parts[1]), 1)
     except (ValueError, IndexError):
         click.echo(f"Invalid month format: {month}. Use YYYY-MM (e.g. 2026-01).")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     click.echo(f"Running monthly reset for {target_month.strftime('%B %Y')}...")
 

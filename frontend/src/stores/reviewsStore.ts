@@ -1,11 +1,7 @@
 import { create } from 'zustand'
 
 import api from '../api/client'
-import type {
-  ReviewResponse,
-  ReviewListResponse,
-  ReviewStatus,
-} from '../types'
+import type { ReviewResponse, ReviewListResponse, ReviewStatus } from '../types'
 
 interface ReviewFilters {
   status?: ReviewStatus | null
@@ -53,10 +49,7 @@ export const useReviewsStore = create<ReviewsState>((set, get) => ({
       if (filters.status) params.status = filters.status
       if (filters.ratingMax) params.rating_max = filters.ratingMax
 
-      const { data } = await api.get<ReviewListResponse>(
-        `/reviews/${branchId}`,
-        { params },
-      )
+      const { data } = await api.get<ReviewListResponse>(`/reviews/${branchId}`, { params })
       set({
         reviews: data.reviews,
         total: data.total,
@@ -81,15 +74,13 @@ export const useReviewsStore = create<ReviewsState>((set, get) => ({
     comment: string,
   ): Promise<boolean> => {
     try {
-      const { data } = await api.put<ReviewResponse>(
-        `/reviews/${reviewId}/process`,
-        { status, comment },
-      )
+      const { data } = await api.put<ReviewResponse>(`/reviews/${reviewId}/process`, {
+        status,
+        comment,
+      })
       // Update the review in the local list
       set((state) => ({
-        reviews: state.reviews.map((r) =>
-          r.id === reviewId ? data : r,
-        ),
+        reviews: state.reviews.map((r) => (r.id === reviewId ? data : r)),
       }))
       return true
     } catch {

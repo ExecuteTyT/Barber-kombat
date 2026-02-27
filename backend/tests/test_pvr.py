@@ -7,8 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.pvr import PVRService, _DEFAULT_THRESHOLDS
-
+from app.services.pvr import _DEFAULT_THRESHOLDS, PVRService
 
 # --- Helpers ---
 
@@ -110,49 +109,37 @@ class TestFindThreshold:
 
     def test_no_threshold_when_below_minimum(self):
         """Revenue below all thresholds returns None, 0."""
-        threshold, bonus = PVRService._find_threshold(
-            25_000_000, _DEFAULT_THRESHOLDS
-        )
+        threshold, bonus = PVRService._find_threshold(25_000_000, _DEFAULT_THRESHOLDS)
         assert threshold is None
         assert bonus == 0
 
     def test_exact_minimum_threshold(self):
         """Revenue exactly at 300k threshold."""
-        threshold, bonus = PVRService._find_threshold(
-            30_000_000, _DEFAULT_THRESHOLDS
-        )
+        threshold, bonus = PVRService._find_threshold(30_000_000, _DEFAULT_THRESHOLDS)
         assert threshold == 30_000_000
         assert bonus == 1_000_000
 
     def test_between_thresholds(self):
         """Revenue between 300k and 350k returns the 300k threshold."""
-        threshold, bonus = PVRService._find_threshold(
-            32_000_000, _DEFAULT_THRESHOLDS
-        )
+        threshold, bonus = PVRService._find_threshold(32_000_000, _DEFAULT_THRESHOLDS)
         assert threshold == 30_000_000
         assert bonus == 1_000_000
 
     def test_exact_second_threshold(self):
         """Revenue exactly at 350k threshold."""
-        threshold, bonus = PVRService._find_threshold(
-            35_000_000, _DEFAULT_THRESHOLDS
-        )
+        threshold, bonus = PVRService._find_threshold(35_000_000, _DEFAULT_THRESHOLDS)
         assert threshold == 35_000_000
         assert bonus == 1_500_000
 
     def test_highest_threshold(self):
         """Revenue at 800k returns max threshold."""
-        threshold, bonus = PVRService._find_threshold(
-            80_000_000, _DEFAULT_THRESHOLDS
-        )
+        threshold, bonus = PVRService._find_threshold(80_000_000, _DEFAULT_THRESHOLDS)
         assert threshold == 80_000_000
         assert bonus == 5_000_000
 
     def test_above_highest_threshold(self):
         """Revenue exceeding 800k still returns max threshold."""
-        threshold, bonus = PVRService._find_threshold(
-            120_000_000, _DEFAULT_THRESHOLDS
-        )
+        threshold, bonus = PVRService._find_threshold(120_000_000, _DEFAULT_THRESHOLDS)
         assert threshold == 80_000_000
         assert bonus == 5_000_000
 
@@ -199,9 +186,7 @@ class TestCalcCleanRevenue:
         service = PVRService(db=mock_db, redis=mock_redis)
         config = None  # Default config
 
-        result = await service._calc_clean_revenue(
-            BARBER_ID_1, date(2026, 2, 1), config
-        )
+        result = await service._calc_clean_revenue(BARBER_ID_1, date(2026, 2, 1), config)
         assert result == 45_000_000
 
         # Verify the SQL was executed
@@ -220,9 +205,7 @@ class TestCalcCleanRevenue:
         service = PVRService(db=mock_db, redis=mock_redis)
         config = make_pvr_config(count_products=True)
 
-        result = await service._calc_clean_revenue(
-            BARBER_ID_1, date(2026, 2, 1), config
-        )
+        result = await service._calc_clean_revenue(BARBER_ID_1, date(2026, 2, 1), config)
         assert result == 55_000_000
 
     @pytest.mark.asyncio
@@ -238,9 +221,7 @@ class TestCalcCleanRevenue:
         service = PVRService(db=mock_db, redis=mock_redis)
         config = make_pvr_config(count_certificates=True)
 
-        result = await service._calc_clean_revenue(
-            BARBER_ID_1, date(2026, 2, 1), config
-        )
+        result = await service._calc_clean_revenue(BARBER_ID_1, date(2026, 2, 1), config)
         assert result == 48_000_000
 
     @pytest.mark.asyncio
@@ -254,9 +235,7 @@ class TestCalcCleanRevenue:
         mock_db.execute = AsyncMock(return_value=revenue_result)
 
         service = PVRService(db=mock_db, redis=mock_redis)
-        result = await service._calc_clean_revenue(
-            BARBER_ID_1, date(2026, 2, 1), None
-        )
+        result = await service._calc_clean_revenue(BARBER_ID_1, date(2026, 2, 1), None)
         assert result == 0
 
     @pytest.mark.asyncio
@@ -270,9 +249,7 @@ class TestCalcCleanRevenue:
         mock_db.execute = AsyncMock(return_value=revenue_result)
 
         service = PVRService(db=mock_db, redis=mock_redis)
-        result = await service._calc_clean_revenue(
-            BARBER_ID_1, date(2025, 12, 1), None
-        )
+        result = await service._calc_clean_revenue(BARBER_ID_1, date(2025, 12, 1), None)
         assert result == 30_000_000
         mock_db.execute.assert_called_once()
 
@@ -379,8 +356,12 @@ class TestRecalculateBarber:
 
         mock_db.execute = AsyncMock(
             side_effect=[
-                config_result, revenue_result, prev_result,
-                upsert_result, barber_result, final_result,
+                config_result,
+                revenue_result,
+                prev_result,
+                upsert_result,
+                barber_result,
+                final_result,
             ]
         )
         mock_db.commit = AsyncMock()
@@ -490,8 +471,12 @@ class TestRecalculateBarber:
 
         mock_db.execute = AsyncMock(
             side_effect=[
-                config_result, revenue_result, prev_result,
-                upsert_result, barber_result, final_result,
+                config_result,
+                revenue_result,
+                prev_result,
+                upsert_result,
+                barber_result,
+                final_result,
             ]
         )
         mock_db.commit = AsyncMock()
@@ -531,9 +516,7 @@ class TestRecalculateBranch:
         barbers_result = MagicMock()
         barbers_result.scalars.return_value.all.return_value = [barber1, barber2]
 
-        mock_db.execute = AsyncMock(
-            side_effect=[branch_result, barbers_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[branch_result, barbers_result])
 
         with patch.object(service, "recalculate_barber", new_callable=AsyncMock) as mock_recalc:
             record1 = make_pvr_record(barber_id=BARBER_ID_1)
@@ -722,9 +705,7 @@ class TestGetBarberPvr:
         barber_result = MagicMock()
         barber_result.scalar_one_or_none.return_value = barber
 
-        mock_db.execute = AsyncMock(
-            side_effect=[record_result, config_result, barber_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[record_result, config_result, barber_result])
 
         service = PVRService(db=mock_db, redis=mock_redis)
         data = await service.get_barber_pvr(BARBER_ID_1, ORG_ID)
@@ -755,9 +736,7 @@ class TestGetBarberPvr:
         barber_result = MagicMock()
         barber_result.scalar_one_or_none.return_value = barber
 
-        mock_db.execute = AsyncMock(
-            side_effect=[record_result, config_result, barber_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[record_result, config_result, barber_result])
 
         service = PVRService(db=mock_db, redis=mock_redis)
         data = await service.get_barber_pvr(BARBER_ID_1, ORG_ID)
@@ -789,12 +768,12 @@ class TestDefaultThresholds:
     def test_threshold_amounts_match_docs(self):
         """Verify thresholds match the documented values (in kopecks)."""
         expected = {
-            30_000_000: 1_000_000,   # 300k -> 10k
-            35_000_000: 1_500_000,   # 350k -> 15k
-            40_000_000: 2_000_000,   # 400k -> 20k
-            50_000_000: 3_000_000,   # 500k -> 30k
-            60_000_000: 4_000_000,   # 600k -> 40k
-            80_000_000: 5_000_000,   # 800k -> 50k
+            30_000_000: 1_000_000,  # 300k -> 10k
+            35_000_000: 1_500_000,  # 350k -> 15k
+            40_000_000: 2_000_000,  # 400k -> 20k
+            50_000_000: 3_000_000,  # 500k -> 30k
+            60_000_000: 4_000_000,  # 600k -> 40k
+            80_000_000: 5_000_000,  # 800k -> 50k
         }
         actual = {t["amount"]: t["bonus"] for t in _DEFAULT_THRESHOLDS}
         assert actual == expected

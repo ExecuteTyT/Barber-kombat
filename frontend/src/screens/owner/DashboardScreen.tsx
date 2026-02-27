@@ -10,13 +10,7 @@ function formatMoney(kopecks: number): string {
   return rubles.toLocaleString('ru-RU') + '\u{00A0}\u{20BD}'
 }
 
-function BranchCard({
-  branch,
-  onClick,
-}: {
-  branch: BranchRevenue
-  onClick: () => void
-}) {
+function BranchCard({ branch, onClick }: { branch: BranchRevenue; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -32,9 +26,7 @@ function BranchCard({
 
       <p className="mt-1 text-lg font-bold tabular-nums">
         {formatMoney(branch.revenue_today)}{' '}
-        <span className="text-sm font-normal text-[var(--tg-theme-hint-color)]">
-          сегодня
-        </span>
+        <span className="text-sm font-normal text-[var(--tg-theme-hint-color)]">сегодня</span>
       </p>
 
       {/* Plan progress */}
@@ -49,9 +41,7 @@ function BranchCard({
           <span className="text-[var(--tg-theme-hint-color)]">
             {formatMoney(branch.revenue_mtd)} / {formatMoney(branch.plan_target)}
           </span>
-          <span className="font-bold tabular-nums">
-            {branch.plan_percentage.toFixed(0)}% плана
-          </span>
+          <span className="font-bold tabular-nums">{branch.plan_percentage.toFixed(0)}% плана</span>
         </div>
       </div>
     </button>
@@ -60,14 +50,7 @@ function BranchCard({
 
 export default function DashboardScreen() {
   const navigate = useNavigate()
-  const {
-    revenue,
-    alarumTotal,
-    isLoading,
-    error,
-    fetchDashboard,
-    fetchAlarum,
-  } = useOwnerStore()
+  const { revenue, alarumTotal, isLoading, error, fetchDashboard, fetchAlarum } = useOwnerStore()
 
   useEffect(() => {
     fetchDashboard()
@@ -119,7 +102,8 @@ export default function DashboardScreen() {
         {alarumTotal > 0 && (
           <div className="mt-2 flex items-center gap-1.5 text-sm text-red-500">
             <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
-            {alarumTotal} необработанн{alarumTotal === 1 ? 'ый' : 'ых'} отзыв{alarumTotal === 1 ? '' : alarumTotal < 5 ? 'а' : 'ов'}
+            {alarumTotal} необработанн{alarumTotal === 1 ? 'ый' : 'ых'} отзыв
+            {alarumTotal === 1 ? '' : alarumTotal < 5 ? 'а' : 'ов'}
           </div>
         )}
       </div>
@@ -134,9 +118,7 @@ export default function DashboardScreen() {
           />
         ))}
         {revenue.branches.length === 0 && (
-          <p className="py-8 text-center text-[var(--tg-theme-hint-color)]">
-            Филиалы не найдены
-          </p>
+          <p className="py-8 text-center text-[var(--tg-theme-hint-color)]">Филиалы не найдены</p>
         )}
       </div>
     </div>

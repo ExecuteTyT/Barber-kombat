@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user, require_role
+from app.auth.dependencies import require_role
 from app.database import get_db
 from app.models.branch import Branch
 from app.models.user import User, UserRole
@@ -57,15 +57,13 @@ async def get_branch_plan(
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
-    month: date | None = Query(None, description="First day of month, e.g. 2024-10-01"),
+    month: Annotated[date | None, Query(description="First day of month, e.g. 2024-10-01")] = None,
 ):
     """Get plan for a branch. Chef, owner, admin only."""
     await _validate_branch(branch_id, current_user.organization_id, db)
 
     plan_service = PlanService(db=db, redis=redis)
-    data = await plan_service.get_plan_with_details(
-        branch_id, current_user.organization_id, month
-    )
+    data = await plan_service.get_plan_with_details(branch_id, current_user.organization_id, month)
 
     if data is None:
         raise HTTPException(
@@ -80,14 +78,12 @@ async def get_branch_plan(
 async def upsert_branch_plan(
     branch_id: uuid.UUID,
     body: PlanCreate,
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
     """Create or update a plan for a branch. Owner/admin only."""
-    branch = await _validate_branch(branch_id, current_user.organization_id, db)
+    await _validate_branch(branch_id, current_user.organization_id, db)
 
     plan_service = PlanService(db=db, redis=redis)
     await plan_service.upsert_plan(
@@ -106,18 +102,14 @@ async def upsert_branch_plan(
 
 @router.get("/network/all", response_model=PlanNetworkResponse)
 async def get_network_plans(
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
-    month: date | None = Query(None, description="First day of month, e.g. 2024-10-01"),
+    month: Annotated[date | None, Query(description="First day of month, e.g. 2024-10-01")] = None,
 ):
     """Get plans for all branches in the network. Owner/admin only."""
     plan_service = PlanService(db=db, redis=redis)
-    data = await plan_service.get_network_plans(
-        current_user.organization_id, month
-    )
+    data = await plan_service.get_network_plans(current_user.organization_id, month)
 
     return PlanNetworkResponse(
         month=data["month"],

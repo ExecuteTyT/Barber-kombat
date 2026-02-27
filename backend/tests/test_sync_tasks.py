@@ -130,9 +130,7 @@ class TestPollAllBranches:
         mock_yclients_cls.return_value = mock_yclients
 
         mock_sync = AsyncMock()
-        mock_sync.sync_records = AsyncMock(
-            side_effect=[5, RuntimeError("API down")]
-        )
+        mock_sync.sync_records = AsyncMock(side_effect=[5, RuntimeError("API down")])
         mock_sync_cls.return_value = mock_sync
 
         mock_plan = AsyncMock()
@@ -273,9 +271,7 @@ class TestFullSyncAllBranches:
         mock_yclients_cls.return_value = mock_yclients
 
         mock_sync = AsyncMock()
-        mock_sync.sync_staff = AsyncMock(
-            side_effect=[2, RuntimeError("staff error")]
-        )
+        mock_sync.sync_staff = AsyncMock(side_effect=[2, RuntimeError("staff error")])
         mock_sync.sync_records = AsyncMock(return_value=10)
         mock_sync_cls.return_value = mock_sync
 

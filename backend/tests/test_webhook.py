@@ -48,9 +48,7 @@ def sample_webhook_payload(
 class TestWebhookSignatureValidation:
     def test_valid_signature(self):
         body = b'{"company_id": 555}'
-        sig = hmac.new(
-            WEBHOOK_SECRET.encode("utf-8"), body, hashlib.sha256
-        ).hexdigest()
+        sig = hmac.new(WEBHOOK_SECRET.encode("utf-8"), body, hashlib.sha256).hexdigest()
         assert validate_webhook_signature(body, sig, WEBHOOK_SECRET) is True
 
     def test_invalid_signature(self):
@@ -59,9 +57,7 @@ class TestWebhookSignatureValidation:
 
     def test_tampered_body(self):
         body = b'{"company_id": 555}'
-        sig = hmac.new(
-            WEBHOOK_SECRET.encode("utf-8"), body, hashlib.sha256
-        ).hexdigest()
+        sig = hmac.new(WEBHOOK_SECRET.encode("utf-8"), body, hashlib.sha256).hexdigest()
         tampered = b'{"company_id": 999}'
         assert validate_webhook_signature(tampered, sig, WEBHOOK_SECRET) is False
 
@@ -75,9 +71,7 @@ class TestWebhookSignatureValidation:
 
     def test_wrong_secret_fails(self):
         body = b'{"company_id": 555}'
-        sig = hmac.new(
-            WEBHOOK_SECRET.encode("utf-8"), body, hashlib.sha256
-        ).hexdigest()
+        sig = hmac.new(WEBHOOK_SECRET.encode("utf-8"), body, hashlib.sha256).hexdigest()
         assert validate_webhook_signature(body, sig, "wrong-secret") is False
 
 
@@ -95,9 +89,7 @@ class TestWebhookEndpoint:
         payload = sample_webhook_payload()
         body, sig = build_signed_webhook(payload)
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/webhooks/yclients",
                 content=body,
@@ -126,9 +118,7 @@ class TestWebhookEndpoint:
         payload = sample_webhook_payload()
         body = json.dumps(payload).encode("utf-8")
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/webhooks/yclients",
                 content=body,
@@ -151,9 +141,7 @@ class TestWebhookEndpoint:
         payload = sample_webhook_payload(resource="client")
         body, sig = build_signed_webhook(payload)
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/webhooks/yclients",
                 content=body,
@@ -181,9 +169,7 @@ class TestWebhookEndpoint:
         }
         body, sig = build_signed_webhook(payload)
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/webhooks/yclients",
                 content=body,
@@ -207,9 +193,7 @@ class TestWebhookEndpoint:
         payload = sample_webhook_payload()
         body, sig = build_signed_webhook(payload)
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/webhooks/yclients",
                 content=body,
@@ -229,9 +213,7 @@ class TestWebhookEndpoint:
     async def test_invalid_json_returns_ok_false(self, mock_settings, mock_task):
         mock_settings.yclients_webhook_secret = ""  # skip sig validation
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/webhooks/yclients",
                 content=b"not-json{{{",
@@ -252,9 +234,7 @@ class TestWebhookEndpoint:
         payload = sample_webhook_payload(status="cancelled")
         body, sig = build_signed_webhook(payload)
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/webhooks/yclients",
                 content=body,

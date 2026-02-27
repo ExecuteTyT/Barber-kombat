@@ -8,10 +8,9 @@ Covers full lifecycle flows:
 5. Edge cases: empty branches, single barber, month transition
 """
 
-import asyncio
 import json
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -250,9 +249,7 @@ class TestWebhookSyncRatingFlow:
         org_ids_result.scalars.return_value.all.return_value = [ORG_ID]
 
         mock_db = mock_db_session()
-        mock_db.execute = AsyncMock(
-            side_effect=[branches_result, org_ids_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[branches_result, org_ids_result])
 
         mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -372,11 +369,11 @@ class TestPVRBellNotificationFlow:
 
         mock_db.execute = AsyncMock(
             side_effect=[
-                db_result_scalar_or_none(config),     # _load_config
-                db_result_scalar(35_000_000),          # _calc_clean_revenue
-                db_result_scalar_or_none(None),        # _get_record (prev)
-                MagicMock(),                           # UPSERT
-                db_result_scalar_or_none(barber),      # _get_barber
+                db_result_scalar_or_none(config),  # _load_config
+                db_result_scalar(35_000_000),  # _calc_clean_revenue
+                db_result_scalar_or_none(None),  # _get_record (prev)
+                MagicMock(),  # UPSERT
+                db_result_scalar_or_none(barber),  # _get_barber
                 db_result_scalar_or_none(new_record),  # _get_record (after)
             ]
         )
@@ -416,19 +413,17 @@ class TestPVRBellNotificationFlow:
         # Already at 30M threshold
         existing_record = MagicMock()
         existing_record.current_threshold = 30_000_000
-        existing_record.thresholds_reached = [
-            {"amount": 30_000_000, "reached_at": "2026-01-15"}
-        ]
+        existing_record.thresholds_reached = [{"amount": 30_000_000, "reached_at": "2026-01-15"}]
 
         new_record = make_pvr_record(BARBER_ID_1)
 
         mock_db.execute = AsyncMock(
             side_effect=[
-                db_result_scalar_or_none(config),          # _load_config
-                db_result_scalar(32_000_000),               # _calc_clean_revenue (still < 40M)
+                db_result_scalar_or_none(config),  # _load_config
+                db_result_scalar(32_000_000),  # _calc_clean_revenue (still < 40M)
                 db_result_scalar_or_none(existing_record),  # _get_record (prev)
-                MagicMock(),                                # UPSERT
-                db_result_scalar_or_none(new_record),       # _get_record (after)
+                MagicMock(),  # UPSERT
+                db_result_scalar_or_none(new_record),  # _get_record (after)
             ]
         )
         mock_db.commit = AsyncMock()
@@ -444,9 +439,7 @@ class TestPVRBellNotificationFlow:
         """Celery send_pvr_bell task sends message to branch group + config targets."""
         from app.tasks.notification_tasks import _send_pvr_bell_notification
 
-        branch = make_branch(
-            branch_id=BRANCH_ID, org_id=ORG_ID, telegram_group_id=-100555
-        )
+        branch = make_branch(branch_id=BRANCH_ID, org_id=ORG_ID, telegram_group_id=-100555)
         notif_config = make_notif_config("pvr_threshold", chat_id=-100999)
 
         branch_result = db_result_scalar_or_none(branch)
@@ -454,8 +447,7 @@ class TestPVRBellNotificationFlow:
 
         mock_db = mock_db_session(execute_results=[branch_result, config_result])
 
-        with patch(PATCH_SESSION) as mock_session_cls, \
-             patch(PATCH_BOT) as mock_bot_cls:
+        with patch(PATCH_SESSION) as mock_session_cls, patch(PATCH_BOT) as mock_bot_cls:
             mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
             mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
 
@@ -494,8 +486,7 @@ class TestScheduledReportFlow:
         mock_db = mock_db_session()
         mock_db.execute = AsyncMock(return_value=orgs_result)
 
-        with patch(PATCH_SESSION) as mock_session_cls, \
-             patch(PATCH_REPORT_SVC) as mock_report_cls:
+        with patch(PATCH_SESSION) as mock_session_cls, patch(PATCH_REPORT_SVC) as mock_report_cls:
             mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
             mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
 
@@ -543,8 +534,7 @@ class TestScheduledReportFlow:
             execute_results=[reports_result, branch_result, notif_result, update_result]
         )
 
-        with patch(PATCH_SESSION) as mock_session_cls, \
-             patch(PATCH_BOT) as mock_bot_cls:
+        with patch(PATCH_SESSION) as mock_session_cls, patch(PATCH_BOT) as mock_bot_cls:
             mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
             mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
 
@@ -573,8 +563,7 @@ class TestScheduledReportFlow:
         mock_db = mock_db_session()
         mock_db.execute = AsyncMock(return_value=orgs_result)
 
-        with patch(PATCH_SESSION) as mock_session_cls, \
-             patch(PATCH_REPORT_SVC) as mock_report_cls:
+        with patch(PATCH_SESSION) as mock_session_cls, patch(PATCH_REPORT_SVC) as mock_report_cls:
             mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
             mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
 
@@ -603,8 +592,7 @@ class TestScheduledReportFlow:
         mock_db = mock_db_session()
         mock_db.execute = AsyncMock(return_value=orgs_result)
 
-        with patch(PATCH_SESSION) as mock_session_cls, \
-             patch(PATCH_REPORT_SVC) as mock_report_cls:
+        with patch(PATCH_SESSION) as mock_session_cls, patch(PATCH_REPORT_SVC) as mock_report_cls:
             mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
             mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
 
@@ -813,7 +801,7 @@ class TestEdgeCaseSingleBarber:
         mock_db = AsyncMock()
 
         branch = make_branch(branch_id=BRANCH_ID, org_id=ORG_ID)
-        barber = make_barber(barber_id=BARBER_ID_1, name="Solo Barber")
+        make_barber(barber_id=BARBER_ID_1, name="Solo Barber")
 
         # Champion row (only one barber)
         champion_row = MagicMock()
@@ -833,14 +821,14 @@ class TestEdgeCaseSingleBarber:
         # Plans: no plans
         mock_db.execute = AsyncMock(
             side_effect=[
-                db_result_list([branch]),     # _get_active_branches
-                wins_result,                  # _finalize_branch_ratings
-                name_result,                  # champion name
-                name_result,                  # standings name
-                revenue_result,               # _save_monthly_report revenue
-                MagicMock(),                  # report add (unused)
-                db_result_list([]),           # _create_new_pvr_records (barbers)
-                db_result_list([]),           # _copy_plans
+                db_result_list([branch]),  # _get_active_branches
+                wins_result,  # _finalize_branch_ratings
+                name_result,  # champion name
+                name_result,  # standings name
+                revenue_result,  # _save_monthly_report revenue
+                MagicMock(),  # report add (unused)
+                db_result_list([]),  # _create_new_pvr_records (barbers)
+                db_result_list([]),  # _copy_plans
             ]
         )
         mock_db.commit = AsyncMock()
@@ -866,17 +854,19 @@ class TestEdgeCaseSingleBarber:
 
         mock_db.execute = AsyncMock(
             side_effect=[
-                db_result_scalar_or_none(branch),     # branch lookup
-                db_result_list([barber]),              # barbers
+                db_result_scalar_or_none(branch),  # branch lookup
+                db_result_list([barber]),  # barbers
                 # Then recalculate_barber calls:
-                db_result_scalar_or_none(MagicMock(    # config
-                    thresholds=[{"amount": 30_000_000, "bonus": 1_000_000}],
-                    count_products=False,
-                    count_certificates=False,
-                )),
-                db_result_scalar(25_000_000),          # revenue (below threshold)
-                db_result_scalar_or_none(None),        # prev record
-                MagicMock(),                           # UPSERT
+                db_result_scalar_or_none(
+                    MagicMock(  # config
+                        thresholds=[{"amount": 30_000_000, "bonus": 1_000_000}],
+                        count_products=False,
+                        count_certificates=False,
+                    )
+                ),
+                db_result_scalar(25_000_000),  # revenue (below threshold)
+                db_result_scalar_or_none(None),  # prev record
+                MagicMock(),  # UPSERT
                 db_result_scalar_or_none(make_pvr_record(BARBER_ID_1, 25_000_000, None, 0)),
             ]
         )
@@ -908,12 +898,12 @@ class TestEdgeCaseMonthTransition:
 
         mock_db.execute = AsyncMock(
             side_effect=[
-                db_result_list([branch]),        # _get_active_branches
-                empty_wins,                      # _finalize_branch_ratings (no wins)
-                db_result_scalar(0),             # _save_monthly_report (revenue)
-                db_result_list([barber]),         # _create_new_pvr_records (barbers)
+                db_result_list([branch]),  # _get_active_branches
+                empty_wins,  # _finalize_branch_ratings (no wins)
+                db_result_scalar(0),  # _save_monthly_report (revenue)
+                db_result_list([barber]),  # _create_new_pvr_records (barbers)
                 db_result_scalar_or_none(None),  # existing PVR check -> None
-                db_result_list([]),              # _copy_plans (no old plans)
+                db_result_list([]),  # _copy_plans (no old plans)
             ]
         )
         mock_db.commit = AsyncMock()
@@ -956,7 +946,7 @@ class TestEdgeCaseIdempotency:
 
         mock_db.execute = AsyncMock(
             side_effect=[
-                db_result_list([barber]),          # barbers
+                db_result_list([barber]),  # barbers
                 db_result_scalar_or_none(existing_pvr_id),  # existing record found
             ]
         )
@@ -979,7 +969,7 @@ class TestEdgeCaseIdempotency:
 
         mock_db.execute = AsyncMock(
             side_effect=[
-                db_result_list([old_plan]),         # old plans
+                db_result_list([old_plan]),  # old plans
                 db_result_scalar_or_none(uuid.uuid4()),  # existing plan for new month
             ]
         )
@@ -1016,9 +1006,7 @@ class TestEdgeCaseMultipleBranches:
         mock_yclients_cls.return_value = AsyncMock()
 
         mock_sync = AsyncMock()
-        mock_sync.sync_records = AsyncMock(
-            side_effect=[3, 5, RuntimeError("fail"), 2, 4]
-        )
+        mock_sync.sync_records = AsyncMock(side_effect=[3, 5, RuntimeError("fail"), 2, 4])
         mock_sync_cls.return_value = mock_sync
 
         mock_plan = AsyncMock()
@@ -1082,8 +1070,7 @@ class TestFullMonthlyLifecycle:
         mock_db = mock_db_session()
         mock_db.execute = AsyncMock(return_value=orgs_result)
 
-        with patch(PATCH_SESSION) as mock_session_cls, \
-             patch(PATCH_REPORT_SVC) as mock_report_cls:
+        with patch(PATCH_SESSION) as mock_session_cls, patch(PATCH_REPORT_SVC) as mock_report_cls:
             mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
             mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
 
@@ -1122,16 +1109,16 @@ class TestFullMonthlyLifecycle:
 
         mock_db.execute = AsyncMock(
             side_effect=[
-                db_result_list([branch]),          # _get_active_branches
-                wins_result,                       # _finalize_branch_ratings (wins)
-                name_result,                       # champion name lookup
-                name_result,                       # standings name lookup
-                db_result_scalar(12_000_000),      # _save_monthly_report (revenue)
+                db_result_list([branch]),  # _get_active_branches
+                wins_result,  # _finalize_branch_ratings (wins)
+                name_result,  # champion name lookup
+                name_result,  # standings name lookup
+                db_result_scalar(12_000_000),  # _save_monthly_report (revenue)
                 # Note: _save_monthly_report uses db.add(), not execute()
-                db_result_list([barber]),           # _create_new_pvr_records (barbers)
-                db_result_scalar_or_none(None),    # no existing PVR record
-                db_result_list([old_plan]),         # _copy_plans (old plans)
-                db_result_scalar_or_none(None),    # no existing new plan
+                db_result_list([barber]),  # _create_new_pvr_records (barbers)
+                db_result_scalar_or_none(None),  # no existing PVR record
+                db_result_list([old_plan]),  # _copy_plans (old plans)
+                db_result_scalar_or_none(None),  # no existing new plan
             ]
         )
         mock_db.commit = AsyncMock()
@@ -1177,8 +1164,10 @@ class TestWebhookEndpointIntegration:
         body = json.dumps(payload).encode("utf-8")
         sig = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
 
-        with patch("app.api.webhooks.settings") as mock_settings, \
-             patch("app.api.webhooks.process_yclients_webhook") as mock_task:
+        with (
+            patch("app.api.webhooks.settings") as mock_settings,
+            patch("app.api.webhooks.process_yclients_webhook") as mock_task,
+        ):
             mock_settings.yclients_webhook_secret = secret
             mock_task.delay.return_value = MagicMock(id="task-123")
 
@@ -1214,8 +1203,10 @@ class TestWebhookEndpointIntegration:
         }
         body = json.dumps(payload).encode("utf-8")
 
-        with patch("app.api.webhooks.settings") as mock_settings, \
-             patch("app.api.webhooks.process_yclients_webhook") as mock_task:
+        with (
+            patch("app.api.webhooks.settings") as mock_settings,
+            patch("app.api.webhooks.process_yclients_webhook") as mock_task,
+        ):
             mock_settings.yclients_webhook_secret = "real-secret"
 
             async with AsyncClient(

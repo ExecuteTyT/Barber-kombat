@@ -62,9 +62,7 @@ async def get_branch_pvr(
     await _validate_branch(branch_id, current_user.organization_id, db)
 
     pvr_service = PVRService(db=db, redis=redis)
-    barbers_data = await pvr_service.get_branch_pvr(
-        branch_id, current_user.organization_id
-    )
+    barbers_data = await pvr_service.get_branch_pvr(branch_id, current_user.organization_id)
 
     today = date.today()
     month_label = f"{today.year}-{today.month:02d}"
@@ -106,9 +104,7 @@ async def get_barber_pvr(
         )
 
     pvr_service = PVRService(db=db, redis=redis)
-    data = await pvr_service.get_barber_pvr(
-        barber_id, current_user.organization_id
-    )
+    data = await pvr_service.get_barber_pvr(barber_id, current_user.organization_id)
 
     return BarberPVRResponse(**data)
 

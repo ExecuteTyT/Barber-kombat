@@ -167,13 +167,7 @@ function ClientsTable({ branches }: { branches: BranchClients[] }) {
 
 export default function ReportsScreen() {
   const [activeReport, setActiveReport] = useState<ReportType | null>(null)
-  const {
-    revenue,
-    clients,
-    reportsLoading,
-    fetchDashboard,
-    fetchClients,
-  } = useOwnerStore()
+  const { revenue, clients, reportsLoading, fetchDashboard, fetchClients } = useOwnerStore()
 
   // Load revenue if not loaded (shared with dashboard)
   useEffect(() => {
@@ -222,18 +216,13 @@ export default function ReportsScreen() {
       </div>
 
       <div className="mx-4 mt-4">
-        {activeReport === 'revenue' && (
-          revenue ? (
-            <RevenueTable branches={revenue.branches} />
-          ) : (
-            <LoadingSkeleton lines={6} />
-          )
-        )}
+        {activeReport === 'revenue' &&
+          (revenue ? <RevenueTable branches={revenue.branches} /> : <LoadingSkeleton lines={6} />)}
 
         {activeReport === 'day-to-day' && <DayToDayChart />}
 
-        {activeReport === 'clients' && (
-          reportsLoading && !clients ? (
+        {activeReport === 'clients' &&
+          (reportsLoading && !clients ? (
             <LoadingSkeleton lines={6} />
           ) : clients ? (
             <>
@@ -253,8 +242,7 @@ export default function ReportsScreen() {
               </div>
               <ClientsTable branches={clients.branches} />
             </>
-          ) : null
-        )}
+          ) : null)}
       </div>
     </div>
   )

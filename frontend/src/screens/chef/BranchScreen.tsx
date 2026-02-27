@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useWebSocket } from '../../hooks/useWebSocket'
@@ -7,12 +7,7 @@ import { useKombatStore } from '../../stores/kombatStore'
 import { usePvrStore } from '../../stores/pvrStore'
 import { useReviewsStore } from '../../stores/reviewsStore'
 import ReviewProcessModal from './ReviewProcessModal'
-import type {
-  BarberPVRResponse,
-  ReviewResponse,
-  ReviewStatus,
-  WSMessage,
-} from '../../types'
+import type { BarberPVRResponse, ReviewResponse, ReviewStatus, WSMessage } from '../../types'
 
 function formatMoney(kopecks: number): string {
   const rubles = Math.round(kopecks / 100)
@@ -83,9 +78,7 @@ function BingoTable({
   barbers: BarberPVRResponse[]
   thresholdMax: number
 }) {
-  const sorted = [...barbers].sort(
-    (a, b) => b.cumulative_revenue - a.cumulative_revenue,
-  )
+  const sorted = [...barbers].sort((a, b) => b.cumulative_revenue - a.cumulative_revenue)
 
   return (
     <div className="mx-4 mt-4">
@@ -93,9 +86,7 @@ function BingoTable({
       <div className="mt-2 space-y-2">
         {sorted.map((b, i) => {
           const pct =
-            thresholdMax > 0
-              ? Math.min((b.cumulative_revenue / thresholdMax) * 100, 100)
-              : 0
+            thresholdMax > 0 ? Math.min((b.cumulative_revenue / thresholdMax) * 100, 100) : 0
 
           return (
             <div
@@ -109,9 +100,7 @@ function BingoTable({
                   </span>
                   <span className="font-medium">{b.name}</span>
                 </div>
-                <span className="font-bold tabular-nums">
-                  {formatMoney(b.cumulative_revenue)}
-                </span>
+                <span className="font-bold tabular-nums">{formatMoney(b.cumulative_revenue)}</span>
               </div>
               {/* PVR mini progress */}
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--tg-theme-bg-color)]">
@@ -121,22 +110,16 @@ function BingoTable({
                 />
               </div>
               <div className="mt-1 flex items-center justify-between text-xs text-[var(--tg-theme-hint-color)]">
-                <span>
-                  Премия: {formatMoney(b.bonus_amount)}
-                </span>
+                <span>Премия: {formatMoney(b.bonus_amount)}</span>
                 {b.next_threshold && b.remaining_to_next !== null && (
-                  <span>
-                    До след: {formatMoney(b.remaining_to_next)}
-                  </span>
+                  <span>До след: {formatMoney(b.remaining_to_next)}</span>
                 )}
               </div>
             </div>
           )
         })}
         {sorted.length === 0 && (
-          <p className="py-4 text-center text-sm text-[var(--tg-theme-hint-color)]">
-            Нет данных
-          </p>
+          <p className="py-4 text-center text-sm text-[var(--tg-theme-hint-color)]">Нет данных</p>
         )}
       </div>
     </div>
@@ -180,24 +163,16 @@ function ReviewCard({
         </span>
       </div>
       {review.client_name && (
-        <p className="mt-1 text-xs text-[var(--tg-theme-hint-color)]">
-          {review.client_name}
-        </p>
+        <p className="mt-1 text-xs text-[var(--tg-theme-hint-color)]">{review.client_name}</p>
       )}
-      {review.comment && (
-        <p className="mt-2 text-sm">{review.comment}</p>
-      )}
+      {review.comment && <p className="mt-2 text-sm">{review.comment}</p>}
 
       {/* Status / action */}
       <div className="mt-3 flex items-center justify-between">
         {review.status === 'processed' ? (
-          <span className="text-xs text-emerald-500">
-            {'\u{2705}'} Обработан
-          </span>
+          <span className="text-xs text-emerald-500">{'\u{2705}'} Обработан</span>
         ) : review.status === 'in_progress' ? (
-          <span className="text-xs text-amber-500">
-            {'\u{1F504}'} В работе
-          </span>
+          <span className="text-xs text-amber-500">{'\u{1F504}'} В работе</span>
         ) : (
           <span className="text-xs text-red-500">Новый</span>
         )}
@@ -215,9 +190,7 @@ function ReviewCard({
       {/* Processed info */}
       {review.processed_comment && (
         <div className="mt-2 rounded-lg bg-[var(--tg-theme-bg-color)] p-2">
-          <p className="text-xs text-[var(--tg-theme-hint-color)]">
-            {review.processed_comment}
-          </p>
+          <p className="text-xs text-[var(--tg-theme-hint-color)]">{review.processed_comment}</p>
         </div>
       )}
     </div>
@@ -281,9 +254,7 @@ function ReviewsFeed({
           <ReviewCard key={r.id} review={r} onProcess={onProcess} />
         ))}
         {reviews.length === 0 && (
-          <p className="py-4 text-center text-sm text-[var(--tg-theme-hint-color)]">
-            Отзывов нет
-          </p>
+          <p className="py-4 text-center text-sm text-[var(--tg-theme-hint-color)]">Отзывов нет</p>
         )}
         {reviews.length > 0 && reviews.length < total && (
           <p className="py-2 text-center text-xs text-[var(--tg-theme-hint-color)]">
@@ -320,7 +291,10 @@ export default function BranchScreen() {
 
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
   const [processingReview, setProcessingReview] = useState<ReviewResponse | null>(null)
-  const [unprocessedCount, setUnprocessedCount] = useState(0)
+  const unprocessedCount = useMemo(
+    () => reviews.filter((r) => r.status === 'new' || r.status === 'in_progress').length,
+    [reviews],
+  )
 
   // Load data on mount
   useEffect(() => {
@@ -337,14 +311,6 @@ export default function BranchScreen() {
       fetchReviews(branchId)
     }
   }, [branchId, filters, fetchReviews])
-
-  // Count unprocessed for badge
-  useEffect(() => {
-    const count = reviews.filter(
-      (r) => r.status === 'new' || r.status === 'in_progress',
-    ).length
-    setUnprocessedCount(count)
-  }, [reviews])
 
   // Handle filter tab changes
   const handleTabChange = useCallback(
@@ -380,9 +346,7 @@ export default function BranchScreen() {
   useWebSocket(handleWSMessage)
 
   // Derived stats from todayRating
-  const revenueToday = todayRating
-    ? todayRating.ratings.reduce((sum, r) => sum + r.revenue, 0)
-    : 0
+  const revenueToday = todayRating ? todayRating.ratings.reduce((sum, r) => sum + r.revenue, 0) : 0
   const revenueMonth = todayRating?.plan?.current ?? 0
   const planPercentage = todayRating?.plan?.percentage ?? 0
   const planTarget = todayRating?.plan?.target ?? 0
@@ -390,25 +354,18 @@ export default function BranchScreen() {
   const barbersTotal = branchPvr?.barbers.length ?? barbersInShift
 
   // Max threshold for progress bar scaling
-  const thresholdMax =
-    thresholds.length > 0
-      ? Math.max(...thresholds.map((t) => t.amount))
-      : 0
+  const thresholdMax = thresholds.length > 0 ? Math.max(...thresholds.map((t) => t.amount)) : 0
 
   if (!branchId) {
     return (
-      <div className="p-8 text-center text-[var(--tg-theme-hint-color)]">
-        Филиал не назначен
-      </div>
+      <div className="p-8 text-center text-[var(--tg-theme-hint-color)]">Филиал не назначен</div>
     )
   }
 
   return (
     <div className="pb-4 pt-4">
       {/* Header */}
-      <h1 className="px-4 text-lg font-bold">
-        {todayRating?.branch_name ?? 'Филиал'}
-      </h1>
+      <h1 className="px-4 text-lg font-bold">{todayRating?.branch_name ?? 'Филиал'}</h1>
 
       {/* Today stats */}
       <div className="mt-3">

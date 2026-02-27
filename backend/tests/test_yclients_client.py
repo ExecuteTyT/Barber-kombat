@@ -41,7 +41,13 @@ def sample_records_response():
                 "date": "2024-10-13",
                 "datetime": "2024-10-13 10:00:00",
                 "services": [
-                    {"id": 1, "title": "Стрижка", "cost": 1500.0, "first_cost": 1500.0, "amount": 1},
+                    {
+                        "id": 1,
+                        "title": "Стрижка",
+                        "cost": 1500.0,
+                        "first_cost": 1500.0,
+                        "amount": 1,
+                    },
                     {"id": 2, "title": "Воск", "cost": 300.0, "first_cost": 300.0, "amount": 1},
                 ],
                 "goods_transactions": [
@@ -159,9 +165,7 @@ class TestGetRecords:
     async def test_empty_records(self, client):
         with patch.object(client, "_get_client") as mock_get:
             mock_http = AsyncMock()
-            mock_http.request = AsyncMock(
-                return_value=mock_response({"success": True, "data": []})
-            )
+            mock_http.request = AsyncMock(return_value=mock_response({"success": True, "data": []}))
             mock_http.is_closed = False
             mock_get.return_value = mock_http
 
@@ -222,7 +226,16 @@ class TestGetClients:
 
     @pytest.mark.asyncio
     async def test_get_single_client(self, client):
-        single = {"success": True, "data": {"id": 200, "name": "Иван", "phone": "+7900", "birth_date": "", "visits_count": 5}}
+        single = {
+            "success": True,
+            "data": {
+                "id": 200,
+                "name": "Иван",
+                "phone": "+7900",
+                "birth_date": "",
+                "visits_count": 5,
+            },
+        }
         with patch.object(client, "_get_client") as mock_get:
             mock_http = AsyncMock()
             mock_http.request = AsyncMock(return_value=mock_response(single))

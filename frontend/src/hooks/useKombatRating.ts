@@ -11,13 +11,7 @@ import type { RatingEntry, WSMessage } from '../types'
  */
 export function useKombatRating() {
   const user = useAuthStore((s) => s.user)
-  const {
-    todayRating,
-    isLoading,
-    error,
-    fetchTodayRating,
-    applyRatingUpdate,
-  } = useKombatStore()
+  const { todayRating, isLoading, error, fetchTodayRating, applyRatingUpdate } = useKombatStore()
 
   const branchId = user?.branch_id
 

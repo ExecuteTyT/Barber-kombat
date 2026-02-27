@@ -11,9 +11,7 @@ from app.models.base import Base
 class Visit(Base):
     __tablename__ = "visits"
     __table_args__ = (
-        UniqueConstraint(
-            "yclients_record_id", "organization_id", name="uq_visits_record_org"
-        ),
+        UniqueConstraint("yclients_record_id", "organization_id", name="uq_visits_record_org"),
         Index("ix_visits_organization_id", "organization_id"),
         Index("ix_visits_branch_id", "branch_id"),
         Index("ix_visits_barber_id", "barber_id"),
@@ -28,9 +26,7 @@ class Visit(Base):
     )
     branch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("branches.id"), nullable=False)
     barber_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
-    client_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("clients.id"), nullable=True
-    )
+    client_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clients.id"), nullable=True)
     yclients_record_id: Mapped[int] = mapped_column(Integer, nullable=False)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     revenue: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

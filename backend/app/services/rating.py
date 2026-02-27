@@ -216,17 +216,13 @@ class RatingEngine:
 
     # --- Private methods ---
 
-    async def _load_rating_config(
-        self, organization_id: uuid.UUID
-    ) -> RatingConfig | Any:
+    async def _load_rating_config(self, organization_id: uuid.UUID) -> RatingConfig | Any:
         """Load RatingConfig for the organization.
 
         Falls back to a simple object with default weights if none exists.
         """
         result = await self.db.execute(
-            select(RatingConfig).where(
-                RatingConfig.organization_id == organization_id
-            )
+            select(RatingConfig).where(RatingConfig.organization_id == organization_id)
         )
         config = result.scalar_one_or_none()
         if config is not None:
@@ -455,11 +451,7 @@ class RatingEngine:
             }
 
             stmt = pg_insert(DailyRating).values(**values)
-            update_cols = {
-                k: getattr(stmt.excluded, k)
-                for k in values
-                if k not in immutable_keys
-            }
+            update_cols = {k: getattr(stmt.excluded, k) for k in values if k not in immutable_keys}
             stmt = stmt.on_conflict_do_update(
                 constraint="uq_daily_ratings_barber_date",
                 set_=update_cols,

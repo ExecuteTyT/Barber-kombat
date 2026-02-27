@@ -83,9 +83,7 @@ class TestValidateInitData:
         params = {"auth_date": "1234567890"}
         data_check_string = "\n".join(f"{k}={params[k]}" for k in sorted(params.keys()))
         secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
-        hash_value = hmac.new(
-            secret_key, data_check_string.encode(), hashlib.sha256
-        ).hexdigest()
+        hash_value = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
         params["hash"] = hash_value
         init_data = urlencode(params)
 

@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user, require_role
+from app.auth.dependencies import require_role
 from app.database import get_db
 from app.models.branch import Branch
 from app.models.user import User, UserRole
@@ -122,11 +122,11 @@ async def get_branch_reviews(
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
-    status_filter: str | None = Query(None, alias="status"),
-    rating_max: int | None = Query(None, ge=1, le=5),
-    date_from: date | None = Query(None),
-    page: int = Query(1, ge=1),
-    per_page: int = Query(20, ge=1, le=100),
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    rating_max: Annotated[int | None, Query(ge=1, le=5)] = None,
+    date_from: Annotated[date | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    per_page: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
     """Get reviews for a branch with optional filters. Chef/owner/admin only."""
     await _validate_branch(branch_id, current_user.organization_id, db)

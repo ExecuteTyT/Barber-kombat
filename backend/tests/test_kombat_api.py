@@ -178,17 +178,13 @@ class TestTodayRating:
         config_result = MagicMock()
         config_result.scalar_one_or_none.return_value = None
 
-        mock_db.execute = AsyncMock(
-            side_effect=[branch_result, plan_result, config_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[branch_result, plan_result, config_result])
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/kombat/today/{BRANCH_ID}")
 
         assert response.status_code == 200
@@ -255,9 +251,7 @@ class TestTodayRating:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/kombat/today/{BRANCH_ID}")
 
         assert response.status_code == 200
@@ -291,17 +285,13 @@ class TestTodayRating:
         config_result = MagicMock()
         config_result.scalar_one_or_none.return_value = None
 
-        mock_db.execute = AsyncMock(
-            side_effect=[branch_result, plan_result, config_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[branch_result, plan_result, config_result])
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/kombat/today/{BRANCH_ID}")
 
         assert response.status_code == 200
@@ -328,9 +318,7 @@ class TestTodayRating:
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
         fake_id = uuid.uuid4()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/kombat/today/{fake_id}")
 
         assert response.status_code == 404
@@ -339,9 +327,7 @@ class TestTodayRating:
     async def test_unauthenticated_401(self):
         """Returns 401 without a valid token."""
         # Don't override get_current_user — let it fail naturally
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/kombat/today/{BRANCH_ID}")
 
         assert response.status_code in (401, 403)
@@ -360,8 +346,11 @@ class TestTodayRating:
 
         branch = make_branch()
         config = make_rating_config(
-            revenue_weight=30, cs_weight=30, products_weight=15,
-            extras_weight=15, reviews_weight=10,
+            revenue_weight=30,
+            cs_weight=30,
+            products_weight=15,
+            extras_weight=15,
+            reviews_weight=10,
         )
 
         mock_db = AsyncMock()
@@ -374,17 +363,13 @@ class TestTodayRating:
         config_result = MagicMock()
         config_result.scalar_one_or_none.return_value = config
 
-        mock_db.execute = AsyncMock(
-            side_effect=[branch_result, plan_result, config_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[branch_result, plan_result, config_result])
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/kombat/today/{BRANCH_ID}")
 
         assert response.status_code == 200
@@ -420,16 +405,12 @@ class TestStandings:
         row2.avg_score = 88.1
         standings_result.all.return_value = [row1, row2]
 
-        mock_db.execute = AsyncMock(
-            side_effect=[branch_result, standings_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[branch_result, standings_result])
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/kombat/standings/{BRANCH_ID}")
 
         assert response.status_code == 200
@@ -451,19 +432,13 @@ class TestStandings:
         standings_result = MagicMock()
         standings_result.all.return_value = []
 
-        mock_db.execute = AsyncMock(
-            side_effect=[branch_result, standings_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[branch_result, standings_result])
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get(
-                f"/api/v1/kombat/standings/{BRANCH_ID}?month=2024-10"
-            )
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(f"/api/v1/kombat/standings/{BRANCH_ID}?month=2024-10")
 
         assert response.status_code == 200
         data = response.json()
@@ -481,16 +456,12 @@ class TestStandings:
         standings_result = MagicMock()
         standings_result.all.return_value = []
 
-        mock_db.execute = AsyncMock(
-            side_effect=[branch_result, standings_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[branch_result, standings_result])
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/kombat/standings/{BRANCH_ID}")
 
         assert response.status_code == 200
@@ -510,9 +481,7 @@ class TestStandings:
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/kombat/standings/{BRANCH_ID}")
 
         assert response.status_code == 404
@@ -541,19 +510,14 @@ class TestHistory:
             (dr2, "Lev"),
         ]
 
-        mock_db.execute = AsyncMock(
-            side_effect=[branch_result, history_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[branch_result, history_result])
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(
-                f"/api/v1/kombat/history/{BRANCH_ID}"
-                f"?date_from={today}&date_to={today}"
+                f"/api/v1/kombat/history/{BRANCH_ID}?date_from={today}&date_to={today}"
             )
 
         assert response.status_code == 200
@@ -575,20 +539,15 @@ class TestHistory:
         history_result = MagicMock()
         history_result.all.return_value = []
 
-        mock_db.execute = AsyncMock(
-            side_effect=[branch_result, history_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[branch_result, history_result])
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
 
         today = date.today()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(
-                f"/api/v1/kombat/history/{BRANCH_ID}"
-                f"?date_from={today}&date_to={today}"
+                f"/api/v1/kombat/history/{BRANCH_ID}?date_from={today}&date_to={today}"
             )
 
         assert response.status_code == 200
@@ -601,12 +560,9 @@ class TestHistory:
         app.dependency_overrides[get_current_user] = lambda: user
 
         today = date.today()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(
-                f"/api/v1/kombat/history/{BRANCH_ID}"
-                f"?date_from={today}&date_to={today}"
+                f"/api/v1/kombat/history/{BRANCH_ID}?date_from={today}&date_to={today}"
             )
 
         assert response.status_code == 403
@@ -618,9 +574,7 @@ class TestHistory:
 
         app.dependency_overrides[get_current_user] = lambda: user
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/kombat/history/{BRANCH_ID}")
 
         assert response.status_code == 422
@@ -656,19 +610,13 @@ class TestBarberStats:
         scalars.all.return_value = [dr1, dr2]
         dr_result.scalars.return_value = scalars
 
-        mock_db.execute = AsyncMock(
-            side_effect=[barber_result, dr_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[barber_result, dr_result])
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get(
-                f"/api/v1/kombat/barber/{BARBER_ID_1}/stats"
-            )
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(f"/api/v1/kombat/barber/{BARBER_ID_1}/stats")
 
         assert response.status_code == 200
         data = response.json()
@@ -692,12 +640,8 @@ class TestBarberStats:
         app.dependency_overrides[get_db] = lambda: mock_db
 
         fake_id = uuid.uuid4()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get(
-                f"/api/v1/kombat/barber/{fake_id}/stats"
-            )
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(f"/api/v1/kombat/barber/{fake_id}/stats")
 
         assert response.status_code == 404
 
@@ -715,12 +659,8 @@ class TestBarberStats:
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get(
-                f"/api/v1/kombat/barber/{BARBER_ID_1}/stats"
-            )
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(f"/api/v1/kombat/barber/{BARBER_ID_1}/stats")
 
         assert response.status_code == 404
 
@@ -743,19 +683,13 @@ class TestBarberStats:
         scalars.all.return_value = []
         dr_result.scalars.return_value = scalars
 
-        mock_db.execute = AsyncMock(
-            side_effect=[barber_result, dr_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[barber_result, dr_result])
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.get(
-                f"/api/v1/kombat/barber/{BARBER_ID_1}/stats?month=2024-10"
-            )
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(f"/api/v1/kombat/barber/{BARBER_ID_1}/stats?month=2024-10")
 
         assert response.status_code == 200
         data = response.json()

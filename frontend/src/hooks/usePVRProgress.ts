@@ -8,14 +8,7 @@ import { usePvrStore } from '../stores/pvrStore'
  */
 export function usePVRProgress() {
   const user = useAuthStore((s) => s.user)
-  const {
-    barberPvr,
-    thresholds,
-    isLoading,
-    error,
-    fetchBarberPvr,
-    fetchThresholds,
-  } = usePvrStore()
+  const { barberPvr, thresholds, isLoading, error, fetchBarberPvr, fetchThresholds } = usePvrStore()
 
   const barberId = user?.id
 

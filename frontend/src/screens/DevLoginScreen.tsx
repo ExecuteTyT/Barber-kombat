@@ -61,7 +61,8 @@ export default function DevLoginScreen() {
           <div className="rounded-lg bg-gray-800 p-6 text-center">
             <p className="text-gray-300">Нет пользователей в БД.</p>
             <p className="mt-2 text-sm text-gray-500">
-              Выполните: <code className="rounded bg-gray-700 px-1">python -m app.cli seed-demo</code>
+              Выполните:{' '}
+              <code className="rounded bg-gray-700 px-1">python -m app.cli seed-demo</code>
             </p>
           </div>
         )}

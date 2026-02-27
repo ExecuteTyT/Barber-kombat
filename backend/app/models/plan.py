@@ -9,9 +9,7 @@ from app.models.base import Base
 
 class Plan(Base):
     __tablename__ = "plans"
-    __table_args__ = (
-        UniqueConstraint("branch_id", "month", name="uq_plans_branch_month"),
-    )
+    __table_args__ = (UniqueConstraint("branch_id", "month", name="uq_plans_branch_month"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(

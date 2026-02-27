@@ -30,9 +30,7 @@ class UserRole(enum.StrEnum):
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (
-        UniqueConstraint(
-            "yclients_staff_id", "organization_id", name="uq_users_staff_org"
-        ),
+        UniqueConstraint("yclients_staff_id", "organization_id", name="uq_users_staff_org"),
         Index("ix_users_organization_id", "organization_id"),
         Index("ix_users_branch_id", "branch_id"),
         Index("ix_users_telegram_id", "telegram_id", unique=True),
@@ -44,12 +42,15 @@ class User(Base):
     organization_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("organizations.id"), nullable=False
     )
-    branch_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("branches.id"), nullable=True
-    )
+    branch_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("branches.id"), nullable=True)
     telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
     role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, values_callable=lambda e: [i.value for i in e], name="userrole", create_constraint=False),
+        Enum(
+            UserRole,
+            values_callable=lambda e: [i.value for i in e],
+            name="userrole",
+            create_constraint=False,
+        ),
         nullable=False,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)

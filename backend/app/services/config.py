@@ -32,14 +32,10 @@ class ConfigService:
 
     # --- Rating Config ---
 
-    async def get_rating_config(
-        self, organization_id: uuid.UUID
-    ) -> RatingConfig | None:
+    async def get_rating_config(self, organization_id: uuid.UUID) -> RatingConfig | None:
         """Load RatingConfig for the organization."""
         result = await self.db.execute(
-            select(RatingConfig).where(
-                RatingConfig.organization_id == organization_id
-            )
+            select(RatingConfig).where(RatingConfig.organization_id == organization_id)
         )
         return result.scalar_one_or_none()
 
@@ -75,9 +71,7 @@ class ConfigService:
 
         return await self.get_rating_config(organization_id)
 
-    async def _invalidate_rating_caches(
-        self, organization_id: uuid.UUID
-    ) -> None:
+    async def _invalidate_rating_caches(self, organization_id: uuid.UUID) -> None:
         """Delete all rating cache keys for branches in this organization."""
         result = await self.db.execute(
             select(Branch.id).where(
@@ -100,14 +94,10 @@ class ConfigService:
 
     # --- PVR Config ---
 
-    async def get_pvr_config(
-        self, organization_id: uuid.UUID
-    ) -> PVRConfig | None:
+    async def get_pvr_config(self, organization_id: uuid.UUID) -> PVRConfig | None:
         """Load PVRConfig for the organization."""
         result = await self.db.execute(
-            select(PVRConfig).where(
-                PVRConfig.organization_id == organization_id
-            )
+            select(PVRConfig).where(PVRConfig.organization_id == organization_id)
         )
         return result.scalar_one_or_none()
 
@@ -140,14 +130,10 @@ class ConfigService:
 
     # --- Branch CRUD ---
 
-    async def list_branches(
-        self, organization_id: uuid.UUID
-    ) -> list[Branch]:
+    async def list_branches(self, organization_id: uuid.UUID) -> list[Branch]:
         """List all branches for the organization."""
         result = await self.db.execute(
-            select(Branch)
-            .where(Branch.organization_id == organization_id)
-            .order_by(Branch.name)
+            select(Branch).where(Branch.organization_id == organization_id).order_by(Branch.name)
         )
         return list(result.scalars().all())
 

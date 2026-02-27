@@ -14,7 +14,6 @@ from app.models.review import ReviewStatus
 from app.models.user import UserRole
 from app.redis import get_redis
 
-
 # --- Test constants ---
 
 ORG_ID = uuid.uuid4()
@@ -135,9 +134,7 @@ class TestSubmitReview:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/reviews/submit",
                 json={
@@ -166,9 +163,7 @@ class TestSubmitReview:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/reviews/submit",
                 json={
@@ -199,9 +194,7 @@ class TestSubmitReview:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/reviews/submit",
                 json={
@@ -223,9 +216,7 @@ class TestSubmitReview:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/reviews/submit",
                 json={
@@ -288,9 +279,7 @@ class TestGetBranchReviews:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/reviews/{BRANCH_ID}")
 
         assert response.status_code == 200
@@ -311,9 +300,7 @@ class TestGetBranchReviews:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/reviews/{BRANCH_ID}")
 
         assert response.status_code == 403
@@ -334,9 +321,7 @@ class TestGetBranchReviews:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/reviews/{uuid.uuid4()}")
 
         assert response.status_code == 404
@@ -344,9 +329,7 @@ class TestGetBranchReviews:
     @pytest.mark.asyncio
     async def test_unauthenticated_401(self):
         """Returns 401/403 without authentication."""
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/reviews/{BRANCH_ID}")
 
         assert response.status_code in (401, 403)
@@ -395,9 +378,7 @@ class TestProcessReview:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 f"/api/v1/reviews/{REVIEW_ID}/process",
                 json={
@@ -426,9 +407,7 @@ class TestProcessReview:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 f"/api/v1/reviews/{uuid.uuid4()}/process",
                 json={
@@ -451,9 +430,7 @@ class TestProcessReview:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 f"/api/v1/reviews/{REVIEW_ID}/process",
                 json={
@@ -476,9 +453,7 @@ class TestProcessReview:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 f"/api/v1/reviews/{REVIEW_ID}/process",
                 json={
@@ -526,17 +501,13 @@ class TestGetAlarum:
         barber_result = MagicMock()
         barber_result.scalar_one_or_none.return_value = make_barber()
 
-        mock_db.execute = AsyncMock(
-            side_effect=[count_result, reviews_result, barber_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[count_result, reviews_result, barber_result])
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/reviews/alarum/feed")
 
         assert response.status_code == 200
@@ -557,9 +528,7 @@ class TestGetAlarum:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/reviews/alarum/feed")
 
         assert response.status_code == 403
@@ -584,9 +553,7 @@ class TestGetAlarum:
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/reviews/alarum/feed")
 
         assert response.status_code == 200
@@ -597,9 +564,7 @@ class TestGetAlarum:
     @pytest.mark.asyncio
     async def test_unauthenticated_401(self):
         """Returns 401/403 without authentication."""
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/reviews/alarum/feed")
 
         assert response.status_code in (401, 403)

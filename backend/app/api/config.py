@@ -90,9 +90,7 @@ async def get_rating_weights(
 @router.put("/rating-weights", response_model=RatingWeightsResponse)
 async def update_rating_weights(
     body: RatingWeightsRequest,
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
@@ -132,9 +130,7 @@ async def get_pvr_thresholds(
 @router.put("/pvr-thresholds", response_model=PVRThresholdsResponse)
 async def update_pvr_thresholds(
     body: PVRThresholdsRequest,
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
@@ -162,18 +158,14 @@ async def update_pvr_thresholds(
 
 @router.get("/branches", response_model=BranchListResponse)
 async def list_branches(
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
     """List all branches. Owner/admin only."""
     service = ConfigService(db=db, redis=redis)
     branches = await service.list_branches(current_user.organization_id)
-    return BranchListResponse(
-        branches=[BranchResponse.model_validate(b) for b in branches]
-    )
+    return BranchListResponse(branches=[BranchResponse.model_validate(b) for b in branches])
 
 
 @router.post(
@@ -183,9 +175,7 @@ async def list_branches(
 )
 async def create_branch(
     body: BranchCreateRequest,
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
@@ -201,17 +191,13 @@ async def create_branch(
 @router.get("/branches/{branch_id}", response_model=BranchResponse)
 async def get_branch(
     branch_id: uuid.UUID,
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
     """Get a single branch. Owner/admin only."""
     service = ConfigService(db=db, redis=redis)
-    branch = await service.get_branch(
-        current_user.organization_id, branch_id
-    )
+    branch = await service.get_branch(current_user.organization_id, branch_id)
     if branch is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -224,9 +210,7 @@ async def get_branch(
 async def update_branch(
     branch_id: uuid.UUID,
     body: BranchUpdateRequest,
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
@@ -250,21 +234,15 @@ async def update_branch(
 
 @router.get("/users", response_model=UserListResponse)
 async def list_users(
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
-    branch_id: uuid.UUID | None = Query(None),
+    branch_id: Annotated[uuid.UUID | None, Query()] = None,
 ):
     """List users, optionally filtered by branch. Owner/admin only."""
     service = ConfigService(db=db, redis=redis)
-    users = await service.list_users(
-        current_user.organization_id, branch_id=branch_id
-    )
-    return UserListResponse(
-        users=[UserResponse.model_validate(u) for u in users]
-    )
+    users = await service.list_users(current_user.organization_id, branch_id=branch_id)
+    return UserListResponse(users=[UserResponse.model_validate(u) for u in users])
 
 
 @router.post(
@@ -274,9 +252,7 @@ async def list_users(
 )
 async def create_user(
     body: UserCreateRequest,
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
@@ -292,9 +268,7 @@ async def create_user(
 @router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user(
     user_id: uuid.UUID,
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
@@ -313,9 +287,7 @@ async def get_user(
 async def update_user(
     user_id: uuid.UUID,
     body: UserUpdateRequest,
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
@@ -339,22 +311,16 @@ async def update_user(
 
 @router.get("/notifications", response_model=NotificationConfigListResponse)
 async def list_notifications(
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
-    branch_id: uuid.UUID | None = Query(None),
+    branch_id: Annotated[uuid.UUID | None, Query()] = None,
 ):
     """List notification configs. Owner/admin only."""
     service = ConfigService(db=db, redis=redis)
-    notifs = await service.list_notifications(
-        current_user.organization_id, branch_id=branch_id
-    )
+    notifs = await service.list_notifications(current_user.organization_id, branch_id=branch_id)
     return NotificationConfigListResponse(
-        notifications=[
-            NotificationConfigResponse.model_validate(n) for n in notifs
-        ]
+        notifications=[NotificationConfigResponse.model_validate(n) for n in notifs]
     )
 
 
@@ -365,9 +331,7 @@ async def list_notifications(
 )
 async def create_notification(
     body: NotificationConfigCreateRequest,
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
@@ -387,9 +351,7 @@ async def create_notification(
 async def update_notification(
     notification_id: uuid.UUID,
     body: NotificationConfigUpdateRequest,
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
@@ -414,17 +376,13 @@ async def update_notification(
 )
 async def delete_notification(
     notification_id: uuid.UUID,
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
     """Delete a notification config. Owner/admin only."""
     service = ConfigService(db=db, redis=redis)
-    deleted = await service.delete_notification(
-        current_user.organization_id, notification_id
-    )
+    deleted = await service.delete_notification(current_user.organization_id, notification_id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -50,9 +50,7 @@ function PVRScale({
     <div className="relative ml-4 mr-4">
       {/* Current amount badge at top */}
       <div className="mb-4 text-center">
-        <span className="text-2xl font-bold tabular-nums">
-          {formatMoneyShort(cumulative)}
-        </span>
+        <span className="text-2xl font-bold tabular-nums">{formatMoneyShort(cumulative)}</span>
         {bonusAmount > 0 && (
           <p className="text-sm text-[var(--tg-theme-button-color)]">
             Премия: {formatMoneyShort(bonusAmount)}
@@ -94,7 +92,13 @@ function PVRScale({
                 >
                   {reached && (
                     <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path
+                        d="M2 6l3 3 5-5"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   )}
                 </div>
@@ -129,9 +133,7 @@ function PVRScale({
                     </p>
                   )}
                   {isCurrent && reached && (
-                    <p className="text-xs text-[var(--tg-theme-hint-color)]">
-                      Текущий порог
-                    </p>
+                    <p className="text-xs text-[var(--tg-theme-hint-color)]">Текущий порог</p>
                   )}
                 </div>
               </div>

@@ -17,7 +17,6 @@ import pytest
 
 from app.services.monthly_reset import MonthlyResetService, _next_month
 
-
 # --- Helpers ---
 
 ORG_ID = uuid.uuid4()
@@ -142,9 +141,7 @@ class TestFinalizeBranchRatings:
             side_effect=[wins_result, name_result_1, name_result_2, name_result_3]
         )
 
-        result = await service._finalize_branch_ratings(
-            ORG_ID, BRANCH_ID_1, JANUARY
-        )
+        result = await service._finalize_branch_ratings(ORG_ID, BRANCH_ID_1, JANUARY)
 
         assert result is not None
         assert result["barber_id"] == str(BARBER_ID_1)
@@ -164,9 +161,7 @@ class TestFinalizeBranchRatings:
         wins_result.all.return_value = []
         mock_db.execute = AsyncMock(return_value=wins_result)
 
-        result = await service._finalize_branch_ratings(
-            ORG_ID, BRANCH_ID_1, JANUARY
-        )
+        result = await service._finalize_branch_ratings(ORG_ID, BRANCH_ID_1, JANUARY)
         assert result is None
 
     @pytest.mark.asyncio
@@ -197,13 +192,9 @@ class TestFinalizeBranchRatings:
         name_3 = MagicMock()
         name_3.scalar_one_or_none.return_value = "Pavel"
 
-        mock_db.execute = AsyncMock(
-            side_effect=[wins_result, name_1, name_2, name_3]
-        )
+        mock_db.execute = AsyncMock(side_effect=[wins_result, name_1, name_2, name_3])
 
-        result = await service._finalize_branch_ratings(
-            ORG_ID, BRANCH_ID_1, JANUARY
-        )
+        result = await service._finalize_branch_ratings(ORG_ID, BRANCH_ID_1, JANUARY)
 
         assert result is not None
         assert result["barber_id"] == str(BARBER_ID_2)
@@ -411,21 +402,13 @@ class TestResetOrganization:
         service = MonthlyResetService(db=mock_db)
 
         with (
-            patch.object(
-                service, "_get_active_branches", new_callable=AsyncMock
-            ) as mock_branches,
+            patch.object(service, "_get_active_branches", new_callable=AsyncMock) as mock_branches,
             patch.object(
                 service, "_finalize_branch_ratings", new_callable=AsyncMock
             ) as mock_finalize,
-            patch.object(
-                service, "_save_monthly_report", new_callable=AsyncMock
-            ) as mock_report,
-            patch.object(
-                service, "_create_new_pvr_records", new_callable=AsyncMock
-            ) as mock_pvr,
-            patch.object(
-                service, "_copy_plans", new_callable=AsyncMock
-            ) as mock_plans,
+            patch.object(service, "_save_monthly_report", new_callable=AsyncMock) as mock_report,
+            patch.object(service, "_create_new_pvr_records", new_callable=AsyncMock) as mock_pvr,
+            patch.object(service, "_copy_plans", new_callable=AsyncMock) as mock_plans,
         ):
             branch1 = make_branch(BRANCH_ID_1)
             branch2 = make_branch(BRANCH_ID_2)
@@ -466,21 +449,11 @@ class TestResetOrganization:
         january_next = date(2026, 1, 1)
 
         with (
-            patch.object(
-                service, "_get_active_branches", new_callable=AsyncMock
-            ) as mock_branches,
-            patch.object(
-                service, "_finalize_branch_ratings", new_callable=AsyncMock
-            ),
-            patch.object(
-                service, "_save_monthly_report", new_callable=AsyncMock
-            ),
-            patch.object(
-                service, "_create_new_pvr_records", new_callable=AsyncMock
-            ) as mock_pvr,
-            patch.object(
-                service, "_copy_plans", new_callable=AsyncMock
-            ) as mock_plans,
+            patch.object(service, "_get_active_branches", new_callable=AsyncMock) as mock_branches,
+            patch.object(service, "_finalize_branch_ratings", new_callable=AsyncMock),
+            patch.object(service, "_save_monthly_report", new_callable=AsyncMock),
+            patch.object(service, "_create_new_pvr_records", new_callable=AsyncMock) as mock_pvr,
+            patch.object(service, "_copy_plans", new_callable=AsyncMock) as mock_plans,
         ):
             mock_branches.return_value = []
             mock_pvr.return_value = 0
@@ -568,9 +541,7 @@ class TestResetAllOrganizations:
         orgs_result.scalars.return_value.all.return_value = [org1, org2]
         mock_db.execute = AsyncMock(return_value=orgs_result)
 
-        with patch.object(
-            service, "reset_organization", new_callable=AsyncMock
-        ) as mock_reset:
+        with patch.object(service, "reset_organization", new_callable=AsyncMock) as mock_reset:
             mock_reset.return_value = {"branches": 1}
 
             result = await service.reset_all_organizations(JANUARY)
@@ -592,9 +563,7 @@ class TestResetAllOrganizations:
         orgs_result.scalars.return_value.all.return_value = [org1, org2]
         mock_db.execute = AsyncMock(return_value=orgs_result)
 
-        with patch.object(
-            service, "reset_organization", new_callable=AsyncMock
-        ) as mock_reset:
+        with patch.object(service, "reset_organization", new_callable=AsyncMock) as mock_reset:
             # First org fails, second succeeds
             mock_reset.side_effect = [Exception("DB error"), {"branches": 2}]
 
@@ -627,6 +596,7 @@ class TestMonthlyResetTask:
     def test_task_is_registered(self):
         """Verify the task is registered in Celery."""
         from app.tasks.monthly_reset_tasks import monthly_reset
+
         assert monthly_reset.name == "monthly_reset"
 
     @pytest.mark.asyncio
@@ -634,9 +604,7 @@ class TestMonthlyResetTask:
         """_run_monthly_reset without args finalizes the previous month."""
         from app.tasks.monthly_reset_tasks import _run_monthly_reset
 
-        with patch(
-            "app.database.async_session"
-        ) as mock_session_maker:
+        with patch("app.database.async_session") as mock_session_maker:
             mock_db = AsyncMock()
             mock_session_ctx = AsyncMock()
             mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
@@ -648,7 +616,7 @@ class TestMonthlyResetTask:
                 new_callable=AsyncMock,
             ) as mock_reset:
                 mock_reset.return_value = {"orgs_processed": 1, "errors": 0}
-                result = await _run_monthly_reset()
+                await _run_monthly_reset()
 
             # Should have been called with previous month
             call_args = mock_reset.call_args[0]
@@ -665,9 +633,7 @@ class TestMonthlyResetTask:
         """_run_monthly_reset with explicit month uses that month."""
         from app.tasks.monthly_reset_tasks import _run_monthly_reset
 
-        with patch(
-            "app.database.async_session"
-        ) as mock_session_maker:
+        with patch("app.database.async_session") as mock_session_maker:
             mock_db = AsyncMock()
             mock_session_ctx = AsyncMock()
             mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
@@ -679,7 +645,7 @@ class TestMonthlyResetTask:
                 new_callable=AsyncMock,
             ) as mock_reset:
                 mock_reset.return_value = {"orgs_processed": 1, "errors": 0}
-                result = await _run_monthly_reset(date(2026, 1, 15))
+                await _run_monthly_reset(date(2026, 1, 15))
 
             call_args = mock_reset.call_args[0]
             assert call_args[0] == date(2026, 1, 1)  # Normalized to 1st
@@ -706,9 +672,7 @@ class TestHistoryPreservation:
         existing_result = MagicMock()
         existing_result.scalar_one_or_none.return_value = None
 
-        mock_db.execute = AsyncMock(
-            side_effect=[barbers_result, existing_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[barbers_result, existing_result])
 
         added_items: list = []
         mock_db.add = MagicMock(side_effect=lambda item: added_items.append(item))

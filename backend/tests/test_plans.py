@@ -2,13 +2,12 @@
 
 import json
 import uuid
-from datetime import date, timedelta
+from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.plans import PlanService, _DEVIATION_THRESHOLD_PP, _WORKING_DAYS_RATIO
-
+from app.services.plans import _DEVIATION_THRESHOLD_PP, PlanService
 
 # --- Helpers ---
 
@@ -244,9 +243,7 @@ class TestUpdateProgress:
         branch_result = MagicMock()
         branch_result.scalar_one_or_none.return_value = branch
 
-        mock_db.execute = AsyncMock(
-            side_effect=[plan_result, revenue_result, branch_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[plan_result, revenue_result, branch_result])
         mock_db.commit = AsyncMock()
 
         service = PlanService(db=mock_db, redis=mock_redis)
@@ -290,9 +287,7 @@ class TestUpdateProgress:
         branch_result = MagicMock()
         branch_result.scalar_one_or_none.return_value = branch
 
-        mock_db.execute = AsyncMock(
-            side_effect=[plan_result, revenue_result, branch_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[plan_result, revenue_result, branch_result])
         mock_db.commit = AsyncMock()
 
         service = PlanService(db=mock_db, redis=mock_redis)
@@ -300,6 +295,7 @@ class TestUpdateProgress:
 
         # Check if deviation is enough to trigger warning
         import calendar
+
         days_in_month = calendar.monthrange(month_start.year, month_start.month)[1]
         days_passed = (today - month_start).days + 1
         expected_pct = (days_passed / days_in_month) * 100
@@ -612,9 +608,7 @@ class TestGetPlanWithDetails:
         branch_result = MagicMock()
         branch_result.scalar_one_or_none.return_value = branch
 
-        mock_db.execute = AsyncMock(
-            side_effect=[plan_result, branch_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[plan_result, branch_result])
 
         service = PlanService(db=mock_db, redis=mock_redis)
         data = await service.get_plan_with_details(BRANCH_ID, ORG_ID)

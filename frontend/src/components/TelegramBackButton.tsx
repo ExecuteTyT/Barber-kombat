@@ -14,9 +14,7 @@ export default function TelegramBackButton({ onClick }: TelegramBackButtonProps)
       backButton.show()
     }
 
-    const off = backButton.onClick.isAvailable()
-      ? backButton.onClick(onClick)
-      : undefined
+    const off = backButton.onClick.isAvailable() ? backButton.onClick(onClick) : undefined
 
     return () => {
       off?.()

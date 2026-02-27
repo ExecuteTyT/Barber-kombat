@@ -10,9 +10,7 @@ from app.models.base import Base
 
 class PVRRecord(Base):
     __tablename__ = "pvr_records"
-    __table_args__ = (
-        UniqueConstraint("barber_id", "month", name="uq_pvr_records_barber_month"),
-    )
+    __table_args__ = (UniqueConstraint("barber_id", "month", name="uq_pvr_records_barber_month"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(

@@ -95,13 +95,9 @@ def _parse_month(month_str: str | None) -> tuple[date, date]:
     return month_start, month_end
 
 
-async def _load_weights(
-    org_id: uuid.UUID, db: AsyncSession
-) -> WeightsResponse:
+async def _load_weights(org_id: uuid.UUID, db: AsyncSession) -> WeightsResponse:
     """Load rating weights from RatingConfig or use defaults."""
-    result = await db.execute(
-        select(RatingConfig).where(RatingConfig.organization_id == org_id)
-    )
+    result = await db.execute(select(RatingConfig).where(RatingConfig.organization_id == org_id))
     config = result.scalar_one_or_none()
     if config:
         return WeightsResponse(
@@ -242,9 +238,7 @@ async def get_standings(
     month_label = f"{month_start.year}-{month_start.month:02d}"
 
     # Aggregate standings: wins (rank=1 count) and avg_score
-    wins_case = sa_func.sum(
-        case((DailyRating.rank == 1, 1), else_=0)
-    ).cast(Integer)
+    wins_case = sa_func.sum(case((DailyRating.rank == 1, 1), else_=0)).cast(Integer)
 
     stmt = (
         select(
@@ -286,9 +280,7 @@ async def get_standings(
 @router.get("/history/{branch_id}", response_model=HistoryResponse)
 async def get_history(
     branch_id: uuid.UUID,
-    current_user: Annotated[
-        User, Depends(require_role(UserRole.CHEF, UserRole.OWNER))
-    ],
+    current_user: Annotated[User, Depends(require_role(UserRole.CHEF, UserRole.OWNER))],
     db: Annotated[AsyncSession, Depends(get_db)],
     date_from: Annotated[date, Query(description="Start date (YYYY-MM-DD)")],
     date_to: Annotated[date, Query(description="End date (YYYY-MM-DD)")],
@@ -398,11 +390,7 @@ async def get_barber_stats(
         total_extras = sum(dr.extras_count for dr in daily_ratings)
 
         reviews_with_data = [dr.reviews_avg for dr in daily_ratings if dr.reviews_avg is not None]
-        avg_review = (
-            sum(reviews_with_data) / len(reviews_with_data)
-            if reviews_with_data
-            else None
-        )
+        avg_review = sum(reviews_with_data) / len(reviews_with_data) if reviews_with_data else None
     else:
         avg_score = 0.0
         total_revenue = 0

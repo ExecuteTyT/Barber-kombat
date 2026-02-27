@@ -14,9 +14,7 @@ class NotificationConfig(Base):
     organization_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("organizations.id"), nullable=False
     )
-    branch_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("branches.id"), nullable=True
-    )
+    branch_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("branches.id"), nullable=True)
     notification_type: Mapped[str] = mapped_column(String(50), nullable=False)
     telegram_chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import date
-from unittest.mock import AsyncMock, MagicMock, call
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -77,7 +77,12 @@ def make_report(
     report.id = uuid.uuid4()
     report.type = report_type
     report.date = report_date
-    report.data = data or {"date": "2026-02-22", "branches": [], "network_total_today": 0, "network_total_mtd": 0}
+    report.data = data or {
+        "date": "2026-02-22",
+        "branches": [],
+        "network_total_today": 0,
+        "network_total_mtd": 0,
+    }
     report.delivered_telegram = False
     return report
 
@@ -171,9 +176,11 @@ class TestGenerateDailyRevenue:
         mock_db.execute = AsyncMock(
             side_effect=[
                 branches_result,
-                rev_today, rev_mtd,
+                rev_today,
+                rev_mtd,
                 plan_result,
-                shift_result, total_result,
+                shift_result,
+                total_result,
                 save_result,
             ]
         )
@@ -222,9 +229,11 @@ class TestGenerateDailyRevenue:
         mock_db.execute = AsyncMock(
             side_effect=[
                 branches_result,
-                rev_today, rev_mtd,
+                rev_today,
+                rev_mtd,
                 plan_result,
-                shift_result, total_result,
+                shift_result,
+                total_result,
                 save_result,
             ]
         )
@@ -296,9 +305,7 @@ class TestGenerateDayToDay:
 
         save_result = MagicMock()
 
-        mock_db.execute = AsyncMock(
-            side_effect=[branches_result, *day_revenues, save_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[branches_result, *day_revenues, save_result])
         mock_db.commit = AsyncMock()
 
         data = await service.generate_day_to_day(ORG_ID, target, branch_id=None)
@@ -348,8 +355,10 @@ class TestGenerateClientsReport:
         mock_db.execute = AsyncMock(
             side_effect=[
                 branches_result,
-                new_today, total_today,
-                new_mtd, total_mtd,
+                new_today,
+                total_today,
+                new_mtd,
+                total_mtd,
                 save_result,
             ]
         )
@@ -393,9 +402,7 @@ class TestGenerateKombatDaily:
 
         save_result = MagicMock()
 
-        mock_db.execute = AsyncMock(
-            side_effect=[branches_result, ratings_result, save_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[branches_result, ratings_result, save_result])
         mock_db.commit = AsyncMock()
 
         data = await service.generate_kombat_daily(ORG_ID, date(2026, 2, 22))
@@ -448,9 +455,7 @@ class TestGenerateKombatMonthly:
 
         save_result = MagicMock()
 
-        mock_db.execute = AsyncMock(
-            side_effect=[branches_result, monthly_result, save_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[branches_result, monthly_result, save_result])
         mock_db.commit = AsyncMock()
 
         data = await service.generate_kombat_monthly(ORG_ID, date(2026, 2, 1))
@@ -550,12 +555,15 @@ class TestBeatSchedule:
 class TestReportTasks:
     def test_generate_daily_reports_registered(self):
         from app.tasks.report_tasks import generate_daily_reports
+
         assert generate_daily_reports.name == "generate_daily_reports"
 
     def test_generate_day_to_day_registered(self):
         from app.tasks.report_tasks import generate_day_to_day
+
         assert generate_day_to_day.name == "generate_day_to_day"
 
     def test_generate_monthly_reports_registered(self):
         from app.tasks.report_tasks import generate_monthly_reports
+
         assert generate_monthly_reports.name == "generate_monthly_reports"

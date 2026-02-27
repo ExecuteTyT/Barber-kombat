@@ -79,8 +79,7 @@ def map_record_to_visit_dict(
 ) -> dict:
     """Map a YClients record to a dict of Visit column values."""
     services_list = [
-        {"id": s.id, "title": s.title, "cost": s.cost, "is_extra": False}
-        for s in record.services
+        {"id": s.id, "title": s.title, "cost": s.cost, "is_extra": False} for s in record.services
     ]
     products_list = [
         {"id": g.id, "title": g.title, "cost": g.cost, "amount": g.amount}
@@ -88,9 +87,7 @@ def map_record_to_visit_dict(
     ]
 
     services_revenue = rubles_to_kopecks(sum(s.cost for s in record.services))
-    products_revenue = rubles_to_kopecks(
-        sum(g.cost * g.amount for g in record.goods_transactions)
-    )
+    products_revenue = rubles_to_kopecks(sum(g.cost * g.amount for g in record.goods_transactions))
 
     # Mark extras in services list
     extras = 0
@@ -218,16 +215,16 @@ class SyncService:
         result = await self.db.execute(select(Branch).where(Branch.id == branch_id))
         branch = result.scalar_one_or_none()
         if branch is None or branch.yclients_company_id is None:
-            await logger.awarning("Branch not found or missing yclients_company_id", branch_id=str(branch_id))
+            await logger.awarning(
+                "Branch not found or missing yclients_company_id", branch_id=str(branch_id)
+            )
             return 0
 
         organization_id = branch.organization_id
         extra_services = await self._get_extra_services(organization_id)
 
         # Fetch records from YClients
-        records = await self.yclients.get_records(
-            branch.yclients_company_id, date_from, date_to
-        )
+        records = await self.yclients.get_records(branch.yclients_company_id, date_from, date_to)
 
         synced = 0
         for record in records:
@@ -461,7 +458,9 @@ class SyncService:
         month_start = today.replace(day=1)
 
         for branch in branches:
-            await logger.ainfo("Initial sync for branch", branch_id=str(branch.id), name=branch.name)
+            await logger.ainfo(
+                "Initial sync for branch", branch_id=str(branch.id), name=branch.name
+            )
             await self.sync_staff(branch.id)
             await self.sync_records(branch.id, month_start, today)
 

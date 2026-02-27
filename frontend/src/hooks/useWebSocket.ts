@@ -24,7 +24,11 @@ export function useWebSocket(onMessage: MessageHandler) {
   const onMessageRef = useRef(onMessage)
 
   // Keep the handler reference fresh without re-triggering the effect
-  onMessageRef.current = onMessage
+  useEffect(() => {
+    onMessageRef.current = onMessage
+  })
+
+  const connectRef = useRef<() => void>(() => {})
 
   const clearTimers = useCallback(() => {
     if (pingTimerRef.current) {
@@ -82,15 +86,12 @@ export function useWebSocket(onMessage: MessageHandler) {
 
       // Exponential backoff reconnection
       const attempt = reconnectAttemptRef.current
-      const delay = Math.min(
-        RECONNECT_BASE_DELAY * 2 ** attempt,
-        RECONNECT_MAX_DELAY,
-      )
+      const delay = Math.min(RECONNECT_BASE_DELAY * 2 ** attempt, RECONNECT_MAX_DELAY)
       reconnectAttemptRef.current = attempt + 1
 
       reconnectTimerRef.current = setTimeout(() => {
         if (mountedRef.current) {
-          connect()
+          connectRef.current()
         }
       }, delay)
     }
@@ -99,6 +100,10 @@ export function useWebSocket(onMessage: MessageHandler) {
       // onclose will fire after onerror, reconnect handled there
     }
   }, [token, clearTimers])
+
+  useEffect(() => {
+    connectRef.current = connect
+  })
 
   useEffect(() => {
     mountedRef.current = true

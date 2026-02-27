@@ -9,7 +9,7 @@ Generates management reports for the barbershop network:
 """
 
 import uuid
-from datetime import date, timedelta
+from datetime import date
 
 import structlog
 from sqlalchemy import func as sa_func
@@ -18,10 +18,8 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.branch import Branch
-from app.models.client import Client
 from app.models.daily_rating import DailyRating
 from app.models.plan import Plan
-from app.models.pvr_record import PVRRecord
 from app.models.report import Report
 from app.models.user import User, UserRole
 from app.models.visit import Visit
@@ -60,37 +58,31 @@ class ReportService:
 
         for branch in branches:
             # Revenue today
-            revenue_today = await self._sum_revenue(
-                branch.id, target_date, target_date
-            )
+            revenue_today = await self._sum_revenue(branch.id, target_date, target_date)
             # Revenue month-to-date
-            revenue_mtd = await self._sum_revenue(
-                branch.id, month_start, target_date
-            )
+            revenue_mtd = await self._sum_revenue(branch.id, month_start, target_date)
 
             # Plan
             plan = await self._get_plan(branch.id, month_start)
             plan_target = plan.target_amount if plan else 0
-            plan_pct = round(
-                (revenue_mtd / plan_target) * 100, 1
-            ) if plan_target > 0 else 0.0
+            plan_pct = round((revenue_mtd / plan_target) * 100, 1) if plan_target > 0 else 0.0
 
             # Barbers in shift today
-            barbers_in_shift = await self._count_barbers_in_shift(
-                branch.id, target_date
-            )
+            barbers_in_shift = await self._count_barbers_in_shift(branch.id, target_date)
             barbers_total = await self._count_barbers_total(branch.id)
 
-            branch_data.append({
-                "branch_id": str(branch.id),
-                "name": branch.name,
-                "revenue_today": revenue_today,
-                "revenue_mtd": revenue_mtd,
-                "plan_target": plan_target,
-                "plan_percentage": plan_pct,
-                "barbers_in_shift": barbers_in_shift,
-                "barbers_total": barbers_total,
-            })
+            branch_data.append(
+                {
+                    "branch_id": str(branch.id),
+                    "name": branch.name,
+                    "revenue_today": revenue_today,
+                    "revenue_mtd": revenue_mtd,
+                    "plan_target": plan_target,
+                    "plan_percentage": plan_pct,
+                    "barbers_in_shift": barbers_in_shift,
+                    "barbers_total": barbers_total,
+                }
+            )
 
             network_today += revenue_today
             network_mtd += revenue_mtd
@@ -143,12 +135,8 @@ class ReportService:
             branch_ids = [b.id for b in branches]
 
         # Build cumulative data for each month
-        current_cumulative = await self._daily_cumulative(
-            branch_ids, current_month_start, day_num
-        )
-        prev_cumulative = await self._daily_cumulative(
-            branch_ids, prev_month_start, day_num
-        )
+        current_cumulative = await self._daily_cumulative(branch_ids, current_month_start, day_num)
+        prev_cumulative = await self._daily_cumulative(branch_ids, prev_month_start, day_num)
         prev_prev_cumulative = await self._daily_cumulative(
             branch_ids, prev_prev_month_start, day_num
         )
@@ -217,30 +205,28 @@ class ReportService:
             new_today = await self._count_new_clients(
                 branch.id, organization_id, target_date, target_date
             )
-            total_today = await self._count_unique_clients(
-                branch.id, target_date, target_date
-            )
+            total_today = await self._count_unique_clients(branch.id, target_date, target_date)
             returning_today = total_today - new_today
 
             # Month-to-date
             new_mtd = await self._count_new_clients(
                 branch.id, organization_id, month_start, target_date
             )
-            total_mtd = await self._count_unique_clients(
-                branch.id, month_start, target_date
-            )
+            total_mtd = await self._count_unique_clients(branch.id, month_start, target_date)
             returning_mtd = total_mtd - new_mtd
 
-            branch_data.append({
-                "branch_id": str(branch.id),
-                "name": branch.name,
-                "new_clients_today": new_today,
-                "returning_clients_today": returning_today,
-                "total_today": total_today,
-                "new_clients_mtd": new_mtd,
-                "returning_clients_mtd": returning_mtd,
-                "total_mtd": total_mtd,
-            })
+            branch_data.append(
+                {
+                    "branch_id": str(branch.id),
+                    "name": branch.name,
+                    "new_clients_today": new_today,
+                    "returning_clients_today": returning_today,
+                    "total_today": total_today,
+                    "new_clients_mtd": new_mtd,
+                    "returning_clients_mtd": returning_mtd,
+                    "total_mtd": total_mtd,
+                }
+            )
 
             network_new_mtd += new_mtd
             network_returning_mtd += returning_mtd
@@ -300,11 +286,13 @@ class ReportService:
                 for r, name in ratings
             ]
 
-            branch_standings.append({
-                "branch_id": str(branch.id),
-                "name": branch.name,
-                "standings": standings,
-            })
+            branch_standings.append(
+                {
+                    "branch_id": str(branch.id),
+                    "name": branch.name,
+                    "standings": standings,
+                }
+            )
 
         report_data = {
             "date": str(target_date),
@@ -354,9 +342,9 @@ class ReportService:
                     sa_func.count(DailyRating.id).label("days_worked"),
                     sa_func.sum(DailyRating.revenue).label("total_revenue"),
                     sa_func.avg(DailyRating.total_score).label("avg_score"),
-                    sa_func.count(
-                        sa_func.nullif(DailyRating.rank, 0)
-                    ).filter(DailyRating.rank == 1).label("wins"),
+                    sa_func.count(sa_func.nullif(DailyRating.rank, 0))
+                    .filter(DailyRating.rank == 1)
+                    .label("wins"),
                 )
                 .join(User, User.id == DailyRating.barber_id)
                 .where(
@@ -383,11 +371,13 @@ class ReportService:
                 for idx, row in enumerate(rows)
             ]
 
-            branch_summaries.append({
-                "branch_id": str(branch.id),
-                "name": branch.name,
-                "standings": standings,
-            })
+            branch_summaries.append(
+                {
+                    "branch_id": str(branch.id),
+                    "name": branch.name,
+                    "standings": standings,
+                }
+            )
 
         report_data = {
             "month": str(month_start),
@@ -463,9 +453,7 @@ class ReportService:
     # Private helpers
     # ------------------------------------------------------------------
 
-    async def _get_active_branches(
-        self, organization_id: uuid.UUID
-    ) -> list[Branch]:
+    async def _get_active_branches(self, organization_id: uuid.UUID) -> list[Branch]:
         """Load all active branches for an organization."""
         result = await self.db.execute(
             select(Branch).where(
@@ -482,9 +470,7 @@ class ReportService:
         date_to: date,
     ) -> int:
         """Sum completed visit revenue for a branch in a date range."""
-        stmt = select(
-            sa_func.coalesce(sa_func.sum(Visit.revenue), 0)
-        ).where(
+        stmt = select(sa_func.coalesce(sa_func.sum(Visit.revenue), 0)).where(
             Visit.branch_id == branch_id,
             Visit.date >= date_from,
             Visit.date <= date_to,
@@ -493,9 +479,7 @@ class ReportService:
         result = await self.db.execute(stmt)
         return result.scalar_one()
 
-    async def _get_plan(
-        self, branch_id: uuid.UUID, month_start: date
-    ) -> Plan | None:
+    async def _get_plan(self, branch_id: uuid.UUID, month_start: date) -> Plan | None:
         """Load the revenue plan for a branch/month."""
         result = await self.db.execute(
             select(Plan).where(
@@ -505,13 +489,9 @@ class ReportService:
         )
         return result.scalar_one_or_none()
 
-    async def _count_barbers_in_shift(
-        self, branch_id: uuid.UUID, target_date: date
-    ) -> int:
+    async def _count_barbers_in_shift(self, branch_id: uuid.UUID, target_date: date) -> int:
         """Count barbers who had at least one visit today."""
-        stmt = select(
-            sa_func.count(sa_func.distinct(Visit.barber_id))
-        ).where(
+        stmt = select(sa_func.count(sa_func.distinct(Visit.barber_id))).where(
             Visit.branch_id == branch_id,
             Visit.date == target_date,
             Visit.status == "completed",
@@ -555,9 +535,7 @@ class ReportService:
             .scalar_subquery()
         )
 
-        stmt = select(
-            sa_func.count(sa_func.distinct(Visit.client_id))
-        ).where(
+        stmt = select(sa_func.count(sa_func.distinct(Visit.client_id))).where(
             Visit.branch_id == branch_id,
             Visit.date >= date_from,
             Visit.date <= date_to,
@@ -576,9 +554,7 @@ class ReportService:
         date_to: date,
     ) -> int:
         """Count unique clients with completed visits in a date range."""
-        stmt = select(
-            sa_func.count(sa_func.distinct(Visit.client_id))
-        ).where(
+        stmt = select(sa_func.count(sa_func.distinct(Visit.client_id))).where(
             Visit.branch_id == branch_id,
             Visit.date >= date_from,
             Visit.date <= date_to,
@@ -681,9 +657,18 @@ def _prev_month(d: date) -> date:
 def _month_label(d: date) -> str:
     """Human-readable month label in Russian."""
     month_names = {
-        1: "Январь", 2: "Февраль", 3: "Март", 4: "Апрель",
-        5: "Май", 6: "Июнь", 7: "Июль", 8: "Август",
-        9: "Сентябрь", 10: "Октябрь", 11: "Ноябрь", 12: "Декабрь",
+        1: "Январь",
+        2: "Февраль",
+        3: "Март",
+        4: "Апрель",
+        5: "Май",
+        6: "Июнь",
+        7: "Июль",
+        8: "Август",
+        9: "Сентябрь",
+        10: "Октябрь",
+        11: "Ноябрь",
+        12: "Декабрь",
     }
     return f"{month_names[d.month]} {d.year}"
 

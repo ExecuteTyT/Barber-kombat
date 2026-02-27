@@ -188,11 +188,7 @@ class ReviewService:
         count_stmt = select(sa_func.count(Review.id)).where(*conditions)
         total = (await self.db.execute(count_stmt)).scalar_one()
 
-        stmt = (
-            select(Review)
-            .where(*conditions)
-            .order_by(Review.created_at.desc())
-        )
+        stmt = select(Review).where(*conditions).order_by(Review.created_at.desc())
         result = await self.db.execute(stmt)
         reviews = result.scalars().all()
 
@@ -293,7 +289,9 @@ class ReviewService:
             "rating": review.rating,
             "comment": review.comment,
             "source": review.source,
-            "status": review.status.value if isinstance(review.status, ReviewStatus) else review.status,
+            "status": review.status.value
+            if isinstance(review.status, ReviewStatus)
+            else review.status,
             "processed_by": review.processed_by,
             "processed_comment": review.processed_comment,
             "processed_at": review.processed_at,

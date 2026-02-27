@@ -20,9 +20,7 @@ class ConnectionManager:
         # organization_id -> set of active WebSocket connections
         self._connections: dict[uuid.UUID, set[WebSocket]] = {}
 
-    async def connect(
-        self, websocket: WebSocket, organization_id: uuid.UUID
-    ) -> None:
+    async def connect(self, websocket: WebSocket, organization_id: uuid.UUID) -> None:
         """Accept and register a WebSocket connection."""
         await websocket.accept()
         self._connections.setdefault(organization_id, set()).add(websocket)
@@ -32,9 +30,7 @@ class ConnectionManager:
             total=self.active_connections_count,
         )
 
-    def disconnect(
-        self, websocket: WebSocket, organization_id: uuid.UUID
-    ) -> None:
+    def disconnect(self, websocket: WebSocket, organization_id: uuid.UUID) -> None:
         """Remove a WebSocket connection."""
         conns = self._connections.get(organization_id)
         if conns is not None:
@@ -42,9 +38,7 @@ class ConnectionManager:
             if not conns:
                 del self._connections[organization_id]
 
-    async def broadcast_to_org(
-        self, organization_id: uuid.UUID, message: dict
-    ) -> None:
+    async def broadcast_to_org(self, organization_id: uuid.UUID, message: dict) -> None:
         """Send a JSON message to all clients in an organization.
 
         Dead connections are silently removed.

@@ -1,11 +1,7 @@
 import { create } from 'zustand'
 
 import api from '../api/client'
-import type {
-  AdminMetricsResponse,
-  AdminTasksResponse,
-  AdminHistoryResponse,
-} from '../types'
+import type { AdminMetricsResponse, AdminTasksResponse, AdminHistoryResponse } from '../types'
 
 interface AdminState {
   metrics: AdminMetricsResponse | null

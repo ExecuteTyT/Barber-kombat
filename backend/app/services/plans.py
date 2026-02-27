@@ -11,8 +11,8 @@ from datetime import UTC, date, datetime, timedelta
 
 import redis.asyncio as aioredis
 import structlog
-from sqlalchemy import select
 from sqlalchemy import func as sa_func
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -112,12 +112,13 @@ class PlanService:
         month_start = (month or date.today()).replace(day=1)
 
         result = await self.db.execute(
-            select(Plan, Branch.name).join(
-                Branch, Plan.branch_id == Branch.id
-            ).where(
+            select(Plan, Branch.name)
+            .join(Branch, Plan.branch_id == Branch.id)
+            .where(
                 Plan.organization_id == organization_id,
                 Plan.month == month_start,
-            ).order_by(Branch.name)
+            )
+            .order_by(Branch.name)
         )
         rows = result.all()
 
@@ -126,14 +127,16 @@ class PlanService:
         total_current = 0
 
         for plan, branch_name in rows:
-            plans.append({
-                "branch_id": plan.branch_id,
-                "branch_name": branch_name,
-                "target_amount": plan.target_amount,
-                "current_amount": plan.current_amount,
-                "percentage": plan.percentage,
-                "forecast_amount": plan.forecast_amount,
-            })
+            plans.append(
+                {
+                    "branch_id": plan.branch_id,
+                    "branch_name": branch_name,
+                    "target_amount": plan.target_amount,
+                    "current_amount": plan.current_amount,
+                    "percentage": plan.percentage,
+                    "forecast_amount": plan.forecast_amount,
+                }
+            )
             total_target += plan.target_amount
             total_current += plan.current_amount
 
@@ -268,9 +271,7 @@ class PlanService:
         # Don't sum beyond today
         effective_end = min(month_end, today + timedelta(days=1))
 
-        stmt = select(
-            sa_func.coalesce(sa_func.sum(Visit.revenue), 0)
-        ).where(
+        stmt = select(sa_func.coalesce(sa_func.sum(Visit.revenue), 0)).where(
             Visit.branch_id == branch_id,
             Visit.date >= month_start,
             Visit.date < effective_end,
@@ -357,9 +358,7 @@ class PlanService:
         remaining = plan.target_amount - plan.current_amount
         working_days_left = int(days_left * _WORKING_DAYS_RATIO)
         required_daily = (
-            int(remaining / working_days_left)
-            if working_days_left > 0 and remaining > 0
-            else 0
+            int(remaining / working_days_left) if working_days_left > 0 and remaining > 0 else 0
         )
 
         # Deviation check

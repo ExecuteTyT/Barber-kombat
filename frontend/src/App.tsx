@@ -41,6 +41,15 @@ const DEFAULT_ROUTES: Record<string, string> = {
   manager: '/chef/kombat',
 }
 
+function useInitDataSafe(): string | undefined {
+  try {
+    return useRawInitData()
+  } catch {
+    // Outside Telegram — no init data available
+    return undefined
+  }
+}
+
 function App() {
   useTelegramTheme()
 
@@ -49,12 +58,7 @@ function App() {
   // Deep link: parse startapp param and navigate after auth
   useDeepLink(user?.role)
 
-  let initDataRaw: string | undefined
-  try {
-    initDataRaw = useRawInitData()
-  } catch {
-    // Outside Telegram — no init data available
-  }
+  const initDataRaw = useInitDataSafe()
 
   useEffect(() => {
     hydrate()

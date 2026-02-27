@@ -19,16 +19,12 @@ class Report(Base):
     organization_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("organizations.id"), nullable=False
     )
-    branch_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("branches.id"), nullable=True
-    )
+    branch_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("branches.id"), nullable=True)
     type: Mapped[str] = mapped_column(String(50), nullable=False)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     delivered_telegram: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    delivered_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

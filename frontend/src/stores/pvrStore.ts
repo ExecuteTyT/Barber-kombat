@@ -31,9 +31,7 @@ export const usePvrStore = create<PVRState>((set) => ({
   fetchBarberPvr: async (barberId: string) => {
     set({ isLoading: true, error: null })
     try {
-      const { data } = await api.get<BarberPVRResponse>(
-        `/pvr/barber/${barberId}`,
-      )
+      const { data } = await api.get<BarberPVRResponse>(`/pvr/barber/${barberId}`)
       set({ barberPvr: data, isLoading: false })
     } catch {
       set({ error: 'Не удалось загрузить ПВР', isLoading: false })
@@ -43,9 +41,7 @@ export const usePvrStore = create<PVRState>((set) => ({
   fetchBranchPvr: async (branchId: string) => {
     set({ isLoading: true, error: null })
     try {
-      const { data } = await api.get<BranchPVRResponse>(
-        `/pvr/${branchId}/current`,
-      )
+      const { data } = await api.get<BranchPVRResponse>(`/pvr/${branchId}/current`)
       set({ branchPvr: data, isLoading: false })
     } catch {
       set({ error: 'Не удалось загрузить ПВР филиала', isLoading: false })

@@ -10,8 +10,8 @@ from datetime import UTC, date, datetime
 
 import redis.asyncio as aioredis
 import structlog
-from sqlalchemy import select
 from sqlalchemy import func as sa_func
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,23 +66,19 @@ class PVRService:
         config = await self._load_config(organization_id)
 
         # 2. Calculate clean revenue
-        cumulative_revenue = await self._calc_clean_revenue(
-            barber_id, month_start, config
-        )
+        cumulative_revenue = await self._calc_clean_revenue(barber_id, month_start, config)
 
         # 3. Determine threshold
         thresholds = self._get_thresholds(config)
-        current_threshold, bonus_amount = self._find_threshold(
-            cumulative_revenue, thresholds
-        )
+        current_threshold, bonus_amount = self._find_threshold(cumulative_revenue, thresholds)
 
         # 4. Load previous record and detect new crossing
         prev_record = await self._get_record(barber_id, month_start)
         old_threshold = prev_record.current_threshold if prev_record else None
 
-        thresholds_reached: list[dict] = list(
-            prev_record.thresholds_reached or []
-        ) if prev_record else []
+        thresholds_reached: list[dict] = (
+            list(prev_record.thresholds_reached or []) if prev_record else []
+        )
 
         new_threshold_crossed = False
         if current_threshold is not None and current_threshold > (old_threshold or 0):
@@ -95,10 +91,12 @@ class PVRService:
                     and t["amount"] <= current_threshold
                     and t["amount"] not in reached_amounts
                 ):
-                    thresholds_reached.append({
-                        "amount": t["amount"],
-                        "reached_at": today_str,
-                    })
+                    thresholds_reached.append(
+                        {
+                            "amount": t["amount"],
+                            "reached_at": today_str,
+                        }
+                    )
 
         # 5. UPSERT
         values: dict = {
@@ -174,9 +172,7 @@ class PVRService:
 
         records: list[PVRRecord] = []
         for barber in barbers:
-            record = await self.recalculate_barber(
-                barber.id, branch.organization_id, target_month
-            )
+            record = await self.recalculate_barber(barber.id, branch.organization_id, target_month)
             if record:
                 records.append(record)
         return records
@@ -286,9 +282,7 @@ class PVRService:
         else:
             revenue_expr = Visit.services_revenue
 
-        stmt = select(
-            sa_func.coalesce(sa_func.sum(revenue_expr), 0)
-        ).where(
+        stmt = select(sa_func.coalesce(sa_func.sum(revenue_expr), 0)).where(
             Visit.barber_id == barber_id,
             Visit.date >= month_start,
             Visit.date < month_end,
@@ -299,9 +293,7 @@ class PVRService:
         result = await self.db.execute(stmt)
         return result.scalar_one()
 
-    async def _get_record(
-        self, barber_id: uuid.UUID, month: date
-    ) -> PVRRecord | None:
+    async def _get_record(self, barber_id: uuid.UUID, month: date) -> PVRRecord | None:
         """Load existing PVR record."""
         result = await self.db.execute(
             select(PVRRecord).where(

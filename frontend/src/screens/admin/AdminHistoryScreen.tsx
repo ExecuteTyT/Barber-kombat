@@ -60,9 +60,8 @@ export default function AdminHistoryScreen() {
   const totalRecords = days.reduce((s, d) => s + d.records_count, 0)
   const totalProducts = days.reduce((s, d) => s + d.products_sold, 0)
   const totalRevenue = days.reduce((s, d) => s + d.revenue, 0)
-  const avgConfirmed = days.length > 0
-    ? Math.round(days.reduce((s, d) => s + d.confirmed_rate, 0) / days.length)
-    : 0
+  const avgConfirmed =
+    days.length > 0 ? Math.round(days.reduce((s, d) => s + d.confirmed_rate, 0) / days.length) : 0
 
   return (
     <div className="pb-4 pt-4">

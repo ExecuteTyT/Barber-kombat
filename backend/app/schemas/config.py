@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.models.user import UserRole
 
-
 # --- Rating Config ---
 
 
@@ -41,9 +40,7 @@ class RatingWeightsRequest(BaseModel):
     def validate_prize_pcts(self) -> "RatingWeightsRequest":
         total = self.prize_gold_pct + self.prize_silver_pct + self.prize_bronze_pct
         if total > 1.0:
-            raise ValueError(
-                f"Prize percentages must sum to <= 1.0, got {total}"
-            )
+            raise ValueError(f"Prize percentages must sum to <= 1.0, got {total}")
         return self
 
 

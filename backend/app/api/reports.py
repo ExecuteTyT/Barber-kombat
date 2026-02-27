@@ -9,10 +9,10 @@ from datetime import date
 from typing import Annotated
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user, require_role
+from app.auth.dependencies import require_role
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.schemas.reports import (
@@ -21,8 +21,6 @@ from app.schemas.reports import (
     DayToDayReport,
     KombatDailyReport,
     KombatMonthlyReport,
-    ReportListResponse,
-    ReportResponse,
 )
 from app.services.reports import ReportService
 
@@ -41,7 +39,9 @@ async def get_revenue_report(
         Depends(require_role(UserRole.OWNER, UserRole.MANAGER, UserRole.ADMIN)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
-    target_date: date = Query(default=None, description="Report date (defaults to today)"),
+    target_date: Annotated[
+        date | None, Query(description="Report date (defaults to today)")
+    ] = None,
 ):
     """Get daily revenue report. Owner, manager, admin only.
 
@@ -59,9 +59,7 @@ async def get_revenue_report(
         return DailyRevenueReport(**report.data)
 
     # Generate on-the-fly if not pre-generated
-    data = await report_service.generate_daily_revenue(
-        current_user.organization_id, report_date
-    )
+    data = await report_service.generate_daily_revenue(current_user.organization_id, report_date)
     return DailyRevenueReport(**data)
 
 
@@ -75,8 +73,12 @@ async def get_day_to_day_report(
         Depends(require_role(UserRole.OWNER, UserRole.MANAGER, UserRole.ADMIN)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
-    target_date: date = Query(default=None, description="Report date (defaults to today)"),
-    branch_id: uuid.UUID | None = Query(default=None, description="Branch filter (null = entire network)"),
+    target_date: Annotated[
+        date | None, Query(description="Report date (defaults to today)")
+    ] = None,
+    branch_id: Annotated[
+        uuid.UUID | None, Query(description="Branch filter (null = entire network)")
+    ] = None,
 ):
     """Get day-to-day month comparison report. Owner, manager, admin only."""
     report_date = target_date or date.today()
@@ -104,21 +106,19 @@ async def get_clients_report(
         Depends(require_role(UserRole.OWNER, UserRole.MANAGER, UserRole.ADMIN)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
-    target_date: date = Query(default=None, description="Report date (defaults to today)"),
+    target_date: Annotated[
+        date | None, Query(description="Report date (defaults to today)")
+    ] = None,
 ):
     """Get client statistics report (new vs returning). Owner, manager, admin only."""
     report_date = target_date or date.today()
     report_service = ReportService(db=db)
 
-    report = await report_service.get_report(
-        current_user.organization_id, "clients", report_date
-    )
+    report = await report_service.get_report(current_user.organization_id, "clients", report_date)
     if report and report.data:
         return ClientsReport(**report.data)
 
-    data = await report_service.generate_clients_report(
-        current_user.organization_id, report_date
-    )
+    data = await report_service.generate_clients_report(current_user.organization_id, report_date)
     return ClientsReport(**data)
 
 
@@ -132,7 +132,9 @@ async def get_bingo_report(
         Depends(require_role(UserRole.CHEF, UserRole.OWNER, UserRole.MANAGER, UserRole.ADMIN)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
-    target_date: date = Query(default=None, description="Report date (defaults to today)"),
+    target_date: Annotated[
+        date | None, Query(description="Report date (defaults to today)")
+    ] = None,
 ):
     """Get Barber Kombat daily standings (bingo view). Chef+ access."""
     report_date = target_date or date.today()
@@ -144,9 +146,7 @@ async def get_bingo_report(
     if report and report.data:
         return KombatDailyReport(**report.data)
 
-    data = await report_service.generate_kombat_daily(
-        current_user.organization_id, report_date
-    )
+    data = await report_service.generate_kombat_daily(current_user.organization_id, report_date)
     return KombatDailyReport(**data)
 
 
@@ -160,7 +160,9 @@ async def get_bingo_monthly_report(
         Depends(require_role(UserRole.CHEF, UserRole.OWNER, UserRole.MANAGER, UserRole.ADMIN)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
-    month: date = Query(default=None, description="Month (first day, defaults to current month)"),
+    month: Annotated[
+        date | None, Query(description="Month (first day, defaults to current month)")
+    ] = None,
 ):
     """Get Barber Kombat monthly summary. Chef+ access."""
     month_start = (month or date.today()).replace(day=1)
@@ -172,7 +174,5 @@ async def get_bingo_monthly_report(
     if report and report.data:
         return KombatMonthlyReport(**report.data)
 
-    data = await report_service.generate_kombat_monthly(
-        current_user.organization_id, month_start
-    )
+    data = await report_service.generate_kombat_monthly(current_user.organization_id, month_start)
     return KombatMonthlyReport(**data)

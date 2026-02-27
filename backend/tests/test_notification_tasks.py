@@ -1,11 +1,9 @@
 """Tests for notification delivery Celery tasks."""
 
 import uuid
-from datetime import datetime, UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 
 # --- Test constants ---
 
@@ -51,39 +49,50 @@ def _make_notif_config(notification_type, chat_id=-100999):
 
 
 def _kombat_daily_report():
-    return _make_report("kombat_daily", {
-        "date": "2026-02-22",
-        "branches": [
-            {
-                "branch_id": str(BRANCH_ID),
-                "name": "8 марта",
-                "standings": [
-                    {"barber_id": str(uuid.uuid4()), "name": "Павел",
-                     "rank": 1, "total_score": 95.5, "revenue": 1_350_000},
-                ],
-            }
-        ],
-    })
+    return _make_report(
+        "kombat_daily",
+        {
+            "date": "2026-02-22",
+            "branches": [
+                {
+                    "branch_id": str(BRANCH_ID),
+                    "name": "8 марта",
+                    "standings": [
+                        {
+                            "barber_id": str(uuid.uuid4()),
+                            "name": "Павел",
+                            "rank": 1,
+                            "total_score": 95.5,
+                            "revenue": 1_350_000,
+                        },
+                    ],
+                }
+            ],
+        },
+    )
 
 
 def _revenue_report():
-    return _make_report("daily_revenue", {
-        "date": "2026-02-22",
-        "branches": [
-            {
-                "branch_id": str(BRANCH_ID),
-                "name": "8 марта",
-                "revenue_today": 850_000,
-                "revenue_mtd": 18_500_000,
-                "plan_target": 24_000_000,
-                "plan_percentage": 77.1,
-                "barbers_in_shift": 8,
-                "barbers_total": 10,
-            }
-        ],
-        "network_total_today": 2_530_000,
-        "network_total_mtd": 55_000_000,
-    })
+    return _make_report(
+        "daily_revenue",
+        {
+            "date": "2026-02-22",
+            "branches": [
+                {
+                    "branch_id": str(BRANCH_ID),
+                    "name": "8 марта",
+                    "revenue_today": 850_000,
+                    "revenue_mtd": 18_500_000,
+                    "plan_target": 24_000_000,
+                    "plan_percentage": 77.1,
+                    "barbers_in_shift": 8,
+                    "barbers_total": 10,
+                }
+            ],
+            "network_total_today": 2_530_000,
+            "network_total_mtd": 55_000_000,
+        },
+    )
 
 
 # ------------------------------------------------------------------
@@ -107,7 +116,11 @@ class TestSendToNotifTargets:
         send_fn = AsyncMock(return_value=True)
 
         sent = await _send_to_notif_targets(
-            mock_db, mock_bot, ORG_ID, "daily_rating", branch_id=BRANCH_ID,
+            mock_db,
+            mock_bot,
+            ORG_ID,
+            "daily_rating",
+            branch_id=BRANCH_ID,
             send_fn=send_fn,
         )
 
@@ -128,7 +141,11 @@ class TestSendToNotifTargets:
         send_fn = AsyncMock(return_value=True)
 
         sent = await _send_to_notif_targets(
-            mock_db, mock_bot, ORG_ID, "daily_rating", branch_id=None,
+            mock_db,
+            mock_bot,
+            ORG_ID,
+            "daily_rating",
+            branch_id=None,
             send_fn=send_fn,
         )
 
@@ -150,7 +167,11 @@ class TestSendToNotifTargets:
         send_fn = AsyncMock(side_effect=Exception("Send failed"))
 
         sent = await _send_to_notif_targets(
-            mock_db, mock_bot, ORG_ID, "daily_rating", branch_id=None,
+            mock_db,
+            mock_bot,
+            ORG_ID,
+            "daily_rating",
+            branch_id=None,
             send_fn=send_fn,
         )
 
@@ -174,7 +195,11 @@ class TestSendToNotifTargets:
         send_fn = AsyncMock(return_value=True)
 
         sent = await _send_to_notif_targets(
-            mock_db, mock_bot, ORG_ID, "pvr_threshold", branch_id=BRANCH_ID,
+            mock_db,
+            mock_bot,
+            ORG_ID,
+            "pvr_threshold",
+            branch_id=BRANCH_ID,
             send_fn=send_fn,
         )
 
@@ -289,10 +314,10 @@ class TestPVRBellNotification:
             notif_result.scalars.return_value.all.return_value = [config]
             mock_db.execute = AsyncMock(side_effect=[branch_result, notif_result])
 
-            with patch("app.integrations.telegram.bot.TelegramBot") as MockBot:
+            with patch("app.integrations.telegram.bot.TelegramBot") as mock_bot_cls:
                 mock_bot = MagicMock()
                 mock_bot.send_pvr_bell = AsyncMock(return_value=True)
-                MockBot.return_value = mock_bot
+                mock_bot_cls.return_value = mock_bot
 
                 result = await _send_pvr_bell_notification(
                     organization_id=str(ORG_ID),
@@ -327,10 +352,10 @@ class TestNegativeReviewNotification:
             notif_result.scalars.return_value.all.return_value = [config]
             mock_db.execute = AsyncMock(return_value=notif_result)
 
-            with patch("app.integrations.telegram.bot.TelegramBot") as MockBot:
+            with patch("app.integrations.telegram.bot.TelegramBot") as mock_bot_cls:
                 mock_bot = MagicMock()
                 mock_bot.send_negative_review = AsyncMock(return_value=True)
-                MockBot.return_value = mock_bot
+                mock_bot_cls.return_value = mock_bot
 
                 result = await _send_negative_review_notification(
                     organization_id=str(ORG_ID),
@@ -383,10 +408,10 @@ class TestDeliverDailyReports:
             )
             mock_db.commit = AsyncMock()
 
-            with patch("app.integrations.telegram.bot.TelegramBot") as MockBot:
+            with patch("app.integrations.telegram.bot.TelegramBot") as mock_bot_cls:
                 mock_bot = MagicMock()
                 mock_bot.send_kombat_report = AsyncMock(return_value=True)
-                MockBot.return_value = mock_bot
+                mock_bot_cls.return_value = mock_bot
 
                 result = await _deliver_daily_reports()
 
@@ -430,7 +455,10 @@ class TestCeleryBeatSchedule:
         assert schedule["deliver-daily-notifications"]["task"] == "deliver_daily_notifications"
 
         assert "deliver-day-to-day-notifications" in schedule
-        assert schedule["deliver-day-to-day-notifications"]["task"] == "deliver_day_to_day_notifications"
+        assert (
+            schedule["deliver-day-to-day-notifications"]["task"]
+            == "deliver_day_to_day_notifications"
+        )
 
         assert "deliver-monthly-notifications" in schedule
         assert schedule["deliver-monthly-notifications"]["task"] == "deliver_monthly_notifications"

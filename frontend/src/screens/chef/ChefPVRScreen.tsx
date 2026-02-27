@@ -72,18 +72,14 @@ function BarberPVRCard({
         {/* Threshold labels */}
         <div className="mt-1 flex justify-between text-[10px] text-[var(--tg-theme-hint-color)]">
           <span>0</span>
-          {sorted.length > 0 && (
-            <span>{formatMoneyShort(sorted[sorted.length - 1].amount)}</span>
-          )}
+          {sorted.length > 0 && <span>{formatMoneyShort(sorted[sorted.length - 1].amount)}</span>}
         </div>
       </div>
 
       {/* Bonus and next threshold */}
       <div className="mt-2 flex items-center justify-between text-xs">
         {barber.bonus_amount > 0 ? (
-          <span className="text-emerald-500">
-            Премия: {formatMoney(barber.bonus_amount)}
-          </span>
+          <span className="text-emerald-500">Премия: {formatMoney(barber.bonus_amount)}</span>
         ) : (
           <span className="text-[var(--tg-theme-hint-color)]">Премия: 0</span>
         )}
@@ -116,14 +112,7 @@ function BarberPVRCard({
 export default function ChefPVRScreen() {
   const user = useAuthStore((s) => s.user)
   const branchId = user?.branch_id
-  const {
-    branchPvr,
-    thresholds,
-    isLoading,
-    error,
-    fetchBranchPvr,
-    fetchThresholds,
-  } = usePvrStore()
+  const { branchPvr, thresholds, isLoading, error, fetchBranchPvr, fetchThresholds } = usePvrStore()
 
   useEffect(() => {
     if (branchId) {
@@ -150,24 +139,18 @@ export default function ChefPVRScreen() {
 
   if (!branchId) {
     return (
-      <div className="p-8 text-center text-[var(--tg-theme-hint-color)]">
-        Филиал не назначен
-      </div>
+      <div className="p-8 text-center text-[var(--tg-theme-hint-color)]">Филиал не назначен</div>
     )
   }
 
   const barbers = branchPvr?.barbers ?? []
-  const sorted = [...barbers].sort(
-    (a, b) => b.cumulative_revenue - a.cumulative_revenue,
-  )
+  const sorted = [...barbers].sort((a, b) => b.cumulative_revenue - a.cumulative_revenue)
 
   return (
     <div className="pb-4 pt-4">
       <h1 className="px-4 text-lg font-bold">ПВР филиала</h1>
       {branchPvr && (
-        <p className="mt-1 px-4 text-sm text-[var(--tg-theme-hint-color)]">
-          {branchPvr.month}
-        </p>
+        <p className="mt-1 px-4 text-sm text-[var(--tg-theme-hint-color)]">{branchPvr.month}</p>
       )}
 
       <div className="mx-4 mt-4 space-y-3">
@@ -175,9 +158,7 @@ export default function ChefPVRScreen() {
           <BarberPVRCard key={b.barber_id} barber={b} thresholds={thresholds} />
         ))}
         {sorted.length === 0 && (
-          <p className="py-8 text-center text-[var(--tg-theme-hint-color)]">
-            Нет данных по ПВР
-          </p>
+          <p className="py-8 text-center text-[var(--tg-theme-hint-color)]">Нет данных по ПВР</p>
         )}
       </div>
     </div>

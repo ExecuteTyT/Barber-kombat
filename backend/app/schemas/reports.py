@@ -1,10 +1,8 @@
 """Pydantic schemas for Report API endpoints."""
 
 import uuid
-from datetime import date
 
 from pydantic import BaseModel, ConfigDict
-
 
 # --- Daily revenue report ---
 

@@ -88,9 +88,7 @@ function RatingRow({
   return (
     <div
       className={`transition-all duration-300 ${
-        isCurrentUser
-          ? 'rounded-xl bg-[var(--tg-theme-button-color)]/10'
-          : ''
+        isCurrentUser ? 'rounded-xl bg-[var(--tg-theme-button-color)]/10' : ''
       }`}
       style={{
         // LayoutId-style animation: rank drives order
@@ -103,9 +101,7 @@ function RatingRow({
         onClick={() => setExpanded(!expanded)}
       >
         {/* Rank */}
-        <span className="w-8 text-center text-lg font-bold">
-          {medal || entry.rank}
-        </span>
+        <span className="w-8 text-center text-lg font-bold">{medal || entry.rank}</span>
 
         {/* Name + score bar */}
         <div className="min-w-0 flex-1">
@@ -131,9 +127,7 @@ function RatingRow({
           expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
         }`}
       >
-        <div className="overflow-hidden">
-          {expanded && <RatingDetail entry={entry} />}
-        </div>
+        <div className="overflow-hidden">{expanded && <RatingDetail entry={entry} />}</div>
       </div>
     </div>
   )
@@ -166,8 +160,7 @@ export default function KombatScreen() {
 
   if (!todayRating) return null
 
-  const { ratings, prize_fund, plan, weights, date, branch_name, is_active } =
-    todayRating
+  const { ratings, prize_fund, plan, weights, date, branch_name, is_active } = todayRating
 
   return (
     <div className="pb-4">
@@ -175,9 +168,7 @@ export default function KombatScreen() {
       <div className="flex items-center justify-between px-4 pb-2 pt-4">
         <div>
           <h1 className="text-lg font-bold">{branch_name}</h1>
-          <p className="text-sm text-[var(--tg-theme-hint-color)]">
-            {formatDate(date)}
-          </p>
+          <p className="text-sm text-[var(--tg-theme-hint-color)]">{formatDate(date)}</p>
         </div>
         {is_active && (
           <span className="flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-500">
@@ -217,9 +208,7 @@ export default function KombatScreen() {
               className="flex flex-col items-center rounded-xl bg-[var(--tg-theme-secondary-bg-color)] px-2 py-3"
             >
               <span className="text-xl">{p.medal}</span>
-              <span className="mt-1 text-sm font-bold tabular-nums">
-                {formatMoney(p.amount)}
-              </span>
+              <span className="mt-1 text-sm font-bold tabular-nums">{formatMoney(p.amount)}</span>
             </div>
           ))}
         </div>
@@ -233,9 +222,7 @@ export default function KombatScreen() {
         <div className="mx-4 mt-4 rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-4">
           <div className="flex items-baseline justify-between">
             <span className="text-sm font-medium">План филиала</span>
-            <span className="text-lg font-bold tabular-nums">
-              {plan.percentage.toFixed(0)}%
-            </span>
+            <span className="text-lg font-bold tabular-nums">{plan.percentage.toFixed(0)}%</span>
           </div>
           {/* Progress bar */}
           <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[var(--tg-theme-bg-color)]">

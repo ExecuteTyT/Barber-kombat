@@ -7,7 +7,7 @@ Handles two categories:
 
 import asyncio
 import uuid
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 import structlog
 from sqlalchemy import select, update
@@ -30,7 +30,6 @@ async def _deliver_daily_reports() -> dict:
     """
     from app.database import async_session
     from app.integrations.telegram.bot import TelegramBot
-    from app.models.notification_config import NotificationConfig
     from app.models.report import Report
 
     bot = TelegramBot()
@@ -50,13 +49,9 @@ async def _deliver_daily_reports() -> dict:
         for report in reports:
             try:
                 if report.type == "kombat_daily":
-                    sent += await _send_kombat_daily(
-                        db, bot, report
-                    )
+                    sent += await _send_kombat_daily(db, bot, report)
                 elif report.type == "daily_revenue":
-                    sent += await _send_revenue(
-                        db, bot, report
-                    )
+                    sent += await _send_revenue(db, bot, report)
 
                 # Mark as delivered
                 await db.execute(
@@ -85,7 +80,6 @@ async def _deliver_day_to_day_reports() -> dict:
     """Deliver day-to-day comparison reports via Telegram."""
     from app.database import async_session
     from app.integrations.telegram.bot import TelegramBot
-    from app.models.notification_config import NotificationConfig
     from app.models.report import Report
 
     bot = TelegramBot()
@@ -191,9 +185,7 @@ async def _send_pvr_bell_notification(
     sent = 0
 
     async with async_session() as db:
-        result = await db.execute(
-            select(Branch).where(Branch.id == uuid.UUID(branch_id))
-        )
+        result = await db.execute(select(Branch).where(Branch.id == uuid.UUID(branch_id)))
         branch = result.scalar_one_or_none()
 
         if branch and branch.telegram_group_id:
@@ -208,11 +200,12 @@ async def _send_pvr_bell_notification(
 
         # Also send to configured notification targets
         sent += await _send_to_notif_targets(
-            db, bot, uuid.UUID(organization_id),
-            "pvr_threshold", branch_id=uuid.UUID(branch_id),
-            send_fn=lambda chat_id: bot.send_pvr_bell(
-                chat_id, barber_name, threshold, bonus
-            ),
+            db,
+            bot,
+            uuid.UUID(organization_id),
+            "pvr_threshold",
+            branch_id=uuid.UUID(branch_id),
+            send_fn=lambda chat_id: bot.send_pvr_bell(chat_id, barber_name, threshold, bonus),
         )
 
     return {"sent": sent}
@@ -239,8 +232,11 @@ async def _send_negative_review_notification(
     async with async_session() as db:
         b_id = uuid.UUID(branch_id) if branch_id else None
         sent += await _send_to_notif_targets(
-            db, bot, uuid.UUID(organization_id),
-            "negative_review", branch_id=b_id,
+            db,
+            bot,
+            uuid.UUID(organization_id),
+            "negative_review",
+            branch_id=b_id,
             send_fn=lambda chat_id: bot.send_negative_review(
                 chat_id=chat_id,
                 branch_name=branch_name,
@@ -280,8 +276,7 @@ async def _send_to_notif_targets(
     if branch_id is not None:
         # Match configs for this specific branch OR org-wide (branch_id IS NULL)
         stmt = stmt.where(
-            (NotificationConfig.branch_id == branch_id)
-            | (NotificationConfig.branch_id.is_(None))
+            (NotificationConfig.branch_id == branch_id) | (NotificationConfig.branch_id.is_(None))
         )
 
     result = await db.execute(stmt)
@@ -316,9 +311,7 @@ async def _send_kombat_daily(db, bot, report) -> int:
             continue
 
         branch_id = uuid.UUID(branch_id_str)
-        result = await db.execute(
-            select(Branch).where(Branch.id == branch_id)
-        )
+        result = await db.execute(select(Branch).where(Branch.id == branch_id))
         branch = result.scalar_one_or_none()
 
         if branch and branch.telegram_group_id:
@@ -333,10 +326,13 @@ async def _send_kombat_daily(db, bot, report) -> int:
 
         # Also send to notification targets configured for this type
         sent += await _send_to_notif_targets(
-            db, bot, report.organization_id,
-            "daily_rating", branch_id=branch_id,
-            send_fn=lambda chat_id: bot.send_kombat_report(
-                chat_id, data, branch_entry, branch_id_str
+            db,
+            bot,
+            report.organization_id,
+            "daily_rating",
+            branch_id=branch_id,
+            send_fn=lambda chat_id, _be=branch_entry, _bi=branch_id_str: bot.send_kombat_report(
+                chat_id, data, _be, _bi
             ),
         )
 
@@ -347,8 +343,11 @@ async def _send_revenue(db, bot, report) -> int:
     """Send daily_revenue report to owner notification targets."""
     data = report.data or {}
     sent = await _send_to_notif_targets(
-        db, bot, report.organization_id,
-        "daily_revenue", branch_id=None,
+        db,
+        bot,
+        report.organization_id,
+        "daily_revenue",
+        branch_id=None,
         send_fn=lambda chat_id: bot.send_revenue_report(chat_id, data),
     )
     return sent
@@ -358,8 +357,11 @@ async def _send_day_to_day(db, bot, report) -> int:
     """Send day-to-day report to owner notification targets."""
     data = report.data or {}
     sent = await _send_to_notif_targets(
-        db, bot, report.organization_id,
-        "day_to_day", branch_id=None,
+        db,
+        bot,
+        report.organization_id,
+        "day_to_day",
+        branch_id=None,
         send_fn=lambda chat_id: bot.send_day_to_day(chat_id, data),
     )
     return sent
@@ -378,9 +380,7 @@ async def _send_kombat_monthly(db, bot, report) -> int:
             continue
 
         branch_id = uuid.UUID(branch_id_str)
-        result = await db.execute(
-            select(Branch).where(Branch.id == branch_id)
-        )
+        result = await db.execute(select(Branch).where(Branch.id == branch_id))
         branch = result.scalar_one_or_none()
 
         if branch and branch.telegram_group_id:
@@ -481,9 +481,7 @@ def send_pvr_bell(
     )
     try:
         return asyncio.run(
-            _send_pvr_bell_notification(
-                organization_id, branch_id, barber_name, threshold, bonus
-            )
+            _send_pvr_bell_notification(organization_id, branch_id, barber_name, threshold, bonus)
         )
     except Exception as exc:
         logger.exception("PVR bell notification failed", task_id=self.request.id)
@@ -518,9 +516,15 @@ def send_negative_review_alert(
     try:
         return asyncio.run(
             _send_negative_review_notification(
-                organization_id, branch_name, barber_name,
-                client_name, rating, comment, created_at,
-                review_id, branch_id,
+                organization_id,
+                branch_name,
+                barber_name,
+                client_name,
+                rating,
+                comment,
+                created_at,
+                review_id,
+                branch_id,
             )
         )
     except Exception as exc:

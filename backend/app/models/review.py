@@ -28,27 +28,24 @@ class Review(Base):
     )
     branch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("branches.id"), nullable=False)
     barber_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
-    visit_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("visits.id"), nullable=True
-    )
-    client_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("clients.id"), nullable=True
-    )
+    visit_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("visits.id"), nullable=True)
+    client_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clients.id"), nullable=True)
     rating: Mapped[int] = mapped_column(Integer, nullable=False)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     source: Mapped[str] = mapped_column(String(20), nullable=False, default="internal")
     status: Mapped[ReviewStatus] = mapped_column(
-        Enum(ReviewStatus, values_callable=lambda e: [i.value for i in e], name="reviewstatus", create_constraint=False),
+        Enum(
+            ReviewStatus,
+            values_callable=lambda e: [i.value for i in e],
+            name="reviewstatus",
+            create_constraint=False,
+        ),
         nullable=False,
         default=ReviewStatus.NEW,
     )
-    processed_by: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("users.id"), nullable=True
-    )
+    processed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     processed_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
-    processed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

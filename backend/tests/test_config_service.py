@@ -8,7 +8,6 @@ import pytest
 
 from app.services.config import ConfigService
 
-
 # --- Helpers ---
 
 ORG_ID = uuid.uuid4()
@@ -152,17 +151,22 @@ class TestUpsertRatingConfig:
         branches_result = MagicMock()
         branches_result.scalars.return_value.all.return_value = [BRANCH_ID, BRANCH_ID_2]
 
-        mock_db.execute = AsyncMock(
-            side_effect=[upsert_result, branches_result, config_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[upsert_result, branches_result, config_result])
         mock_db.commit = AsyncMock()
 
         service = ConfigService(db=mock_db, redis=mock_redis)
         result = await service.upsert_rating_config(
             ORG_ID,
-            {"revenue_weight": 40, "cs_weight": 10, "products_weight": 20,
-             "extras_weight": 20, "reviews_weight": 10,
-             "prize_gold_pct": 0.5, "prize_silver_pct": 0.3, "prize_bronze_pct": 0.1},
+            {
+                "revenue_weight": 40,
+                "cs_weight": 10,
+                "products_weight": 20,
+                "extras_weight": 20,
+                "reviews_weight": 10,
+                "prize_gold_pct": 0.5,
+                "prize_silver_pct": 0.3,
+                "prize_bronze_pct": 0.1,
+            },
         )
 
         assert result.revenue_weight == 40
@@ -183,9 +187,7 @@ class TestUpsertRatingConfig:
         config_result = MagicMock()
         config_result.scalar_one_or_none.return_value = make_rating_config()
 
-        mock_db.execute = AsyncMock(
-            side_effect=[upsert_result, branches_result, config_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[upsert_result, branches_result, config_result])
         mock_db.commit = AsyncMock()
 
         service = ConfigService(db=mock_db, redis=mock_redis)
@@ -208,9 +210,7 @@ class TestUpsertRatingConfig:
         config_result = MagicMock()
         config_result.scalar_one_or_none.return_value = make_rating_config()
 
-        mock_db.execute = AsyncMock(
-            side_effect=[upsert_result, branches_result, config_result]
-        )
+        mock_db.execute = AsyncMock(side_effect=[upsert_result, branches_result, config_result])
         mock_db.commit = AsyncMock()
 
         service = ConfigService(db=mock_db, redis=mock_redis)
@@ -352,9 +352,7 @@ class TestBranchCRUD:
         mock_redis = AsyncMock()
 
         service = ConfigService(db=mock_db, redis=mock_redis)
-        branch = await service.create_branch(
-            ORG_ID, {"name": "New Branch", "address": "456 Oak Ave"}
-        )
+        await service.create_branch(ORG_ID, {"name": "New Branch", "address": "456 Oak Ave"})
 
         mock_db.add.assert_called_once()
         mock_db.commit.assert_awaited_once()
@@ -371,9 +369,7 @@ class TestBranchCRUD:
         mock_db.execute = AsyncMock(return_value=result)
 
         service = ConfigService(db=mock_db, redis=mock_redis)
-        updated = await service.update_branch(
-            ORG_ID, BRANCH_ID, {"name": "Updated Branch"}
-        )
+        updated = await service.update_branch(ORG_ID, BRANCH_ID, {"name": "Updated Branch"})
 
         assert updated is not None
         mock_db.commit.assert_awaited_once()
@@ -388,9 +384,7 @@ class TestBranchCRUD:
         mock_db.execute = AsyncMock(return_value=result)
 
         service = ConfigService(db=mock_db, redis=mock_redis)
-        updated = await service.update_branch(
-            ORG_ID, uuid.uuid4(), {"name": "X"}
-        )
+        updated = await service.update_branch(ORG_ID, uuid.uuid4(), {"name": "X"})
 
         assert updated is None
         mock_db.commit.assert_not_awaited()
@@ -487,9 +481,7 @@ class TestUserCRUD:
         mock_db.execute = AsyncMock(return_value=result)
 
         service = ConfigService(db=mock_db, redis=mock_redis)
-        updated = await service.update_user(
-            ORG_ID, USER_ID, {"is_active": False}
-        )
+        updated = await service.update_user(ORG_ID, USER_ID, {"is_active": False})
 
         assert updated is not None
         mock_db.commit.assert_awaited_once()
@@ -504,9 +496,7 @@ class TestUserCRUD:
         mock_db.execute = AsyncMock(return_value=result)
 
         service = ConfigService(db=mock_db, redis=mock_redis)
-        updated = await service.update_user(
-            ORG_ID, uuid.uuid4(), {"name": "X"}
-        )
+        updated = await service.update_user(ORG_ID, uuid.uuid4(), {"name": "X"})
 
         assert updated is None
         mock_db.commit.assert_not_awaited()
@@ -575,9 +565,7 @@ class TestNotificationCRUD:
         mock_db.execute = AsyncMock(return_value=result)
 
         service = ConfigService(db=mock_db, redis=mock_redis)
-        updated = await service.update_notification(
-            ORG_ID, NOTIF_ID, {"is_enabled": False}
-        )
+        updated = await service.update_notification(ORG_ID, NOTIF_ID, {"is_enabled": False})
 
         assert updated is not None
         mock_db.commit.assert_awaited_once()
@@ -592,9 +580,7 @@ class TestNotificationCRUD:
         mock_db.execute = AsyncMock(return_value=result)
 
         service = ConfigService(db=mock_db, redis=mock_redis)
-        updated = await service.update_notification(
-            ORG_ID, uuid.uuid4(), {"is_enabled": False}
-        )
+        updated = await service.update_notification(ORG_ID, uuid.uuid4(), {"is_enabled": False})
 
         assert updated is None
         mock_db.commit.assert_not_awaited()
@@ -670,7 +656,7 @@ class TestSchemaValidation:
     def test_prize_pcts_over_1(self):
         from app.schemas.config import RatingWeightsRequest
 
-        with pytest.raises(ValueError, match="<= 1.0"):
+        with pytest.raises(ValueError, match=r"<= 1\.0"):
             RatingWeightsRequest(
                 revenue_weight=20,
                 cs_weight=20,

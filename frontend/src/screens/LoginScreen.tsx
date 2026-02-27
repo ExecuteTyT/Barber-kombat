@@ -7,9 +7,7 @@ export default function LoginScreen({ error, onRetry }: LoginScreenProps) {
   if (error) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4 text-center">
-        <p className="text-lg font-medium text-[var(--tg-theme-text-color)]">
-          Ошибка авторизации
-        </p>
+        <p className="text-lg font-medium text-[var(--tg-theme-text-color)]">Ошибка авторизации</p>
         <p className="text-sm text-[var(--tg-theme-hint-color)]">{error}</p>
         {onRetry && (
           <button

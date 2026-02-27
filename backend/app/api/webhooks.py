@@ -31,9 +31,7 @@ async def receive_yclients_webhook(request: Request) -> WebhookResponse:
     if not signature:
         signature = request.headers.get("Content-Signature", "")
 
-    if not validate_webhook_signature(
-        raw_body, signature, settings.yclients_webhook_secret
-    ):
+    if not validate_webhook_signature(raw_body, signature, settings.yclients_webhook_secret):
         await logger.awarning(
             "Webhook signature validation failed",
             remote_addr=request.client.host if request.client else "unknown",
