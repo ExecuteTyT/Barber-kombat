@@ -70,18 +70,16 @@ async def _process_record(company_id: int, record_id: int, event_status: str) ->
                         branch_id=str(branch.id),
                     )
 
-                    # Placeholder: trigger Rating Engine recalculation
-                    logger.info(
-                        "Rating recalculation trigger [PLACEHOLDER]",
-                        company_id=company_id,
-                        record_id=record_id,
-                    )
+                    # Recalculate daily rating for this branch
+                    from app.services.rating import RatingEngine
 
-                    # Placeholder: push WebSocket update
-                    logger.info(
-                        "WebSocket push [PLACEHOLDER]",
+                    rating_engine = RatingEngine(db=db, redis=redis_client)
+                    await rating_engine.recalculate(branch.id, date.today())
+                    await logger.ainfo(
+                        "Rating recalculated after webhook",
                         company_id=company_id,
                         record_id=record_id,
+                        branch_id=str(branch.id),
                     )
     finally:
         await yclients.close()

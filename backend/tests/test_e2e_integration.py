@@ -189,12 +189,13 @@ class TestWebhookSyncRatingFlow:
     """Full cycle: YClients webhook triggers sync, rating recalc, WS push."""
 
     @pytest.mark.asyncio
+    @patch(PATCH_RATING_ENGINE)
     @patch(PATCH_PLAN)
     @patch(PATCH_YCLIENTS)
     @patch(PATCH_SESSION)
     @patch(PATCH_SYNC)
     async def test_poll_syncs_then_triggers_pvr_and_plan(
-        self, mock_sync_cls, mock_session_cls, mock_yclients_cls, mock_plan_cls
+        self, mock_sync_cls, mock_session_cls, mock_yclients_cls, mock_plan_cls, mock_rating_cls
     ):
         """After sync, PVR recalc and plan update are triggered for each branch."""
         from app.tasks.sync_tasks import _poll_all_branches
@@ -217,12 +218,17 @@ class TestWebhookSyncRatingFlow:
         mock_plan.update_progress = AsyncMock()
         mock_plan_cls.return_value = mock_plan
 
+        mock_rating = AsyncMock()
+        mock_rating.recalculate = AsyncMock(return_value=[])
+        mock_rating_cls.return_value = mock_rating
+
         result = await _poll_all_branches()
 
         assert result["branches_processed"] == 1
         assert result["total_synced"] == 5
         mock_sync.sync_records.assert_awaited_once()
         mock_plan.update_progress.assert_awaited_once()
+        mock_rating.recalculate.assert_awaited_once()
         mock_yclients.close.assert_called_once()
 
     @pytest.mark.asyncio
@@ -275,7 +281,12 @@ class TestWebhookSyncRatingFlow:
                 mock_pvr.recalculate_branch = AsyncMock()
                 mock_pvr_cls.return_value = mock_pvr
 
-                result = await _full_sync_all_branches()
+                with patch(PATCH_RATING_ENGINE) as mock_rating_cls:
+                    mock_rating = AsyncMock()
+                    mock_rating.recalculate = AsyncMock(return_value=[])
+                    mock_rating_cls.return_value = mock_rating
+
+                    result = await _full_sync_all_branches()
 
         assert result["branches_processed"] == 1
         assert result["total_synced"] == 10
@@ -984,12 +995,13 @@ class TestEdgeCaseMultipleBranches:
     """Edge case: organization with many branches."""
 
     @pytest.mark.asyncio
+    @patch(PATCH_RATING_ENGINE)
     @patch(PATCH_PLAN)
     @patch(PATCH_YCLIENTS)
     @patch(PATCH_SESSION)
     @patch(PATCH_SYNC)
     async def test_poll_handles_many_branches(
-        self, mock_sync_cls, mock_session_cls, mock_yclients_cls, mock_plan_cls
+        self, mock_sync_cls, mock_session_cls, mock_yclients_cls, mock_plan_cls, mock_rating_cls
     ):
         """Polling 5 branches, one fails — others continue."""
         from app.tasks.sync_tasks import _poll_all_branches
@@ -1012,6 +1024,10 @@ class TestEdgeCaseMultipleBranches:
         mock_plan = AsyncMock()
         mock_plan.update_progress = AsyncMock()
         mock_plan_cls.return_value = mock_plan
+
+        mock_rating = AsyncMock()
+        mock_rating.recalculate = AsyncMock(return_value=[])
+        mock_rating_cls.return_value = mock_rating
 
         result = await _poll_all_branches()
 

@@ -77,9 +77,13 @@ async def _poll_all_branches() -> dict:
                             branch_id=str(branch.id),
                         )
 
-                        # Placeholder: trigger rating recalculation
-                        logger.info(
-                            "Rating recalculation trigger [PLACEHOLDER]",
+                        # Recalculate daily rating for this branch
+                        from app.services.rating import RatingEngine
+
+                        rating_engine = RatingEngine(db=db, redis=redis_client)
+                        await rating_engine.recalculate(branch.id, today)
+                        await logger.ainfo(
+                            "Rating recalculated for branch after polling",
                             branch_id=str(branch.id),
                         )
 
@@ -195,9 +199,20 @@ async def _full_sync_all_branches() -> dict:
                 branches=len(branches),
             )
 
-            # Placeholder: recalculate ratings for yesterday
-            logger.info(
-                "Rating recalculation for yesterday [PLACEHOLDER]",
+            # Recalculate ratings for yesterday for all branches
+            from app.services.rating import RatingEngine
+
+            rating_engine = RatingEngine(db=db, redis=redis_client)
+            for branch in branches:
+                try:
+                    await rating_engine.recalculate(branch.id, yesterday)
+                except Exception:
+                    await logger.aexception(
+                        "Full sync: rating recalculation failed",
+                        branch_id=str(branch.id),
+                    )
+            await logger.ainfo(
+                "Ratings recalculated for all branches after full sync",
                 date=str(yesterday),
             )
 

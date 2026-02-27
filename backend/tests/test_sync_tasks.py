@@ -38,6 +38,7 @@ PATCH_SESSION = "app.database.async_session"
 PATCH_YCLIENTS = "app.integrations.yclients.client.YClientsClient"
 PATCH_SYNC = "app.services.sync.SyncService"
 PATCH_PLAN = "app.services.plans.PlanService"
+PATCH_RATING = "app.services.rating.RatingEngine"
 
 
 # --- Tests: _poll_all_branches ---
@@ -45,12 +46,13 @@ PATCH_PLAN = "app.services.plans.PlanService"
 
 class TestPollAllBranches:
     @pytest.mark.asyncio
+    @patch(PATCH_RATING)
     @patch(PATCH_PLAN)
     @patch(PATCH_YCLIENTS)
     @patch(PATCH_SESSION)
     @patch(PATCH_SYNC)
     async def test_polls_all_active_branches(
-        self, mock_sync_cls, mock_session_factory, mock_yclients_cls, mock_plan_cls
+        self, mock_sync_cls, mock_session_factory, mock_yclients_cls, mock_plan_cls, mock_rating_cls
     ):
         branches = [make_branch("Branch 1", 555), make_branch("Branch 2", 666)]
         mock_db = mock_db_with_branches(branches)
@@ -68,6 +70,10 @@ class TestPollAllBranches:
         mock_plan.update_progress = AsyncMock(return_value=None)
         mock_plan_cls.return_value = mock_plan
 
+        mock_rating = AsyncMock()
+        mock_rating.recalculate = AsyncMock(return_value=[])
+        mock_rating_cls.return_value = mock_rating
+
         result = await _poll_all_branches()
 
         assert mock_sync.sync_records.call_count == 2
@@ -77,6 +83,8 @@ class TestPollAllBranches:
         mock_yclients.close.assert_called_once()
         # Plan progress updated for each branch with synced records
         assert mock_plan.update_progress.call_count == 2
+        # Rating recalculated for each branch with synced records
+        assert mock_rating.recalculate.call_count == 2
 
     @pytest.mark.asyncio
     @patch(PATCH_PLAN)
@@ -105,12 +113,13 @@ class TestPollAllBranches:
         mock_sync.sync_records.assert_not_called()
 
     @pytest.mark.asyncio
+    @patch(PATCH_RATING)
     @patch(PATCH_PLAN)
     @patch(PATCH_YCLIENTS)
     @patch(PATCH_SESSION)
     @patch(PATCH_SYNC)
     async def test_handles_branch_error_gracefully(
-        self, mock_sync_cls, mock_session_factory, mock_yclients_cls, mock_plan_cls
+        self, mock_sync_cls, mock_session_factory, mock_yclients_cls, mock_plan_cls, mock_rating_cls
     ):
         branches = [make_branch("OK Branch"), make_branch("Bad Branch")]
         mock_db = mock_db_with_branches(branches)
@@ -129,6 +138,10 @@ class TestPollAllBranches:
         mock_plan = AsyncMock()
         mock_plan.update_progress = AsyncMock(return_value=None)
         mock_plan_cls.return_value = mock_plan
+
+        mock_rating = AsyncMock()
+        mock_rating.recalculate = AsyncMock(return_value=[])
+        mock_rating_cls.return_value = mock_rating
 
         result = await _poll_all_branches()
 
