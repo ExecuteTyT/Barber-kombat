@@ -15,6 +15,7 @@ import HistoryScreen from './screens/barber/HistoryScreen'
 import ChefLayout from './screens/chef/ChefLayout'
 import BranchScreen from './screens/chef/BranchScreen'
 import ChefAnalyticsScreen from './screens/chef/ChefAnalyticsScreen'
+import ChefKombatScreen from './screens/chef/ChefKombatScreen'
 import ChefPVRScreen from './screens/chef/ChefPVRScreen'
 import OwnerLayout from './screens/owner/OwnerLayout'
 import DashboardScreen from './screens/owner/DashboardScreen'
@@ -106,7 +107,7 @@ function App() {
           </Route>
 
           <Route path="/chef" element={<ChefLayout />}>
-            <Route path="kombat" element={<KombatScreen />} />
+            <Route path="kombat" element={<ChefKombatScreen />} />
             <Route path="branch" element={<BranchScreen />} />
             <Route path="pvr" element={<ChefPVRScreen />} />
             <Route path="analytics" element={<ChefAnalyticsScreen />} />
