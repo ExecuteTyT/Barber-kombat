@@ -389,7 +389,7 @@ async def _seed_demo():
         plan1_revenue_total = 0
         plan2_revenue_total = 0
 
-        for day_offset in range(7, 0, -1):
+        for day_offset in range(7, -1, -1):
             d = today - timedelta(days=day_offset)
 
             for branch, barbers, plan_acc in [
@@ -505,7 +505,7 @@ async def _seed_demo():
                         db.add(v)
                         yclients_record_seq += 1
 
-        click.echo("[OK] Created 7 days of daily ratings and visits")
+        click.echo("[OK] Created 8 days of daily ratings and visits (including today)")
 
         # Update plan current amounts
         plan1.current_amount = plan1_revenue_total
