@@ -1,6 +1,5 @@
 import { useEffect, useCallback, type ReactNode } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useRawInitData } from '@telegram-apps/sdk-react'
 
 import { useAuthStore } from './stores/authStore'
 import type { UserRole } from './types'
@@ -54,13 +53,9 @@ function RoleGuard({ section, children }: { section: string; children: ReactNode
   return <>{children}</>
 }
 
-function useInitDataSafe(): string | undefined {
-  try {
-    return useRawInitData()
-  } catch {
-    // Outside Telegram — no init data available
-    return undefined
-  }
+function getInitDataRaw(): string | undefined {
+  // Read initData directly from Telegram WebApp — avoids SDK hook crash outside Telegram
+  return window.Telegram?.WebApp?.initData || undefined
 }
 
 function App() {
@@ -71,7 +66,7 @@ function App() {
   // Deep link: parse startapp param and navigate after auth
   useDeepLink(user?.role)
 
-  const initDataRaw = useInitDataSafe()
+  const initDataRaw = getInitDataRaw()
 
   useEffect(() => {
     hydrate()
