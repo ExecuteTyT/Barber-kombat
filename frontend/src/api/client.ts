@@ -43,7 +43,7 @@ export const authApi = {
   },
   devUsers: async (): Promise<DevUser[]> => {
     const { data } = await api.get<{ users: DevUser[] }>('/auth/dev-users')
-    return data.users
+    return Array.isArray(data?.users) ? data.users : []
   },
   me: async (): Promise<MeResponse> => {
     const { data } = await api.get<MeResponse>('/auth/me')
