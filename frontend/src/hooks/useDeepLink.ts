@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useLaunchParams } from '@telegram-apps/sdk-react'
 
 import type { UserRole } from '../types'
 
@@ -9,16 +8,7 @@ interface DeepLinkTarget {
   state?: Record<string, unknown>
 }
 
-/**
- * Parses `startapp` parameter from Telegram deep link and returns a target route.
- *
- * Supported formats:
- *   kombat_{branch_id}    → Kombat screen for the branch
- *   review_{review_id}    → Branch screen focused on reviews
- *   report_{type}_{date}  → Reports screen with pre-selected report
- */
 function resolveDeepLink(startParam: string, role: UserRole): DeepLinkTarget | null {
-  // kombat_{branch_id}
   const kombatMatch = startParam.match(/^kombat_(.+)$/)
   if (kombatMatch) {
     const branchId = kombatMatch[1]
@@ -35,7 +25,6 @@ function resolveDeepLink(startParam: string, role: UserRole): DeepLinkTarget | n
     }
   }
 
-  // review_{review_id}
   const reviewMatch = startParam.match(/^review_(.+)$/)
   if (reviewMatch) {
     const reviewId = reviewMatch[1]
@@ -50,12 +39,10 @@ function resolveDeepLink(startParam: string, role: UserRole): DeepLinkTarget | n
     }
   }
 
-  // report_{type}_{date}  e.g. report_revenue_2024-10-13
   const reportMatch = startParam.match(/^report_([a-z-]+)_(\d{4}-\d{2}-\d{2})$/)
   if (reportMatch) {
-    const reportType = reportMatch[1]
     if (role === 'owner' || role === 'manager') {
-      return { path: '/owner/reports', state: { reportType, reportDate: reportMatch[2] } }
+      return { path: '/owner/reports', state: { reportType: reportMatch[1], reportDate: reportMatch[2] } }
     }
     return null
   }
@@ -63,21 +50,17 @@ function resolveDeepLink(startParam: string, role: UserRole): DeepLinkTarget | n
   return null
 }
 
-/**
- * Reads the Telegram `startapp` parameter and navigates to the corresponding screen
- * on first mount after authentication.
- */
+function getStartParam(): string | undefined {
+  // Read startapp param directly from Telegram WebApp — no SDK hook needed
+  const unsafe = window.Telegram?.WebApp?.initDataUnsafe as Record<string, unknown> | undefined
+  const param = unsafe?.start_param
+  return typeof param === 'string' ? param : undefined
+}
+
 export function useDeepLink(role: UserRole | undefined): void {
   const navigate = useNavigate()
   const consumed = useRef(false)
-
-  let startParam: string | undefined
-  try {
-    const lp = useLaunchParams()
-    startParam = lp.tgWebAppStartParam
-  } catch {
-    // Outside Telegram — no launch params
-  }
+  const startParam = getStartParam()
 
   useEffect(() => {
     if (consumed.current || !startParam || !role) return

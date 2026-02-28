@@ -1,6 +1,10 @@
 interface TelegramWebApp {
   initData: string
-  initDataUnsafe: Record<string, unknown>
+  initDataUnsafe: {
+    start_param?: string
+    user?: Record<string, unknown>
+    [key: string]: unknown
+  }
   themeParams: Record<string, string>
   close: () => void
   expand: () => void
