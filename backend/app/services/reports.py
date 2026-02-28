@@ -818,18 +818,28 @@ class ReportService:
         }
 
         stmt = pg_insert(Report).values(**values)
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["organization_id", "type", "date"],
-            set_={
-                "data": stmt.excluded.data,
-                "delivered_telegram": False,
-            },
-            where=(
-                Report.branch_id == branch_id
-                if branch_id is not None
-                else Report.branch_id.is_(None)
-            ),
-        )
+
+        if branch_id is None:
+            # Use partial unique index for NULL branch_id
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["organization_id", "type", "date"],
+                index_where=Report.branch_id.is_(None),
+                set_={
+                    "data": stmt.excluded.data,
+                    "delivered_telegram": False,
+                },
+            )
+        else:
+            # Use partial unique index for non-NULL branch_id
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["organization_id", "branch_id", "type", "date"],
+                index_where=Report.branch_id.isnot(None),
+                set_={
+                    "data": stmt.excluded.data,
+                    "delivered_telegram": False,
+                },
+            )
+
         await self.db.execute(stmt)
         await self.db.commit()
 

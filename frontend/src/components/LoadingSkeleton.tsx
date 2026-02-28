@@ -10,11 +10,7 @@ export default function LoadingSkeleton({
   className = '',
 }: LoadingSkeletonProps) {
   if (circle) {
-    return (
-      <div
-        className={`h-12 w-12 animate-pulse rounded-full bg-[var(--tg-theme-secondary-bg-color)] ${className}`}
-      />
-    )
+    return <div className={`bk-skeleton h-12 w-12 rounded-full ${className}`} />
   }
 
   return (
@@ -22,7 +18,7 @@ export default function LoadingSkeleton({
       {Array.from({ length: lines }, (_, i) => (
         <div
           key={i}
-          className="h-4 animate-pulse rounded bg-[var(--tg-theme-secondary-bg-color)]"
+          className="bk-skeleton h-4 rounded"
           style={{ width: i === lines - 1 ? '60%' : '100%' }}
         />
       ))}

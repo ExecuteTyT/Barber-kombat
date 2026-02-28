@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
 
+import {
+  MedalBadge,
+  IconArrowLeft,
+  IconChevronRight,
+  IconCheck,
+  IconX,
+  IconPlus,
+} from '../../components/Icons'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useOwnerStore } from '../../stores/ownerStore'
 import type {
@@ -27,7 +35,6 @@ const SECTIONS: { key: Section; label: string }[] = [
   { key: 'notifications', label: 'Уведомления' },
 ]
 
-// --- Reusable slider for weights ---
 function WeightSlider({
   label,
   value,
@@ -39,7 +46,7 @@ function WeightSlider({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="w-20 text-sm">{label}</span>
+      <span className="w-20 text-sm text-[var(--bk-text)]">{label}</span>
       <input
         type="range"
         min={0}
@@ -47,14 +54,15 @@ function WeightSlider({
         step={5}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1 accent-[var(--tg-theme-button-color)]"
+        className="flex-1"
       />
-      <span className="w-10 text-right text-sm font-bold tabular-nums">{value}%</span>
+      <span className="w-10 text-right text-sm font-bold tabular-nums text-[var(--bk-gold)]">
+        {value}%
+      </span>
     </div>
   )
 }
 
-// --- Kombat weights section ---
 function KombatSection() {
   const { ratingWeights, settingsSaving, fetchRatingWeights, saveRatingWeights } = useOwnerStore()
 
@@ -66,7 +74,6 @@ function KombatSection() {
     fetchRatingWeights()
   }, [fetchRatingWeights])
 
-  // Sync draft from store (adjusting state during render)
   if (ratingWeights && ratingWeights !== prevWeights) {
     setPrevWeights(ratingWeights)
     setDraft({ ...ratingWeights })
@@ -93,7 +100,7 @@ function KombatSection() {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm font-medium">Веса рейтинга (сумма = 100%)</p>
+      <p className="text-sm font-medium text-[var(--bk-text)]">Веса рейтинга (сумма = 100%)</p>
       <WeightSlider
         label="Выручка"
         value={draft.revenue_weight}
@@ -119,23 +126,25 @@ function KombatSection() {
         value={draft.reviews_weight}
         onChange={(v) => setDraft({ ...draft, reviews_weight: v })}
       />
-      <p className={`text-sm font-bold ${total === 100 ? 'text-emerald-500' : 'text-red-500'}`}>
+      <p
+        className={`text-sm font-bold ${total === 100 ? 'text-[var(--bk-green)]' : 'text-[var(--bk-red)]'}`}
+      >
         Итого: {total}%
       </p>
 
-      <p className="mt-2 text-sm font-medium">Призовой фонд (%)</p>
+      <p className="mt-2 text-sm font-medium text-[var(--bk-text)]">Призовой фонд (%)</p>
       <div className="grid grid-cols-3 gap-2">
         {(['prize_gold_pct', 'prize_silver_pct', 'prize_bronze_pct'] as const).map((key, i) => (
           <div key={key}>
-            <label className="text-xs text-[var(--tg-theme-hint-color)]">
-              {['\u{1F947}', '\u{1F948}', '\u{1F949}'][i]} место
+            <label className="flex items-center gap-1 text-xs text-[var(--bk-text-secondary)]">
+              <MedalBadge rank={i + 1} size={16} /> место
             </label>
             <input
               type="number"
               step="0.1"
               min="0"
               max="1"
-              className="mt-1 w-full rounded-lg border border-[var(--tg-theme-hint-color)]/20 bg-[var(--tg-theme-secondary-bg-color)] px-2 py-1.5 text-sm"
+              className="mt-1 w-full rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
               value={draft[key]}
               onChange={(e) => setDraft({ ...draft, [key]: Number(e.target.value) })}
             />
@@ -143,10 +152,10 @@ function KombatSection() {
         ))}
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-[var(--bk-red)]">{error}</p>}
       <button
         type="button"
-        className="w-full rounded-xl bg-[var(--tg-theme-button-color)] py-2.5 text-sm font-medium text-[var(--tg-theme-button-text-color)] disabled:opacity-50"
+        className="w-full rounded-xl bg-[var(--bk-gold)] py-2.5 text-sm font-semibold text-[var(--bk-bg-primary)] disabled:opacity-50"
         disabled={settingsSaving}
         onClick={handleSave}
       >
@@ -156,7 +165,6 @@ function KombatSection() {
   )
 }
 
-// --- PVR thresholds section ---
 function PVRSection() {
   const { pvrThresholds, settingsSaving, fetchPvrThresholds, savePvrThresholds } = useOwnerStore()
 
@@ -168,7 +176,6 @@ function PVRSection() {
     fetchPvrThresholds()
   }, [fetchPvrThresholds])
 
-  // Sync draft from store (adjusting state during render)
   if (pvrThresholds && pvrThresholds !== prevThresholds) {
     setPrevThresholds(pvrThresholds)
     setDraft({ ...pvrThresholds, thresholds: [...pvrThresholds.thresholds] })
@@ -205,44 +212,46 @@ function PVRSection() {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm font-medium">Пороги</p>
+      <p className="text-sm font-medium text-[var(--bk-text)]">Пороги</p>
       {draft.thresholds.map((t, i) => (
         <div key={i} className="flex items-center gap-2">
           <input
             type="number"
             placeholder="Сумма"
-            className="flex-1 rounded-lg border border-[var(--tg-theme-hint-color)]/20 bg-[var(--tg-theme-secondary-bg-color)] px-2 py-1.5 text-sm"
+            className="flex-1 rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
             value={t.amount / 100}
             onChange={(e) => updateThreshold(i, 'amount', Number(e.target.value) * 100)}
           />
-          <span className="text-xs text-[var(--tg-theme-hint-color)]">{'\u{2192}'}</span>
+          <span className="text-xs text-[var(--bk-text-dim)]">
+            <IconArrowLeft size={14} className="rotate-180" />
+          </span>
           <input
             type="number"
             placeholder="Премия"
-            className="w-24 rounded-lg border border-[var(--tg-theme-hint-color)]/20 bg-[var(--tg-theme-secondary-bg-color)] px-2 py-1.5 text-sm"
+            className="w-24 rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
             value={t.bonus / 100}
             onChange={(e) => updateThreshold(i, 'bonus', Number(e.target.value) * 100)}
           />
           <button
             type="button"
-            className="text-red-400 disabled:opacity-30"
+            className="text-[var(--bk-red)] disabled:opacity-30"
             disabled={draft.thresholds.length <= 1}
             onClick={() => removeThreshold(i)}
           >
-            {'\u{2715}'}
+            <IconX size={16} />
           </button>
         </div>
       ))}
       <button
         type="button"
-        className="text-sm text-[var(--tg-theme-button-color)]"
+        className="flex items-center gap-1 text-sm text-[var(--bk-gold)]"
         onClick={addThreshold}
       >
-        + Добавить порог
+        <IconPlus size={14} /> Добавить порог
       </button>
 
       <div className="flex gap-4">
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-sm text-[var(--bk-text)]">
           <input
             type="checkbox"
             checked={draft.count_products}
@@ -250,7 +259,7 @@ function PVRSection() {
           />
           Считать товары
         </label>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-sm text-[var(--bk-text)]">
           <input
             type="checkbox"
             checked={draft.count_certificates}
@@ -260,10 +269,10 @@ function PVRSection() {
         </label>
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-[var(--bk-red)]">{error}</p>}
       <button
         type="button"
-        className="w-full rounded-xl bg-[var(--tg-theme-button-color)] py-2.5 text-sm font-medium text-[var(--tg-theme-button-text-color)] disabled:opacity-50"
+        className="w-full rounded-xl bg-[var(--bk-gold)] py-2.5 text-sm font-semibold text-[var(--bk-bg-primary)] disabled:opacity-50"
         disabled={settingsSaving}
         onClick={handleSave}
       >
@@ -273,7 +282,6 @@ function PVRSection() {
   )
 }
 
-// --- Plans section ---
 function PlansSection() {
   const { plans, settingsSaving, fetchPlans, savePlan } = useOwnerStore()
   const [editingPlan, setEditingPlan] = useState<{ branchId: string; value: string } | null>(null)
@@ -294,46 +302,48 @@ function PlansSection() {
 
   return (
     <div className="space-y-2">
-      <p className="text-sm text-[var(--tg-theme-hint-color)]">
+      <p className="text-sm text-[var(--bk-text-secondary)]">
         Период: {plans.month} | Всего: {plans.total_percentage.toFixed(0)}%
       </p>
       {plans.plans.map((p) => (
-        <div key={p.branch_id} className="rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-3">
+        <div key={p.branch_id} className="bk-card p-3">
           <div className="flex items-baseline justify-between">
-            <span className="font-medium">{p.branch_name}</span>
-            <span className="text-sm tabular-nums">{p.percentage.toFixed(0)}%</span>
+            <span className="font-medium text-[var(--bk-text)]">{p.branch_name}</span>
+            <span className="text-sm tabular-nums text-[var(--bk-gold)]">
+              {p.percentage.toFixed(0)}%
+            </span>
           </div>
           <div className="mt-2 flex items-center gap-2">
-            <span className="text-xs text-[var(--tg-theme-hint-color)]">План:</span>
+            <span className="text-xs text-[var(--bk-text-secondary)]">План:</span>
             {editingPlan?.branchId === p.branch_id ? (
               <div className="flex flex-1 items-center gap-1">
                 <input
                   type="number"
-                  className="flex-1 rounded-lg border border-[var(--tg-theme-hint-color)]/20 bg-[var(--tg-theme-bg-color)] px-2 py-1 text-sm"
+                  className="flex-1 rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-primary)] px-2 py-1 text-sm text-[var(--bk-text)]"
                   value={editingPlan.value}
                   onChange={(e) => setEditingPlan({ ...editingPlan, value: e.target.value })}
                   autoFocus
                 />
                 <button
                   type="button"
-                  className="rounded bg-[var(--tg-theme-button-color)] px-2 py-1 text-xs text-[var(--tg-theme-button-text-color)] disabled:opacity-50"
+                  className="rounded bg-[var(--bk-gold)] px-2 py-1 text-xs text-[var(--bk-bg-primary)] disabled:opacity-50"
                   disabled={settingsSaving}
                   onClick={() => handleSave(p)}
                 >
-                  {'\u{2713}'}
+                  <IconCheck size={14} />
                 </button>
                 <button
                   type="button"
-                  className="text-xs text-[var(--tg-theme-hint-color)]"
+                  className="text-[var(--bk-text-dim)]"
                   onClick={() => setEditingPlan(null)}
                 >
-                  {'\u{2715}'}
+                  <IconX size={14} />
                 </button>
               </div>
             ) : (
               <button
                 type="button"
-                className="text-sm font-medium text-[var(--tg-theme-button-color)]"
+                className="text-sm font-medium text-[var(--bk-gold)]"
                 onClick={() =>
                   setEditingPlan({
                     branchId: p.branch_id,
@@ -351,7 +361,6 @@ function PlansSection() {
   )
 }
 
-// --- Branches section ---
 function BranchesSection() {
   const { branches, fetchBranches } = useOwnerStore()
 
@@ -364,17 +373,17 @@ function BranchesSection() {
   return (
     <div className="space-y-2">
       {branches.map((b) => (
-        <div key={b.id} className="rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-3">
+        <div key={b.id} className="bk-card p-3">
           <div className="flex items-center justify-between">
-            <span className="font-medium">{b.name}</span>
-            <span className={`text-xs ${b.is_active ? 'text-emerald-500' : 'text-red-400'}`}>
+            <span className="font-medium text-[var(--bk-text)]">{b.name}</span>
+            <span
+              className={`text-xs font-semibold ${b.is_active ? 'text-[var(--bk-green)]' : 'text-[var(--bk-red)]'}`}
+            >
               {b.is_active ? 'Активен' : 'Неактивен'}
             </span>
           </div>
-          {b.address && (
-            <p className="mt-1 text-xs text-[var(--tg-theme-hint-color)]">{b.address}</p>
-          )}
-          <div className="mt-1 flex gap-3 text-xs text-[var(--tg-theme-hint-color)]">
+          {b.address && <p className="mt-1 text-xs text-[var(--bk-text-secondary)]">{b.address}</p>}
+          <div className="mt-1 flex gap-3 text-xs text-[var(--bk-text-dim)]">
             {b.yclients_company_id && <span>YClients: {b.yclients_company_id}</span>}
             {b.telegram_group_id && <span>TG: {b.telegram_group_id}</span>}
           </div>
@@ -384,7 +393,6 @@ function BranchesSection() {
   )
 }
 
-// --- Staff section ---
 function StaffSection() {
   const { users, branches, fetchUsers, fetchBranches, saveUser, settingsSaving } = useOwnerStore()
   const [branchFilter, setBranchFilter] = useState<string>('')
@@ -408,9 +416,8 @@ function StaffSection() {
 
   return (
     <div className="space-y-3">
-      {/* Branch filter */}
       <select
-        className="w-full rounded-xl border border-[var(--tg-theme-hint-color)]/20 bg-[var(--tg-theme-secondary-bg-color)] px-3 py-2 text-sm"
+        className="w-full rounded-xl border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-3 py-2 text-sm text-[var(--bk-text)]"
         value={branchFilter}
         onChange={(e) => setBranchFilter(e.target.value)}
       >
@@ -423,16 +430,14 @@ function StaffSection() {
       </select>
 
       {users.map((u) => (
-        <div key={u.id} className="rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-3">
+        <div key={u.id} className="bk-card p-3">
           <div className="flex items-center justify-between">
-            <span className="font-medium">{u.name}</span>
-            <span className={`text-xs ${u.is_active ? '' : 'text-red-400'}`}>
-              {u.is_active ? '' : 'Неактивен'}
-            </span>
+            <span className="font-medium text-[var(--bk-text)]">{u.name}</span>
+            {!u.is_active && <span className="text-xs text-[var(--bk-red)]">Неактивен</span>}
           </div>
           <div className="mt-2 flex items-center gap-2">
             <select
-              className="rounded-lg border border-[var(--tg-theme-hint-color)]/20 bg-[var(--tg-theme-bg-color)] px-2 py-1 text-xs"
+              className="rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-primary)] px-2 py-1 text-xs text-[var(--bk-text)]"
               value={u.role}
               disabled={settingsSaving}
               onChange={(e) => handleRoleChange(u, e.target.value as UserRole)}
@@ -444,10 +449,10 @@ function StaffSection() {
               ))}
             </select>
             {u.grade && (
-              <span className="text-xs text-[var(--tg-theme-hint-color)]">Грейд: {u.grade}</span>
+              <span className="text-xs text-[var(--bk-text-secondary)]">Грейд: {u.grade}</span>
             )}
             {u.haircut_price !== null && (
-              <span className="text-xs text-[var(--tg-theme-hint-color)]">
+              <span className="text-xs text-[var(--bk-text-secondary)]">
                 {formatMoney(u.haircut_price)}
               </span>
             )}
@@ -455,7 +460,7 @@ function StaffSection() {
         </div>
       ))}
       {users.length === 0 && (
-        <p className="py-4 text-center text-sm text-[var(--tg-theme-hint-color)]">
+        <p className="py-4 text-center text-sm text-[var(--bk-text-secondary)]">
           Сотрудники не найдены
         </p>
       )}
@@ -463,7 +468,6 @@ function StaffSection() {
   )
 }
 
-// --- Notifications section ---
 function NotificationsSection() {
   const { notifications, fetchNotifications } = useOwnerStore()
 
@@ -473,7 +477,7 @@ function NotificationsSection() {
 
   if (notifications.length === 0) {
     return (
-      <p className="py-4 text-center text-sm text-[var(--tg-theme-hint-color)]">
+      <p className="py-4 text-center text-sm text-[var(--bk-text-secondary)]">
         Уведомления не настроены
       </p>
     )
@@ -482,19 +486,16 @@ function NotificationsSection() {
   return (
     <div className="space-y-2">
       {notifications.map((n) => (
-        <div
-          key={n.id}
-          className="flex items-center justify-between rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-3"
-        >
+        <div key={n.id} className="bk-card flex items-center justify-between p-3">
           <div>
-            <p className="text-sm font-medium">{n.notification_type}</p>
-            <p className="text-xs text-[var(--tg-theme-hint-color)]">
+            <p className="text-sm font-medium text-[var(--bk-text)]">{n.notification_type}</p>
+            <p className="text-xs text-[var(--bk-text-dim)]">
               Chat: {n.telegram_chat_id}
               {n.schedule_time && ` \u{2022} ${n.schedule_time}`}
             </p>
           </div>
           <span
-            className={`text-xs ${n.is_enabled ? 'text-emerald-500' : 'text-[var(--tg-theme-hint-color)]'}`}
+            className={`text-xs font-semibold ${n.is_enabled ? 'text-[var(--bk-green)]' : 'text-[var(--bk-text-dim)]'}`}
           >
             {n.is_enabled ? 'Вкл' : 'Выкл'}
           </span>
@@ -504,24 +505,24 @@ function NotificationsSection() {
   )
 }
 
-// --- Main settings screen ---
 export default function SettingsScreen() {
   const [activeSection, setActiveSection] = useState<Section | null>(null)
 
   if (!activeSection) {
     return (
       <div className="pb-4 pt-4">
-        <h1 className="px-4 text-lg font-bold">Настройки</h1>
+        <h1 className="bk-heading px-4 text-xl">Настройки</h1>
         <div className="mx-4 mt-4 space-y-2">
-          {SECTIONS.map((s) => (
+          {SECTIONS.map((s, i) => (
             <button
               key={s.key}
               type="button"
-              className="flex w-full items-center justify-between rounded-xl bg-[var(--tg-theme-secondary-bg-color)] px-4 py-3.5 text-left active:opacity-80"
+              className="bk-card bk-fade-up flex w-full items-center justify-between px-4 py-3.5 text-left transition-all active:scale-[0.98]"
+              style={{ animationDelay: `${i * 50}ms` }}
               onClick={() => setActiveSection(s.key)}
             >
-              <span className="font-medium">{s.label}</span>
-              <span className="text-[var(--tg-theme-hint-color)]">{'\u{203A}'}</span>
+              <span className="font-medium text-[var(--bk-text)]">{s.label}</span>
+              <IconChevronRight size={18} className="text-[var(--bk-text-dim)]" />
             </button>
           ))}
         </div>
@@ -536,12 +537,13 @@ export default function SettingsScreen() {
       <div className="flex items-center gap-2 px-4">
         <button
           type="button"
-          className="text-[var(--tg-theme-button-color)]"
+          className="flex items-center gap-1 text-sm text-[var(--bk-gold)]"
           onClick={() => setActiveSection(null)}
         >
-          {'\u{2190}'} Назад
+          <IconArrowLeft size={18} />
+          Назад
         </button>
-        <h1 className="text-lg font-bold">{sectionLabel}</h1>
+        <h1 className="bk-heading text-lg">{sectionLabel}</h1>
       </div>
 
       <div className="mx-4 mt-4">

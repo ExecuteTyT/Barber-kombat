@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import { StarRating } from '../../components/Icons'
 import type { ReviewResponse } from '../../types'
 
 interface ReviewProcessModalProps {
@@ -39,47 +40,34 @@ export default function ReviewProcessModal({ review, onClose, onSubmit }: Review
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Modal */}
       <div
-        className="relative w-full max-w-lg rounded-t-2xl bg-[var(--tg-theme-bg-color)] px-4 pb-8 pt-4"
+        className="relative w-full max-w-lg rounded-t-2xl border-t border-[var(--bk-border-gold)] bg-[var(--bk-bg-primary)] px-4 pb-8 pt-4"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)' }}
       >
-        {/* Handle */}
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--tg-theme-hint-color)]/30" />
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--bk-text-dim)]" />
 
-        <h3 className="text-lg font-bold">Обработка отзыва</h3>
+        <h3 className="bk-heading text-xl">Обработка отзыва</h3>
 
-        {/* Review preview */}
-        <div className="mt-3 rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-3">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">
-              {Array.from({ length: 5 }, (_, i) => (
-                <span key={i} className={i < review.rating ? '' : 'opacity-20'}>
-                  {'\u{2B50}'}
-                </span>
-              ))}
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-[var(--tg-theme-hint-color)]">
+        <div className="bk-card mt-3 p-3">
+          <StarRating rating={review.rating} />
+          <p className="mt-1 text-sm text-[var(--bk-text-secondary)]">
             {review.barber_name}
             {review.client_name && ` \u{2022} ${review.client_name}`}
           </p>
-          {review.comment && <p className="mt-2 text-sm">{review.comment}</p>}
+          {review.comment && <p className="mt-2 text-sm text-[var(--bk-text)]">{review.comment}</p>}
         </div>
 
-        {/* Status selector */}
         <div className="mt-4">
-          <label className="text-sm font-medium">Статус</label>
+          <label className="text-sm font-medium text-[var(--bk-text)]">Статус</label>
           <div className="mt-2 flex gap-2">
             <button
               type="button"
-              className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
                 status === 'in_progress'
-                  ? 'bg-[var(--tg-theme-button-color)] text-[var(--tg-theme-button-text-color)]'
-                  : 'bg-[var(--tg-theme-secondary-bg-color)] text-[var(--tg-theme-hint-color)]'
+                  ? 'bg-[var(--bk-gold)] text-[var(--bk-bg-primary)]'
+                  : 'bg-[var(--bk-bg-elevated)] text-[var(--bk-text-secondary)]'
               }`}
               onClick={() => setStatus('in_progress')}
             >
@@ -87,10 +75,10 @@ export default function ReviewProcessModal({ review, onClose, onSubmit }: Review
             </button>
             <button
               type="button"
-              className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
                 status === 'processed'
-                  ? 'bg-[var(--tg-theme-button-color)] text-[var(--tg-theme-button-text-color)]'
-                  : 'bg-[var(--tg-theme-secondary-bg-color)] text-[var(--tg-theme-hint-color)]'
+                  ? 'bg-[var(--bk-gold)] text-[var(--bk-bg-primary)]'
+                  : 'bg-[var(--bk-bg-elevated)] text-[var(--bk-text-secondary)]'
               }`}
               onClick={() => setStatus('processed')}
             >
@@ -99,11 +87,10 @@ export default function ReviewProcessModal({ review, onClose, onSubmit }: Review
           </div>
         </div>
 
-        {/* Comment */}
         <div className="mt-4">
-          <label className="text-sm font-medium">Комментарий</label>
+          <label className="text-sm font-medium text-[var(--bk-text)]">Комментарий</label>
           <textarea
-            className="mt-2 w-full rounded-xl border border-[var(--tg-theme-hint-color)]/20 bg-[var(--tg-theme-secondary-bg-color)] p-3 text-sm text-[var(--tg-theme-text-color)] placeholder-[var(--tg-theme-hint-color)] focus:border-[var(--tg-theme-button-color)] focus:outline-none"
+            className="mt-2 w-full rounded-xl border border-[var(--bk-border)] bg-[var(--bk-bg-input)] p-3 text-sm text-[var(--bk-text)] placeholder-[var(--bk-text-dim)]"
             rows={3}
             placeholder="Что было сделано..."
             value={comment}
@@ -112,22 +99,19 @@ export default function ReviewProcessModal({ review, onClose, onSubmit }: Review
           />
         </div>
 
-        {error && (
-          <p className="mt-2 text-sm text-[var(--tg-theme-destructive-text-color)]">{error}</p>
-        )}
+        {error && <p className="mt-2 text-sm text-[var(--bk-red)]">{error}</p>}
 
-        {/* Actions */}
         <div className="mt-4 flex gap-3">
           <button
             type="button"
-            className="flex-1 rounded-xl bg-[var(--tg-theme-secondary-bg-color)] py-3 text-sm font-medium"
+            className="flex-1 rounded-xl bg-[var(--bk-bg-elevated)] py-3 text-sm font-semibold text-[var(--bk-text-secondary)]"
             onClick={onClose}
           >
             Отмена
           </button>
           <button
             type="button"
-            className="flex-1 rounded-xl bg-[var(--tg-theme-button-color)] py-3 text-sm font-medium text-[var(--tg-theme-button-text-color)] disabled:opacity-50"
+            className="flex-1 rounded-xl bg-[var(--bk-gold)] py-3 text-sm font-semibold text-[var(--bk-bg-primary)] disabled:opacity-50"
             disabled={isSubmitting || !comment.trim()}
             onClick={handleSubmit}
           >

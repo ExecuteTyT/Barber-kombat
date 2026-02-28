@@ -210,3 +210,4 @@ async def get_branch_analytics(
         current_user.organization_id, branch_id, report_date
     )
     return BranchAnalytics(**data)
+

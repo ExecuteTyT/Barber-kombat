@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { authApi, type DevUser } from '../api/client'
+import { IconScissors } from '../components/Icons'
 import { useAuthStore } from '../stores/authStore'
 
 const ROLE_LABELS: Record<string, string> = {
@@ -12,11 +13,11 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  barber: 'bg-blue-600',
-  chef: 'bg-purple-600',
-  owner: 'bg-amber-600',
-  admin: 'bg-emerald-600',
-  manager: 'bg-indigo-600',
+  barber: 'bg-[var(--bk-gold)]/20 text-[var(--bk-gold)]',
+  chef: 'bg-[var(--bk-score-extras)]/20 text-[var(--bk-score-extras)]',
+  owner: 'bg-[var(--bk-gold-bright)]/20 text-[var(--bk-gold-bright)]',
+  admin: 'bg-[var(--bk-green)]/20 text-[var(--bk-green)]',
+  manager: 'bg-[var(--bk-silver)]/20 text-[var(--bk-silver)]',
 }
 
 export default function DevLoginScreen() {
@@ -38,56 +39,64 @@ export default function DevLoginScreen() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-950 p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-white">Barber Kombat</h1>
-          <p className="mt-1 text-sm text-gray-400">Dev Mode — выберите пользователя</p>
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--bk-gold)]/10 text-[var(--bk-gold)]">
+            <IconScissors size={32} />
+          </div>
+          <h1 className="bk-heading text-3xl text-[var(--bk-text)]">Barber Kombat</h1>
+          <p className="mt-2 text-sm text-[var(--bk-text-secondary)]">
+            Dev Mode — выберите пользователя
+          </p>
         </div>
 
         {loading && (
           <div className="flex justify-center py-8">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--bk-gold)] border-t-transparent" />
           </div>
         )}
 
         {error && (
-          <div className="rounded-lg bg-red-900/30 p-4 text-center text-sm text-red-300">
+          <div className="bk-card border-[var(--bk-red)]/20 p-4 text-center text-sm text-[var(--bk-red)]">
             {error}
           </div>
         )}
 
         {!loading && !error && users.length === 0 && (
-          <div className="rounded-lg bg-gray-800 p-6 text-center">
-            <p className="text-gray-300">Нет пользователей в БД.</p>
-            <p className="mt-2 text-sm text-gray-500">
+          <div className="bk-card p-6 text-center">
+            <p className="text-[var(--bk-text)]">Нет пользователей в БД.</p>
+            <p className="mt-2 text-sm text-[var(--bk-text-secondary)]">
               Выполните:{' '}
-              <code className="rounded bg-gray-700 px-1">python -m app.cli seed-demo</code>
+              <code className="rounded bg-[var(--bk-bg-elevated)] px-1.5 py-0.5 text-[var(--bk-gold)]">
+                python -m app.cli seed-demo
+              </code>
             </p>
           </div>
         )}
 
         {!loading && users.length > 0 && (
           <div className="space-y-2">
-            {users.map((u) => (
+            {users.map((u, i) => (
               <button
                 key={u.telegram_id}
                 onClick={() => handleSelect(u.telegram_id)}
-                className="flex w-full items-center gap-3 rounded-lg bg-gray-800 px-4 py-3 text-left transition-colors hover:bg-gray-700 active:bg-gray-600"
+                className="bk-card flex w-full items-center gap-3 px-4 py-3.5 text-left transition-all active:scale-[0.98] bk-fade-up"
+                style={{ animationDelay: `${i * 50}ms` }}
               >
                 <span
-                  className={`inline-flex min-w-[80px] items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white ${ROLE_COLORS[u.role] ?? 'bg-gray-600'}`}
+                  className={`inline-flex min-w-[80px] items-center justify-center rounded-full px-2.5 py-1 text-xs font-semibold ${ROLE_COLORS[u.role] ?? 'bg-[var(--bk-bg-elevated)] text-[var(--bk-text-dim)]'}`}
                 >
                   {ROLE_LABELS[u.role] ?? u.role}
                 </span>
-                <span className="flex-1 text-sm font-medium text-white">{u.name}</span>
-                <span className="text-xs text-gray-500">{u.telegram_id}</span>
+                <span className="flex-1 text-sm font-medium text-[var(--bk-text)]">{u.name}</span>
+                <span className="text-xs text-[var(--bk-text-dim)]">{u.telegram_id}</span>
               </button>
             ))}
           </div>
         )}
 
-        <p className="mt-6 text-center text-xs text-gray-600">
+        <p className="mt-8 text-center text-xs text-[var(--bk-text-dim)]">
           Этот экран доступен только в dev-режиме (APP_ENV=development)
         </p>
       </div>

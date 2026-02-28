@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 
+import { StarRating, IconCheckCircle, IconRefresh, IconUsers } from '../../components/Icons'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { useAuthStore } from '../../stores/authStore'
@@ -14,7 +15,6 @@ function formatMoney(kopecks: number): string {
   return rubles.toLocaleString('ru-RU') + '\u{00A0}\u{20BD}'
 }
 
-// --- Today stats block ---
 function TodayStats({
   revenueToday,
   revenueMonth,
@@ -31,46 +31,55 @@ function TodayStats({
   barbersTotal: number
 }) {
   return (
-    <div className="mx-4 rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-4">
+    <div className="bk-card mx-4 p-4">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <p className="text-xs text-[var(--tg-theme-hint-color)]">Выручка дня</p>
-          <p className="text-lg font-bold tabular-nums">{formatMoney(revenueToday)}</p>
+          <p className="text-xs text-[var(--bk-text-secondary)]">Выручка дня</p>
+          <p
+            className="text-lg font-bold tabular-nums"
+            style={{ fontFamily: 'var(--bk-font-heading)' }}
+          >
+            {formatMoney(revenueToday)}
+          </p>
         </div>
         <div>
-          <p className="text-xs text-[var(--tg-theme-hint-color)]">Выручка месяца</p>
-          <p className="text-lg font-bold tabular-nums">{formatMoney(revenueMonth)}</p>
+          <p className="text-xs text-[var(--bk-text-secondary)]">Выручка месяца</p>
+          <p
+            className="text-lg font-bold tabular-nums"
+            style={{ fontFamily: 'var(--bk-font-heading)' }}
+          >
+            {formatMoney(revenueMonth)}
+          </p>
         </div>
       </div>
-      {/* Plan bar */}
       <div className="mt-3">
         <div className="flex items-baseline justify-between">
-          <span className="text-xs text-[var(--tg-theme-hint-color)]">План</span>
-          <span className="text-sm font-bold tabular-nums">{planPercentage.toFixed(0)}%</span>
+          <span className="text-xs text-[var(--bk-text-secondary)]">План</span>
+          <span className="text-sm font-bold tabular-nums text-[var(--bk-gold)]">
+            {planPercentage.toFixed(0)}%
+          </span>
         </div>
-        <div className="mt-1 h-2 overflow-hidden rounded-full bg-[var(--tg-theme-bg-color)]">
+        <div className="mt-1 h-2 overflow-hidden rounded-full bg-[var(--bk-bg-elevated)]">
           <div
-            className="h-full rounded-full bg-[var(--tg-theme-button-color)] transition-all duration-700"
+            className="bk-progress-fill h-full transition-all duration-700"
             style={{ width: `${Math.min(planPercentage, 100)}%` }}
           />
         </div>
-        <p className="mt-1 text-xs tabular-nums text-[var(--tg-theme-hint-color)]">
+        <p className="mt-1 text-xs tabular-nums text-[var(--bk-text-dim)]">
           {formatMoney(revenueMonth)} из {formatMoney(planTarget)}
         </p>
       </div>
-      {/* In shift */}
-      <div className="mt-3 flex items-center gap-1 text-sm">
-        <span className="text-[var(--tg-theme-hint-color)]">В смене:</span>
-        <span className="font-medium">
+      <div className="mt-3 flex items-center gap-1.5 text-sm">
+        <IconUsers size={14} className="text-[var(--bk-text-secondary)]" />
+        <span className="text-[var(--bk-text-secondary)]">В смене:</span>
+        <span className="font-medium text-[var(--bk-text)]">
           {barbersInShift}/{barbersTotal}
         </span>
-        <span className="text-[var(--tg-theme-hint-color)]">мастеров</span>
       </div>
     </div>
   )
 }
 
-// --- Bingo table: barbers ranked by cumulative revenue ---
 function BingoTable({
   barbers,
   thresholdMax,
@@ -82,34 +91,32 @@ function BingoTable({
 
   return (
     <div className="mx-4 mt-4">
-      <h3 className="font-medium">Бинго</h3>
+      <h3 className="bk-heading text-base">Бинго</h3>
       <div className="mt-2 space-y-2">
         {sorted.map((b, i) => {
           const pct =
             thresholdMax > 0 ? Math.min((b.cumulative_revenue / thresholdMax) * 100, 100) : 0
 
           return (
-            <div
-              key={b.barber_id}
-              className="rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-3"
-            >
+            <div key={b.barber_id} className="bk-card p-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="w-5 text-center text-sm font-bold text-[var(--tg-theme-hint-color)]">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--bk-bg-elevated)] text-xs font-bold text-[var(--bk-text-dim)]">
                     {i + 1}
                   </span>
-                  <span className="font-medium">{b.name}</span>
+                  <span className="font-medium text-[var(--bk-text)]">{b.name}</span>
                 </div>
-                <span className="font-bold tabular-nums">{formatMoney(b.cumulative_revenue)}</span>
+                <span className="font-bold tabular-nums text-[var(--bk-text)]">
+                  {formatMoney(b.cumulative_revenue)}
+                </span>
               </div>
-              {/* PVR mini progress */}
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--tg-theme-bg-color)]">
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--bk-bg-elevated)]">
                 <div
-                  className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                  className="bk-progress-fill h-full transition-all duration-500"
                   style={{ width: `${pct}%` }}
                 />
               </div>
-              <div className="mt-1 flex items-center justify-between text-xs text-[var(--tg-theme-hint-color)]">
+              <div className="mt-1 flex items-center justify-between text-xs text-[var(--bk-text-dim)]">
                 <span>Премия: {formatMoney(b.bonus_amount)}</span>
                 {b.next_threshold && b.remaining_to_next !== null && (
                   <span>До след: {formatMoney(b.remaining_to_next)}</span>
@@ -119,14 +126,13 @@ function BingoTable({
           )
         })}
         {sorted.length === 0 && (
-          <p className="py-4 text-center text-sm text-[var(--tg-theme-hint-color)]">Нет данных</p>
+          <p className="py-4 text-center text-sm text-[var(--bk-text-secondary)]">Нет данных</p>
         )}
       </div>
     </div>
   )
 }
 
-// --- Review card ---
 function ReviewCard({
   review,
   onProcess,
@@ -134,7 +140,6 @@ function ReviewCard({
   review: ReviewResponse
   onProcess: (review: ReviewResponse) => void
 }) {
-  const stars = Array.from({ length: 5 }, (_, i) => i < review.rating)
   const createdAt = new Date(review.created_at)
   const timeStr = createdAt.toLocaleTimeString('ru-RU', {
     hour: '2-digit',
@@ -146,40 +151,37 @@ function ReviewCard({
   })
 
   return (
-    <div className="rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-3">
+    <div className="bk-card p-3">
       <div className="flex items-start justify-between">
         <div>
-          <span className="text-base">
-            {stars.map((filled, i) => (
-              <span key={i} className={filled ? '' : 'opacity-20'}>
-                {'\u{2B50}'}
-              </span>
-            ))}
-          </span>
-          <p className="mt-1 text-sm font-medium">{review.barber_name}</p>
+          <StarRating rating={review.rating} />
+          <p className="mt-1 text-sm font-medium text-[var(--bk-text)]">{review.barber_name}</p>
         </div>
-        <span className="text-xs text-[var(--tg-theme-hint-color)]">
+        <span className="text-xs text-[var(--bk-text-dim)]">
           {dateStr}, {timeStr}
         </span>
       </div>
       {review.client_name && (
-        <p className="mt-1 text-xs text-[var(--tg-theme-hint-color)]">{review.client_name}</p>
+        <p className="mt-1 text-xs text-[var(--bk-text-secondary)]">{review.client_name}</p>
       )}
-      {review.comment && <p className="mt-2 text-sm">{review.comment}</p>}
+      {review.comment && <p className="mt-2 text-sm text-[var(--bk-text)]">{review.comment}</p>}
 
-      {/* Status / action */}
       <div className="mt-3 flex items-center justify-between">
         {review.status === 'processed' ? (
-          <span className="text-xs text-emerald-500">{'\u{2705}'} Обработан</span>
+          <span className="flex items-center gap-1 text-xs text-[var(--bk-green)]">
+            <IconCheckCircle size={14} /> Обработан
+          </span>
         ) : review.status === 'in_progress' ? (
-          <span className="text-xs text-amber-500">{'\u{1F504}'} В работе</span>
+          <span className="flex items-center gap-1 text-xs text-[var(--bk-gold)]">
+            <IconRefresh size={14} /> В работе
+          </span>
         ) : (
-          <span className="text-xs text-red-500">Новый</span>
+          <span className="text-xs font-medium text-[var(--bk-red)]">Новый</span>
         )}
         {review.status !== 'processed' && (
           <button
             type="button"
-            className="rounded-lg bg-[var(--tg-theme-button-color)] px-3 py-1.5 text-xs font-medium text-[var(--tg-theme-button-text-color)]"
+            className="rounded-lg bg-[var(--bk-gold)] px-3 py-1.5 text-xs font-semibold text-[var(--bk-bg-primary)]"
             onClick={() => onProcess(review)}
           >
             Обработать
@@ -187,17 +189,15 @@ function ReviewCard({
         )}
       </div>
 
-      {/* Processed info */}
       {review.processed_comment && (
-        <div className="mt-2 rounded-lg bg-[var(--tg-theme-bg-color)] p-2">
-          <p className="text-xs text-[var(--tg-theme-hint-color)]">{review.processed_comment}</p>
+        <div className="mt-2 rounded-lg bg-[var(--bk-bg-elevated)] p-2">
+          <p className="text-xs text-[var(--bk-text-secondary)]">{review.processed_comment}</p>
         </div>
       )}
     </div>
   )
 }
 
-// --- Reviews feed with filter tabs ---
 type FilterTab = 'all' | 'negative' | 'unprocessed'
 
 function ReviewsFeed({
@@ -223,24 +223,23 @@ function ReviewsFeed({
 
   return (
     <div className="mx-4 mt-4">
-      <h3 className="font-medium">Отзывы</h3>
+      <h3 className="bk-heading text-base">Отзывы</h3>
 
-      {/* Filter tabs */}
       <div className="mt-2 flex gap-2">
         {tabs.map((t) => (
           <button
             key={t.key}
             type="button"
-            className={`relative rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`relative rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
               activeTab === t.key
-                ? 'bg-[var(--tg-theme-button-color)] text-[var(--tg-theme-button-text-color)]'
-                : 'bg-[var(--tg-theme-secondary-bg-color)] text-[var(--tg-theme-hint-color)]'
+                ? 'bg-[var(--bk-gold)] text-[var(--bk-bg-primary)]'
+                : 'bg-[var(--bk-bg-elevated)] text-[var(--bk-text-secondary)]'
             }`}
             onClick={() => onTabChange(t.key)}
           >
             {t.label}
             {t.badge !== undefined && t.badge > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--bk-red)] px-1 text-[10px] font-bold text-white">
                 {t.badge}
               </span>
             )}
@@ -248,16 +247,15 @@ function ReviewsFeed({
         ))}
       </div>
 
-      {/* Reviews list */}
       <div className="mt-3 space-y-2">
         {reviews.map((r) => (
           <ReviewCard key={r.id} review={r} onProcess={onProcess} />
         ))}
         {reviews.length === 0 && (
-          <p className="py-4 text-center text-sm text-[var(--tg-theme-hint-color)]">Отзывов нет</p>
+          <p className="py-4 text-center text-sm text-[var(--bk-text-secondary)]">Отзывов нет</p>
         )}
         {reviews.length > 0 && reviews.length < total && (
-          <p className="py-2 text-center text-xs text-[var(--tg-theme-hint-color)]">
+          <p className="py-2 text-center text-xs text-[var(--bk-text-dim)]">
             Показано {reviews.length} из {total}
           </p>
         )}
@@ -266,18 +264,12 @@ function ReviewsFeed({
   )
 }
 
-// --- Main BranchScreen ---
 export default function BranchScreen() {
   const user = useAuthStore((s) => s.user)
   const branchId = user?.branch_id
 
-  // Kombat store for today stats
   const { todayRating, fetchTodayRating } = useKombatStore()
-
-  // PVR store for Bingo table
   const { branchPvr, thresholds, fetchBranchPvr, fetchThresholds } = usePvrStore()
-
-  // Reviews store
   const {
     reviews,
     total,
@@ -296,7 +288,6 @@ export default function BranchScreen() {
     [reviews],
   )
 
-  // Load data on mount
   useEffect(() => {
     if (branchId) {
       fetchTodayRating(branchId)
@@ -305,14 +296,12 @@ export default function BranchScreen() {
     }
   }, [branchId, fetchTodayRating, fetchBranchPvr, fetchThresholds])
 
-  // Load reviews when branch or filters change
   useEffect(() => {
     if (branchId) {
       fetchReviews(branchId)
     }
   }, [branchId, filters, fetchReviews])
 
-  // Handle filter tab changes
   const handleTabChange = useCallback(
     (tab: FilterTab) => {
       setActiveTab(tab)
@@ -331,7 +320,6 @@ export default function BranchScreen() {
     [setFilters],
   )
 
-  // WebSocket for real-time reviews
   const handleWSMessage = useCallback(
     (message: WSMessage) => {
       if (message.type === 'new_review') {
@@ -345,7 +333,6 @@ export default function BranchScreen() {
   )
   useWebSocket(handleWSMessage)
 
-  // Derived stats from todayRating
   const revenueToday = todayRating ? todayRating.ratings.reduce((sum, r) => sum + r.revenue, 0) : 0
   const revenueMonth = todayRating?.plan?.current ?? 0
   const planPercentage = todayRating?.plan?.percentage ?? 0
@@ -353,21 +340,16 @@ export default function BranchScreen() {
   const barbersInShift = todayRating?.ratings.length ?? 0
   const barbersTotal = branchPvr?.barbers.length ?? barbersInShift
 
-  // Max threshold for progress bar scaling
   const thresholdMax = thresholds.length > 0 ? Math.max(...thresholds.map((t) => t.amount)) : 0
 
   if (!branchId) {
-    return (
-      <div className="p-8 text-center text-[var(--tg-theme-hint-color)]">Филиал не назначен</div>
-    )
+    return <div className="p-8 text-center text-[var(--bk-text-secondary)]">Филиал не назначен</div>
   }
 
   return (
     <div className="pb-4 pt-4">
-      {/* Header */}
-      <h1 className="px-4 text-lg font-bold">{todayRating?.branch_name ?? 'Филиал'}</h1>
+      <h1 className="bk-heading px-4 text-xl">{todayRating?.branch_name ?? 'Филиал'}</h1>
 
-      {/* Today stats */}
       <div className="mt-3">
         {todayRating ? (
           <TodayStats
@@ -385,7 +367,6 @@ export default function BranchScreen() {
         )}
       </div>
 
-      {/* Bingo table */}
       {branchPvr ? (
         <BingoTable barbers={branchPvr.barbers} thresholdMax={thresholdMax} />
       ) : (
@@ -394,7 +375,6 @@ export default function BranchScreen() {
         </div>
       )}
 
-      {/* Reviews feed */}
       {reviewsLoading && reviews.length === 0 ? (
         <div className="mx-4 mt-4">
           <LoadingSkeleton lines={4} />
@@ -410,7 +390,6 @@ export default function BranchScreen() {
         />
       )}
 
-      {/* Process review modal */}
       {processingReview && (
         <ReviewProcessModal
           review={processingReview}

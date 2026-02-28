@@ -1,19 +1,203 @@
 @import 'tailwindcss';
 
 :root {
-  --tg-theme-bg-color: #ffffff;
-  --tg-theme-text-color: #000000;
-  --tg-theme-hint-color: #999999;
-  --tg-theme-link-color: #2481cc;
-  --tg-theme-button-color: #2481cc;
-  --tg-theme-button-text-color: #ffffff;
-  --tg-theme-secondary-bg-color: #f0f0f0;
+  /* Telegram theme defaults — dark barbershop */
+  --tg-theme-bg-color: #0c0c0e;
+  --tg-theme-text-color: #e8e5df;
+  --tg-theme-hint-color: #6b6862;
+  --tg-theme-link-color: #c9a84c;
+  --tg-theme-button-color: #c9a84c;
+  --tg-theme-button-text-color: #0c0c0e;
+  --tg-theme-secondary-bg-color: #161619;
+  --tg-theme-destructive-text-color: #e54545;
+
+  /* Barber Kombat design tokens */
+  --bk-bg-primary: #0c0c0e;
+  --bk-bg-card: #161619;
+  --bk-bg-elevated: #1c1c20;
+  --bk-bg-input: #222226;
+  --bk-gold: #c9a84c;
+  --bk-gold-dim: #a08432;
+  --bk-gold-glow: rgba(201, 168, 76, 0.12);
+  --bk-gold-bright: #e2c06e;
+  --bk-silver: #a8a8a8;
+  --bk-bronze: #b87333;
+  --bk-text: #e8e5df;
+  --bk-text-secondary: #8a877f;
+  --bk-text-dim: #555249;
+  --bk-red: #e54545;
+  --bk-green: #4a9d5b;
+  --bk-border: rgba(255, 255, 255, 0.06);
+  --bk-border-gold: rgba(201, 168, 76, 0.15);
+
+  /* Score segment colors — warm palette */
+  --bk-score-revenue: #c9a84c;
+  --bk-score-cs: #d4915c;
+  --bk-score-products: #b87333;
+  --bk-score-extras: #9c6b8a;
+  --bk-score-reviews: #c97c7c;
+
+  /* Fonts */
+  --bk-font-heading: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --bk-font-body: 'Outfit', system-ui, sans-serif;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background-color: var(--tg-theme-bg-color);
-  color: var(--tg-theme-text-color);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bk-bg-primary);
+  color: var(--bk-text);
+  font-family: var(--bk-font-body);
   margin: 0;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Barbershop stripe background texture (very subtle) */
+#root {
+  min-height: 100vh;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 14px,
+    rgba(201, 168, 76, 0.018) 14px,
+    rgba(201, 168, 76, 0.018) 15px
+  );
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bk-text-dim);
+  border-radius: 2px;
+}
+
+/* Golden shimmer skeleton */
+@keyframes bk-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.bk-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bk-bg-elevated) 25%,
+    rgba(201, 168, 76, 0.08) 50%,
+    var(--bk-bg-elevated) 75%
+  );
+  background-size: 200% 100%;
+  animation: bk-shimmer 2s ease-in-out infinite;
+}
+
+/* Pulse glow for LIVE indicator */
+@keyframes bk-pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 69, 69, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(229, 69, 69, 0); }
+}
+
+.bk-live-pulse {
+  animation: bk-pulse-glow 2s ease-in-out infinite;
+}
+
+/* Card glow on active */
+.bk-card {
+  background: var(--bk-bg-card);
+  border: 1px solid var(--bk-border);
+  border-radius: 16px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bk-card:active,
+.bk-card-glow {
+  border-color: var(--bk-border-gold);
+  box-shadow: 0 0 20px -4px var(--bk-gold-glow);
+}
+
+/* Gold accent bar */
+.bk-gold-bar {
+  background: linear-gradient(90deg, var(--bk-gold), var(--bk-gold-bright));
+}
+
+/* Metallic medal gradients */
+.bk-medal-gold {
+  background: linear-gradient(135deg, #f4d03f 0%, #c9a84c 50%, #a08432 100%);
+  color: #1a1500;
+}
+
+.bk-medal-silver {
+  background: linear-gradient(135deg, #d4d4d4 0%, #a8a8a8 50%, #808080 100%);
+  color: #1a1a1a;
+}
+
+.bk-medal-bronze {
+  background: linear-gradient(135deg, #d4955a 0%, #b87333 50%, #8b5e2b 100%);
+  color: #1a1000;
+}
+
+/* Heading font utility */
+.bk-heading {
+  font-family: var(--bk-font-heading);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Progress bar gold gradient fill */
+.bk-progress-fill {
+  background: linear-gradient(90deg, var(--bk-gold-dim), var(--bk-gold), var(--bk-gold-bright));
+  border-radius: 9999px;
+}
+
+/* Staggered fade-in animation */
+@keyframes bk-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bk-fade-up {
+  animation: bk-fade-up 0.35s ease-out both;
+}
+
+/* Tab bar glass effect */
+.bk-tab-bar {
+  background: rgba(12, 12, 14, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--bk-border-gold);
+}
+
+/* Input focus glow */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--bk-gold) !important;
+  box-shadow: 0 0 0 2px var(--bk-gold-glow);
+}
+
+/* Select arrow color fix for dark theme */
+select {
+  color-scheme: dark;
+}
+
+/* Range slider gold accent */
+input[type='range'] {
+  accent-color: var(--bk-gold);
+}
+
+input[type='checkbox'] {
+  accent-color: var(--bk-gold);
 }

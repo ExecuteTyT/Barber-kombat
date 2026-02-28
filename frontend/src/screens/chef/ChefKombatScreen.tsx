@@ -56,7 +56,7 @@ function BarberDetailModal({ barberId, onClose }: { barberId: string; onClose: (
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative max-h-[85vh] w-full max-w-md overflow-hidden rounded-t-2xl bg-[var(--bk-bg)] sm:rounded-2xl">
+      <div className="relative max-h-[85vh] w-full max-w-md overflow-hidden rounded-t-2xl bg-[var(--bk-bg-primary)] sm:rounded-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--bk-border)] px-4 py-3">
           <h2 className="bk-heading text-lg">

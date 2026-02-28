@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, String, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -10,10 +10,7 @@ from app.models.base import Base
 
 class Report(Base):
     __tablename__ = "reports"
-    __table_args__ = (
-        Index("ix_reports_org_type_date", "organization_id", "type", "date"),
-        Index("ix_reports_branch_type_date", "branch_id", "type", "date"),
-    )
+    __table_args__: tuple = ()
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(

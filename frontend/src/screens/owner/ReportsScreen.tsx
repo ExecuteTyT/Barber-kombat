@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
+import { IconArrowLeft, IconChevronRight } from '../../components/Icons'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useOwnerStore } from '../../stores/ownerStore'
 import type { BranchRevenue, BranchClients } from '../../types'
@@ -34,19 +35,22 @@ const REPORT_CARDS: { key: ReportType; label: string; desc: string }[] = [
   { key: 'clients', label: 'Клиенты', desc: 'Новые и повторные клиенты' },
 ]
 
-// --- Revenue table ---
 function RevenueTable({ branches }: { branches: BranchRevenue[] }) {
   return (
     <div className="space-y-2">
       {branches.map((b) => (
-        <div key={b.branch_id} className="rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-3">
+        <div key={b.branch_id} className="bk-card p-3">
           <div className="flex items-baseline justify-between">
-            <span className="font-medium">{b.name}</span>
-            <span className="font-bold tabular-nums">{formatMoney(b.revenue_today)}</span>
+            <span className="font-medium text-[var(--bk-text)]">{b.name}</span>
+            <span className="font-bold tabular-nums text-[var(--bk-text)]">
+              {formatMoney(b.revenue_today)}
+            </span>
           </div>
-          <div className="mt-1 flex items-baseline justify-between text-xs text-[var(--tg-theme-hint-color)]">
+          <div className="mt-1 flex items-baseline justify-between text-xs text-[var(--bk-text-secondary)]">
             <span>Месяц: {formatMoney(b.revenue_mtd)}</span>
-            <span>{b.plan_percentage.toFixed(0)}% плана</span>
+            <span className="font-semibold text-[var(--bk-gold)]">
+              {b.plan_percentage.toFixed(0)}% плана
+            </span>
           </div>
         </div>
       ))}
@@ -54,7 +58,6 @@ function RevenueTable({ branches }: { branches: BranchRevenue[] }) {
   )
 }
 
-// --- Day-to-day chart ---
 function DayToDayChart() {
   const { dayToDay, reportsLoading, fetchDayToDay } = useOwnerStore()
 
@@ -68,7 +71,6 @@ function DayToDayChart() {
 
   if (!dayToDay) return null
 
-  // Merge 3 months into chart data
   const chartData = dayToDay.current_month.daily_cumulative.map((p) => {
     const prev = dayToDay.prev_month.daily_cumulative.find((d) => d.day === p.day)
     const prevPrev = dayToDay.prev_prev_month.daily_cumulative.find((d) => d.day === p.day)
@@ -84,30 +86,40 @@ function DayToDayChart() {
     <div>
       <ResponsiveContainer width="100%" height={240}>
         <LineChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-          <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-          <YAxis tickFormatter={formatMoneyAxis} tick={{ fontSize: 11 }} width={50} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--bk-border)" />
+          <XAxis
+            dataKey="day"
+            tick={{ fontSize: 11, fill: 'var(--bk-text-dim)' }}
+            stroke="var(--bk-border)"
+          />
+          <YAxis
+            tickFormatter={formatMoneyAxis}
+            tick={{ fontSize: 11, fill: 'var(--bk-text-dim)' }}
+            width={50}
+            stroke="var(--bk-border)"
+          />
           <Tooltip
-            formatter={(value: number) => formatMoney(value)}
+            formatter={(value) => formatMoney(value as number)}
             contentStyle={{
-              backgroundColor: 'var(--tg-theme-bg-color)',
-              border: '1px solid var(--tg-theme-hint-color)',
-              borderRadius: '8px',
+              backgroundColor: 'var(--bk-bg-card)',
+              border: '1px solid var(--bk-border-gold)',
+              borderRadius: '12px',
               fontSize: 12,
+              color: 'var(--bk-text)',
             }}
           />
-          <Legend wrapperStyle={{ fontSize: 11 }} />
+          <Legend wrapperStyle={{ fontSize: 11, color: 'var(--bk-text-secondary)' }} />
           <Line
             type="monotone"
             dataKey={dayToDay.current_month.name}
-            stroke="#3b82f6"
+            stroke="var(--bk-gold)"
             strokeWidth={2}
             dot={false}
           />
           <Line
             type="monotone"
             dataKey={dayToDay.prev_month.name}
-            stroke="#a855f7"
+            stroke="var(--bk-score-cs)"
             strokeWidth={1.5}
             strokeDasharray="4 4"
             dot={false}
@@ -115,7 +127,7 @@ function DayToDayChart() {
           <Line
             type="monotone"
             dataKey={dayToDay.prev_prev_month.name}
-            stroke="#6b7280"
+            stroke="var(--bk-text-dim)"
             strokeWidth={1}
             strokeDasharray="2 2"
             dot={false}
@@ -123,40 +135,38 @@ function DayToDayChart() {
         </LineChart>
       </ResponsiveContainer>
 
-      {/* Comparison */}
       <div className="mt-3 flex gap-3">
-        <div className="flex-1 rounded-lg bg-[var(--tg-theme-secondary-bg-color)] p-2 text-center">
-          <p className="text-xs text-[var(--tg-theme-hint-color)]">vs прошлый</p>
-          <p className="font-bold">{dayToDay.comparison.vs_prev}</p>
+        <div className="bk-card flex-1 p-3 text-center">
+          <p className="text-xs text-[var(--bk-text-secondary)]">vs прошлый</p>
+          <p className="font-bold text-[var(--bk-text)]">{dayToDay.comparison.vs_prev}</p>
         </div>
-        <div className="flex-1 rounded-lg bg-[var(--tg-theme-secondary-bg-color)] p-2 text-center">
-          <p className="text-xs text-[var(--tg-theme-hint-color)]">vs позапрошлый</p>
-          <p className="font-bold">{dayToDay.comparison.vs_prev_prev}</p>
+        <div className="bk-card flex-1 p-3 text-center">
+          <p className="text-xs text-[var(--bk-text-secondary)]">vs позапрошлый</p>
+          <p className="font-bold text-[var(--bk-text)]">{dayToDay.comparison.vs_prev_prev}</p>
         </div>
       </div>
     </div>
   )
 }
 
-// --- Clients table ---
 function ClientsTable({ branches }: { branches: BranchClients[] }) {
   return (
     <div className="space-y-2">
       {branches.map((b) => (
-        <div key={b.branch_id} className="rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-3">
-          <span className="font-medium">{b.name}</span>
+        <div key={b.branch_id} className="bk-card p-3">
+          <span className="font-medium text-[var(--bk-text)]">{b.name}</span>
           <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
             <div>
-              <p className="text-[var(--tg-theme-hint-color)]">Новые</p>
-              <p className="font-bold">{b.new_clients_mtd}</p>
+              <p className="text-[var(--bk-text-secondary)]">Новые</p>
+              <p className="font-bold text-[var(--bk-text)]">{b.new_clients_mtd}</p>
             </div>
             <div>
-              <p className="text-[var(--tg-theme-hint-color)]">Повторные</p>
-              <p className="font-bold">{b.returning_clients_mtd}</p>
+              <p className="text-[var(--bk-text-secondary)]">Повторные</p>
+              <p className="font-bold text-[var(--bk-text)]">{b.returning_clients_mtd}</p>
             </div>
             <div>
-              <p className="text-[var(--tg-theme-hint-color)]">Всего</p>
-              <p className="font-bold">{b.total_mtd}</p>
+              <p className="text-[var(--bk-text-secondary)]">Всего</p>
+              <p className="font-bold text-[var(--bk-text)]">{b.total_mtd}</p>
             </div>
           </div>
         </div>
@@ -169,29 +179,31 @@ export default function ReportsScreen() {
   const [activeReport, setActiveReport] = useState<ReportType | null>(null)
   const { revenue, clients, reportsLoading, fetchDashboard, fetchClients } = useOwnerStore()
 
-  // Load revenue if not loaded (shared with dashboard)
   useEffect(() => {
     if (!revenue) fetchDashboard()
   }, [revenue, fetchDashboard])
 
-  // Back to list
   if (!activeReport) {
     return (
       <div className="pb-4 pt-4">
-        <h1 className="px-4 text-lg font-bold">Отчёты</h1>
+        <h1 className="bk-heading px-4 text-xl">Отчёты</h1>
         <div className="mx-4 mt-4 space-y-2">
-          {REPORT_CARDS.map((r) => (
+          {REPORT_CARDS.map((r, i) => (
             <button
               key={r.key}
               type="button"
-              className="w-full rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-4 text-left active:opacity-80"
+              className="bk-card bk-fade-up flex w-full items-center justify-between p-4 text-left transition-all active:scale-[0.98]"
+              style={{ animationDelay: `${i * 60}ms` }}
               onClick={() => {
                 setActiveReport(r.key)
                 if (r.key === 'clients') fetchClients()
               }}
             >
-              <p className="font-medium">{r.label}</p>
-              <p className="mt-0.5 text-sm text-[var(--tg-theme-hint-color)]">{r.desc}</p>
+              <div>
+                <p className="font-medium text-[var(--bk-text)]">{r.label}</p>
+                <p className="mt-0.5 text-sm text-[var(--bk-text-secondary)]">{r.desc}</p>
+              </div>
+              <IconChevronRight size={18} className="text-[var(--bk-text-dim)]" />
             </button>
           ))}
         </div>
@@ -201,16 +213,16 @@ export default function ReportsScreen() {
 
   return (
     <div className="pb-4 pt-4">
-      {/* Back button */}
       <div className="flex items-center gap-2 px-4">
         <button
           type="button"
-          className="text-[var(--tg-theme-button-color)]"
+          className="flex items-center gap-1 text-sm text-[var(--bk-gold)]"
           onClick={() => setActiveReport(null)}
         >
-          {'\u{2190}'} Назад
+          <IconArrowLeft size={18} />
+          Назад
         </button>
-        <h1 className="text-lg font-bold">
+        <h1 className="bk-heading text-lg">
           {REPORT_CARDS.find((r) => r.key === activeReport)?.label}
         </h1>
       </div>
@@ -227,18 +239,16 @@ export default function ReportsScreen() {
           ) : clients ? (
             <>
               <div className="mb-3 flex gap-3">
-                <div className="flex-1 rounded-lg bg-[var(--tg-theme-secondary-bg-color)] p-2 text-center">
-                  <p className="text-xs text-[var(--tg-theme-hint-color)]">Новые</p>
-                  <p className="font-bold">{clients.network_new_mtd}</p>
-                </div>
-                <div className="flex-1 rounded-lg bg-[var(--tg-theme-secondary-bg-color)] p-2 text-center">
-                  <p className="text-xs text-[var(--tg-theme-hint-color)]">Повторные</p>
-                  <p className="font-bold">{clients.network_returning_mtd}</p>
-                </div>
-                <div className="flex-1 rounded-lg bg-[var(--tg-theme-secondary-bg-color)] p-2 text-center">
-                  <p className="text-xs text-[var(--tg-theme-hint-color)]">Всего</p>
-                  <p className="font-bold">{clients.network_total_mtd}</p>
-                </div>
+                {[
+                  { label: 'Новые', value: clients.network_new_mtd },
+                  { label: 'Повторные', value: clients.network_returning_mtd },
+                  { label: 'Всего', value: clients.network_total_mtd },
+                ].map((s) => (
+                  <div key={s.label} className="bk-card flex-1 p-3 text-center">
+                    <p className="text-xs text-[var(--bk-text-secondary)]">{s.label}</p>
+                    <p className="font-bold text-[var(--bk-text)]">{s.value}</p>
+                  </div>
+                ))}
               </div>
               <ClientsTable branches={clients.branches} />
             </>

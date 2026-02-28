@@ -13,7 +13,7 @@ const tabs: TabItem[] = [
 
 export default function ChefLayout() {
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen pb-20">
       <Outlet />
       <TabBar items={tabs} />
     </div>

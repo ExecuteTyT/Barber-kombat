@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { IconCheckCircle } from '../../components/Icons'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useAdminStore } from '../../stores/adminStore'
 import { useAuthStore } from '../../stores/authStore'
@@ -19,7 +20,6 @@ function formatMoney(kopecks: number): string {
   return rubles.toLocaleString('ru-RU') + '\u{00A0}\u{20BD}'
 }
 
-// --- Unconfirmed records section ---
 function UnconfirmedSection({
   records,
   onConfirmAll,
@@ -31,22 +31,24 @@ function UnconfirmedSection({
 }) {
   const count = records.length
   return (
-    <div className="rounded-xl bg-[var(--tg-theme-secondary-bg-color)]">
+    <div className="bk-card overflow-hidden">
       <div className="flex items-center justify-between px-4 pb-1 pt-3">
         <div className="flex items-center gap-2">
           {count > 0 ? (
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--bk-red)] px-1.5 text-xs font-bold text-white">
               {count}
             </span>
           ) : (
-            <span className="text-emerald-500">{'\u{2705}'}</span>
+            <IconCheckCircle size={18} className="text-[var(--bk-green)]" />
           )}
-          <span className="text-sm font-medium">Неподтверждённые записи на завтра</span>
+          <span className="text-sm font-medium text-[var(--bk-text)]">
+            Неподтверждённые записи на завтра
+          </span>
         </div>
         {count > 0 && (
           <button
             type="button"
-            className="rounded-lg bg-[var(--tg-theme-button-color)] px-3 py-1 text-xs font-medium text-[var(--tg-theme-button-text-color)] disabled:opacity-50"
+            className="rounded-lg bg-[var(--bk-gold)] px-3 py-1 text-xs font-semibold text-[var(--bk-bg-primary)] disabled:opacity-50"
             onClick={onConfirmAll}
             disabled={confirming}
           >
@@ -55,16 +57,16 @@ function UnconfirmedSection({
         )}
       </div>
       {count > 0 && (
-        <div className="divide-y divide-[var(--tg-theme-hint-color)]/10 px-4 pb-2">
+        <div className="divide-y divide-[var(--bk-border)] px-4 pb-2">
           {records.map((r) => (
-            <div key={r.record_id} className="flex items-center justify-between py-2">
+            <div key={r.record_id} className="flex items-center justify-between py-2.5">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm">{r.client_name}</p>
-                <p className="text-xs text-[var(--tg-theme-hint-color)]">
-                  {r.service_name} {'\u{2022}'} {r.barber_name}
+                <p className="truncate text-sm text-[var(--bk-text)]">{r.client_name}</p>
+                <p className="text-xs text-[var(--bk-text-dim)]">
+                  {r.service_name} \u{2022} {r.barber_name}
                 </p>
               </div>
-              <span className="ml-2 text-sm tabular-nums text-[var(--tg-theme-hint-color)]">
+              <span className="ml-2 text-sm tabular-nums text-[var(--bk-text-secondary)]">
                 {formatTime(r.datetime)}
               </span>
             </div>
@@ -72,37 +74,34 @@ function UnconfirmedSection({
         </div>
       )}
       {count === 0 && (
-        <p className="px-4 pb-3 text-sm text-[var(--tg-theme-hint-color)]">
-          Все записи подтверждены
-        </p>
+        <p className="px-4 pb-3 text-sm text-[var(--bk-text-secondary)]">Все записи подтверждены</p>
       )}
     </div>
   )
 }
 
-// --- Unfilled birthdays section ---
 function BirthdaysSection({ clients }: { clients: UnfilledBirthday[] }) {
   const count = clients.length
   return (
-    <div className="rounded-xl bg-[var(--tg-theme-secondary-bg-color)]">
+    <div className="bk-card overflow-hidden">
       <div className="flex items-center gap-2 px-4 pb-1 pt-3">
         {count > 0 ? (
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white">
+          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--bk-gold)] px-1.5 text-xs font-bold text-[var(--bk-bg-primary)]">
             {count}
           </span>
         ) : (
-          <span className="text-emerald-500">{'\u{2705}'}</span>
+          <IconCheckCircle size={18} className="text-[var(--bk-green)]" />
         )}
-        <span className="text-sm font-medium">Незаполненные ДР</span>
+        <span className="text-sm font-medium text-[var(--bk-text)]">Незаполненные ДР</span>
       </div>
       {count > 0 && (
-        <div className="divide-y divide-[var(--tg-theme-hint-color)]/10 px-4 pb-2">
+        <div className="divide-y divide-[var(--bk-border)] px-4 pb-2">
           {clients.map((c) => (
-            <div key={c.client_id} className="flex items-center justify-between py-2">
+            <div key={c.client_id} className="flex items-center justify-between py-2.5">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm">{c.client_name}</p>
+                <p className="truncate text-sm text-[var(--bk-text)]">{c.client_name}</p>
                 {c.last_visit && (
-                  <p className="text-xs text-[var(--tg-theme-hint-color)]">
+                  <p className="text-xs text-[var(--bk-text-dim)]">
                     Последний визит: {c.last_visit}
                   </p>
                 )}
@@ -112,35 +111,36 @@ function BirthdaysSection({ clients }: { clients: UnfilledBirthday[] }) {
         </div>
       )}
       {count === 0 && (
-        <p className="px-4 pb-3 text-sm text-[var(--tg-theme-hint-color)]">Все ДР заполнены</p>
+        <p className="px-4 pb-3 text-sm text-[var(--bk-text-secondary)]">Все ДР заполнены</p>
       )}
     </div>
   )
 }
 
-// --- Unprocessed checks section ---
 function ChecksSection({ checks }: { checks: UnprocessedCheck[] }) {
   const count = checks.length
   if (count === 0) return null
 
   return (
-    <div className="rounded-xl bg-[var(--tg-theme-secondary-bg-color)]">
+    <div className="bk-card overflow-hidden">
       <div className="flex items-center gap-2 px-4 pb-1 pt-3">
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 text-xs font-bold text-white">
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--bk-bronze)] px-1.5 text-xs font-bold text-white">
           {count}
         </span>
-        <span className="text-sm font-medium">Непроведённые чеки</span>
+        <span className="text-sm font-medium text-[var(--bk-text)]">Непроведённые чеки</span>
       </div>
-      <div className="divide-y divide-[var(--tg-theme-hint-color)]/10 px-4 pb-2">
+      <div className="divide-y divide-[var(--bk-border)] px-4 pb-2">
         {checks.map((ch) => (
-          <div key={ch.record_id} className="flex items-center justify-between py-2">
+          <div key={ch.record_id} className="flex items-center justify-between py-2.5">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm">{ch.client_name}</p>
-              <p className="text-xs text-[var(--tg-theme-hint-color)]">
-                {ch.barber_name} {'\u{2022}'} {ch.status}
+              <p className="truncate text-sm text-[var(--bk-text)]">{ch.client_name}</p>
+              <p className="text-xs text-[var(--bk-text-dim)]">
+                {ch.barber_name} \u{2022} {ch.status}
               </p>
             </div>
-            <span className="ml-2 text-sm font-bold tabular-nums">{formatMoney(ch.amount)}</span>
+            <span className="ml-2 text-sm font-bold tabular-nums text-[var(--bk-text)]">
+              {formatMoney(ch.amount)}
+            </span>
           </div>
         ))}
       </div>
@@ -171,7 +171,7 @@ export default function TasksScreen() {
   if (loading && !tasks) {
     return (
       <div className="px-4 pb-4 pt-4">
-        <h1 className="text-lg font-bold">Задачи</h1>
+        <h1 className="bk-heading text-xl">Задачи</h1>
         <div className="mt-4">
           <LoadingSkeleton lines={6} />
         </div>
@@ -182,8 +182,8 @@ export default function TasksScreen() {
   if (error) {
     return (
       <div className="px-4 pb-4 pt-4">
-        <h1 className="text-lg font-bold">Задачи</h1>
-        <p className="mt-4 text-center text-sm text-red-500">{error}</p>
+        <h1 className="bk-heading text-xl">Задачи</h1>
+        <p className="mt-4 text-center text-sm text-[var(--bk-red)]">{error}</p>
       </div>
     )
   }
@@ -198,16 +198,16 @@ export default function TasksScreen() {
   return (
     <div className="pb-4 pt-4">
       <div className="flex items-baseline justify-between px-4">
-        <h1 className="text-lg font-bold">Задачи</h1>
+        <h1 className="bk-heading text-xl">Задачи</h1>
         {totalPending > 0 ? (
-          <span className="text-sm text-[var(--tg-theme-hint-color)]">
+          <span className="text-sm text-[var(--bk-text-secondary)]">
             {totalPending} {totalPending === 1 ? 'задача' : 'задач'}
           </span>
         ) : (
-          <span className="text-sm text-emerald-500">Всё выполнено</span>
+          <span className="text-sm font-semibold text-[var(--bk-green)]">Всё выполнено</span>
         )}
       </div>
-      <p className="mt-1 px-4 text-xs text-[var(--tg-theme-hint-color)]">{tasks.date}</p>
+      <p className="mt-1 px-4 text-xs text-[var(--bk-text-dim)]">{tasks.date}</p>
 
       <div className="mx-4 mt-4 space-y-3">
         <UnconfirmedSection

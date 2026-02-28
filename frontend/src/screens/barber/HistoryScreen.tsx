@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 
+import { MedalBadge, IconArrowLeft, IconArrowRight, IconX } from '../../components/Icons'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useAuthStore } from '../../stores/authStore'
 import { useKombatStore } from '../../stores/kombatStore'
@@ -18,36 +19,21 @@ function formatMoney(kopecks: number): string {
   return rubles.toLocaleString('ru-RU') + '\u{00A0}\u{20BD}'
 }
 
-function getRankColor(rank: number): string {
+function getRankClasses(rank: number): string {
   switch (rank) {
     case 1:
-      return 'bg-amber-400 text-amber-950'
+      return 'bk-medal-gold'
     case 2:
-      return 'bg-gray-300 text-gray-800'
+      return 'bk-medal-silver'
     case 3:
-      return 'bg-amber-700 text-amber-100'
+      return 'bk-medal-bronze'
     default:
-      return 'bg-[var(--tg-theme-secondary-bg-color)] text-[var(--tg-theme-hint-color)]'
+      return 'bg-[var(--bk-bg-elevated)] text-[var(--bk-text-dim)]'
   }
 }
 
-function getRankMedal(rank: number): string {
-  switch (rank) {
-    case 1:
-      return '\u{1F947}'
-    case 2:
-      return '\u{1F948}'
-    case 3:
-      return '\u{1F949}'
-    default:
-      return ''
-  }
-}
-
-// Build calendar grid for a given month
 function buildCalendarGrid(year: number, month: number): (number | null)[][] {
   const firstDay = new Date(year, month - 1, 1)
-  // JS: 0=Sun ... 6=Sat -> convert to Mon=0
   let startDow = firstDay.getDay() - 1
   if (startDow < 0) startDow = 6
   const daysInMonth = new Date(year, month, 0).getDate()
@@ -70,7 +56,6 @@ function buildCalendarGrid(year: number, month: number): (number | null)[][] {
   return weeks
 }
 
-// Day detail popup
 function DayDetail({ entry, onClose }: { entry: DailyScoreEntry; onClose: () => void }) {
   const d = new Date(entry.date + 'T00:00:00')
   const label = d.toLocaleDateString('ru-RU', {
@@ -80,31 +65,34 @@ function DayDetail({ entry, onClose }: { entry: DailyScoreEntry; onClose: () => 
   })
 
   return (
-    <div className="mx-4 mt-2 rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-4">
+    <div className="bk-card bk-card-glow mx-4 mt-3 p-4">
       <div className="flex items-center justify-between">
-        <span className="font-medium">{label}</span>
-        <button type="button" className="text-[var(--tg-theme-hint-color)]" onClick={onClose}>
-          \u{2715}
+        <span className="font-medium text-[var(--bk-text)]">{label}</span>
+        <button type="button" className="text-[var(--bk-text-dim)]" onClick={onClose}>
+          <IconX size={16} />
         </button>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+      <div className="mt-3 grid grid-cols-2 gap-3">
         <div>
-          <span className="text-[var(--tg-theme-hint-color)]">Место</span>
-          <p className="text-lg font-bold">
-            {getRankMedal(entry.rank) || entry.rank}
-            {entry.rank <= 3 ? '' : `-е`}
-          </p>
+          <span className="text-xs text-[var(--bk-text-secondary)]">Место</span>
+          <div className="mt-1">
+            <MedalBadge rank={entry.rank} size={36} />
+          </div>
         </div>
         <div>
-          <span className="text-[var(--tg-theme-hint-color)]">Рейтинг</span>
-          <p className="text-lg font-bold tabular-nums">{entry.score.toFixed(1)}</p>
+          <span className="text-xs text-[var(--bk-text-secondary)]">Рейтинг</span>
+          <p
+            className="mt-1 text-2xl font-bold tabular-nums"
+            style={{ fontFamily: 'var(--bk-font-heading)' }}
+          >
+            {entry.score.toFixed(1)}
+          </p>
         </div>
       </div>
     </div>
   )
 }
 
-// Calendar grid
 function Calendar({
   year,
   month,
@@ -132,16 +120,17 @@ function Calendar({
 
   return (
     <div>
-      {/* Weekday headers */}
       <div className="grid grid-cols-7 px-4">
         {WEEKDAY_LABELS.map((d) => (
-          <div key={d} className="py-1 text-center text-xs text-[var(--tg-theme-hint-color)]">
+          <div
+            key={d}
+            className="py-1 text-center text-[10px] font-medium uppercase tracking-wider text-[var(--bk-text-dim)]"
+          >
             {d}
           </div>
         ))}
       </div>
 
-      {/* Day cells */}
       {weeks.map((week, wi) => (
         <div key={wi} className="grid grid-cols-7 px-4">
           {week.map((day, di) => {
@@ -156,10 +145,10 @@ function Calendar({
               <button
                 key={di}
                 type="button"
-                className={`mx-auto my-0.5 flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium transition-colors ${
+                className={`mx-auto my-0.5 flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-all ${
                   entry
-                    ? `${getRankColor(entry.rank)} ${isSelected ? 'ring-2 ring-[var(--tg-theme-button-color)]' : ''}`
-                    : 'text-[var(--tg-theme-hint-color)]/40'
+                    ? `${getRankClasses(entry.rank)} ${isSelected ? 'ring-2 ring-[var(--bk-gold)] ring-offset-1 ring-offset-[var(--bk-bg-primary)]' : ''}`
+                    : 'text-[var(--bk-text-dim)]/30'
                 }`}
                 disabled={!entry}
                 onClick={() => setSelectedDay(isSelected ? null : day)}
@@ -171,7 +160,6 @@ function Calendar({
         </div>
       ))}
 
-      {/* Selected day detail */}
       {selectedEntry && <DayDetail entry={selectedEntry} onClose={() => setSelectedDay(null)} />}
     </div>
   )
@@ -224,7 +212,7 @@ export default function HistoryScreen() {
   if (error) {
     return (
       <div className="flex flex-col items-center gap-3 p-8 text-center">
-        <p className="text-[var(--tg-theme-destructive-text-color)]">{error}</p>
+        <p className="text-[var(--bk-red)]">{error}</p>
       </div>
     )
   }
@@ -235,54 +223,45 @@ export default function HistoryScreen() {
       <div className="flex items-center justify-between px-4">
         <button
           type="button"
-          className="rounded-lg px-3 py-1.5 text-[var(--tg-theme-button-color)] active:bg-[var(--tg-theme-button-color)]/10"
+          className="rounded-lg p-2 text-[var(--bk-gold)] active:bg-[var(--bk-gold)]/10"
           onClick={goToPrevMonth}
         >
-          \u{2190}
+          <IconArrowLeft size={20} />
         </button>
-        <h1 className="text-lg font-bold">{formatMonthYear(viewYear, viewMonth)}</h1>
+        <h1 className="bk-heading text-lg">{formatMonthYear(viewYear, viewMonth)}</h1>
         <button
           type="button"
-          className={`rounded-lg px-3 py-1.5 ${
+          className={`rounded-lg p-2 ${
             isCurrentMonth
-              ? 'text-[var(--tg-theme-hint-color)]/30'
-              : 'text-[var(--tg-theme-button-color)] active:bg-[var(--tg-theme-button-color)]/10'
+              ? 'text-[var(--bk-text-dim)]/30'
+              : 'text-[var(--bk-gold)] active:bg-[var(--bk-gold)]/10'
           }`}
           disabled={isCurrentMonth}
           onClick={goToNextMonth}
         >
-          \u{2192}
+          <IconArrowRight size={20} />
         </button>
       </div>
 
-      {/* Calendar */}
       <div className="mt-3">
         <Calendar year={viewYear} month={viewMonth} scores={barberStats?.daily_scores ?? []} />
       </div>
 
-      {/* Monthly summary */}
       {barberStats && (
-        <div className="mx-4 mt-4 rounded-xl bg-[var(--tg-theme-secondary-bg-color)] p-4">
-          <h3 className="font-medium">Итоги месяца</h3>
-          <div className="mt-3 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-[var(--tg-theme-hint-color)]">Побед</span>
-              <span className="font-bold">{barberStats.wins}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[var(--tg-theme-hint-color)]">Средний рейтинг</span>
-              <span className="font-bold tabular-nums">{barberStats.avg_score.toFixed(1)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[var(--tg-theme-hint-color)]">Выручка</span>
-              <span className="font-bold tabular-nums">
-                {formatMoney(barberStats.total_revenue)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[var(--tg-theme-hint-color)]">Средний ЧС</span>
-              <span className="font-bold tabular-nums">{barberStats.avg_cs.toFixed(2)}</span>
-            </div>
+        <div className="bk-card mx-4 mt-4 p-4">
+          <h3 className="bk-heading text-base">Итоги месяца</h3>
+          <div className="mt-3 space-y-2.5 text-sm">
+            {[
+              { label: 'Побед', value: String(barberStats.wins) },
+              { label: 'Средний рейтинг', value: barberStats.avg_score.toFixed(1) },
+              { label: 'Выручка', value: formatMoney(barberStats.total_revenue) },
+              { label: 'Средний ЧС', value: barberStats.avg_cs.toFixed(2) },
+            ].map((s) => (
+              <div key={s.label} className="flex justify-between">
+                <span className="text-[var(--bk-text-secondary)]">{s.label}</span>
+                <span className="font-bold tabular-nums text-[var(--bk-text)]">{s.value}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}

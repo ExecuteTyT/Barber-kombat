@@ -116,7 +116,7 @@ function App() {
   return (
     <>
       {isDevMode && <DevToolbar />}
-      <div className={isDevMode ? 'pb-10' : ''}>
+      <div className={isDevMode ? 'pt-8' : ''}>
         <Routes>
           <Route
             path="/barber"
