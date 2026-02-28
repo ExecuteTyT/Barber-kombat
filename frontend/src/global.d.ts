@@ -1,3 +1,11 @@
+interface TelegramBackButton {
+  isVisible: boolean
+  onClick: (cb: () => void) => void
+  offClick: (cb: () => void) => void
+  show: () => void
+  hide: () => void
+}
+
 interface TelegramWebApp {
   initData: string
   initDataUnsafe: {
@@ -6,6 +14,7 @@ interface TelegramWebApp {
     [key: string]: unknown
   }
   themeParams: Record<string, string>
+  BackButton: TelegramBackButton
   close: () => void
   expand: () => void
   ready: () => void

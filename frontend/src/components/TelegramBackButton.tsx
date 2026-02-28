@@ -1,7 +1,4 @@
 import { useEffect } from 'react'
-import { backButton } from '@telegram-apps/sdk-react'
-
-const isTelegram = Boolean(window.Telegram?.WebApp?.initData)
 
 interface TelegramBackButtonProps {
   onClick: () => void
@@ -9,22 +6,15 @@ interface TelegramBackButtonProps {
 
 export default function TelegramBackButton({ onClick }: TelegramBackButtonProps) {
   useEffect(() => {
-    if (!isTelegram) return
+    const btn = window.Telegram?.WebApp?.BackButton
+    if (!btn) return
 
-    if (backButton.mount.isAvailable()) {
-      backButton.mount()
-    }
-    if (backButton.show.isAvailable()) {
-      backButton.show()
-    }
-
-    const off = backButton.onClick.isAvailable() ? backButton.onClick(onClick) : undefined
+    btn.show()
+    btn.onClick(onClick)
 
     return () => {
-      off?.()
-      if (backButton.hide.isAvailable()) {
-        backButton.hide()
-      }
+      btn.offClick(onClick)
+      btn.hide()
     }
   }, [onClick])
 
