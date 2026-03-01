@@ -45,7 +45,7 @@ export default function DevLoginScreen() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--bk-gold)]/10 text-[var(--bk-gold)]">
             <IconScissors size={32} />
           </div>
-          <h1 className="bk-heading text-3xl text-[var(--bk-text)]">Barber Kombat</h1>
+          <h1 className="bk-heading text-3xl text-[var(--bk-text)]">Barber Board</h1>
           <p className="mt-2 text-sm text-[var(--bk-text-secondary)]">
             Dev Mode — выберите пользователя
           </p>

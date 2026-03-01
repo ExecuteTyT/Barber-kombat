@@ -130,7 +130,7 @@ export default function CompetitionsScreen() {
       {/* Tabs */}
       <div className="mx-4 mt-3 flex gap-2">
         {[
-          { key: 'kombat' as Tab, label: 'Barber Kombat' },
+          { key: 'kombat' as Tab, label: 'Kombat' },
           { key: 'pvr' as Tab, label: 'ПВР' },
         ].map((t) => (
           <button

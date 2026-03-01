@@ -27,7 +27,7 @@ function formatMoney(kopecks: number): string {
 type Section = 'kombat' | 'pvr' | 'plans' | 'branches' | 'staff' | 'notifications'
 
 const SECTIONS: { key: Section; label: string }[] = [
-  { key: 'kombat', label: 'Barber Kombat' },
+  { key: 'kombat', label: 'Kombat' },
   { key: 'pvr', label: 'ПВР' },
   { key: 'plans', label: 'Планы' },
   { key: 'branches', label: 'Филиалы' },

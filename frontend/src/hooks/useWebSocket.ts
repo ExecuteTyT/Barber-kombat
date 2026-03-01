@@ -44,10 +44,11 @@ export function useWebSocket(onMessage: MessageHandler) {
   const connect = useCallback(() => {
     if (!token || !mountedRef.current) return
 
-    // Build WebSocket URL from current location
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = window.location.host
-    const url = `${protocol}//${host}/ws?token=${encodeURIComponent(token)}`
+    // Build WebSocket URL: use VITE_WS_URL if set (cross-origin), else same host
+    const wsBase =
+      import.meta.env.VITE_WS_URL ??
+      `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+    const url = `${wsBase}/ws?token=${encodeURIComponent(token)}`
 
     const ws = new WebSocket(url)
     wsRef.current = ws
