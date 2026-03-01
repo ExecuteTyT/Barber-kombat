@@ -52,8 +52,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
-      APP_ENV: production
-      APP_DEBUG: "false"
+      # APP_ENV and APP_DEBUG are controlled via .env
     expose:
       - "8000"
     healthcheck:
@@ -85,7 +84,6 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
-      APP_ENV: production
     healthcheck:
       test: ["CMD-SHELL", "celery -A app.tasks inspect ping --timeout=5 2>/dev/null | grep -q pong"]
       interval: 60s
@@ -122,26 +120,7 @@ services:
         limits:
           memory: 256M
 
-  # --- Frontend ---
-  frontend:
-    build:
-      context: ./frontend
-      target: production
-      args:
-        VITE_API_URL: ${VITE_API_URL:-/api}
-        VITE_WS_URL: ${VITE_WS_URL:-/ws}
-    restart: always
-    expose:
-      - "80"
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 128M
+  # Frontend is hosted on Vercel — no container needed
 
   # --- Nginx (reverse proxy + SSL) ---
   nginx:
@@ -155,8 +134,6 @@ services:
       - ./ssl:/etc/nginx/ssl:ro
     depends_on:
       backend:
-        condition: service_healthy
-      frontend:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/nginx-health"]
