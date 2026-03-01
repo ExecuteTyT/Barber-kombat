@@ -43,8 +43,8 @@ export default function ReviewProcessModal({ review, onClose, onSubmit }: Review
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       <div
-        className="relative w-full max-w-lg rounded-t-2xl border-t border-[var(--bk-border-gold)] bg-[var(--bk-bg-primary)] px-4 pb-8 pt-4"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)' }}
+        className="relative w-full max-w-lg overflow-y-auto rounded-t-2xl border-t border-[var(--bk-border-gold)] bg-[var(--bk-bg-primary)] px-4 pb-8 pt-4"
+        style={{ maxHeight: '90vh', paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)' }}
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--bk-text-dim)]" />
 
