@@ -55,7 +55,43 @@ async def _validate_branch(
     return branch
 
 
-# --- Public endpoint (no auth) ---
+# --- Public endpoints (no auth) ---
+
+
+@router.get("/info")
+async def get_review_info(
+    branch: Annotated[uuid.UUID, Query()],
+    barber: Annotated[uuid.UUID, Query()],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Return barber and branch display info for the public review form."""
+    result = await db.execute(
+        select(User).where(
+            User.id == barber,
+            User.branch_id == branch,
+            User.role == UserRole.BARBER,
+        )
+    )
+    barber_obj = result.scalar_one_or_none()
+    if barber_obj is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Barber not found",
+        )
+
+    result = await db.execute(select(Branch).where(Branch.id == branch))
+    branch_obj = result.scalar_one_or_none()
+    if branch_obj is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found",
+        )
+
+    return {
+        "barber_name": barber_obj.name,
+        "branch_name": branch_obj.name,
+        "branch_address": branch_obj.address or "",
+    }
 
 
 @router.post("/submit", response_model=ReviewCreatedResponse, status_code=status.HTTP_201_CREATED)

@@ -1,5 +1,5 @@
 import { useEffect, useCallback, type ReactNode } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 
 import { useAuthStore } from './stores/authStore'
 import type { UserRole } from './types'
@@ -8,6 +8,7 @@ import { useTelegramTheme } from './hooks/useTelegramTheme'
 import DevToolbar from './components/DevToolbar'
 import DevLoginScreen from './screens/DevLoginScreen'
 import LoginScreen from './screens/LoginScreen'
+import ReviewPublicScreen from './screens/public/ReviewPublicScreen'
 import BarberLayout from './screens/barber/BarberLayout'
 import KombatScreen from './screens/barber/KombatScreen'
 import ProgressScreen from './screens/barber/ProgressScreen'
@@ -58,7 +59,8 @@ function getInitDataRaw(): string | undefined {
   return window.Telegram?.WebApp?.initData || undefined
 }
 
-function App() {
+/** Authenticated app shell — all hooks run unconditionally */
+function AuthenticatedApp() {
   useTelegramTheme()
 
   const { user, token, isLoading, error, login, hydrate } = useAuthStore()
@@ -177,6 +179,17 @@ function App() {
       </div>
     </>
   )
+}
+
+function App() {
+  const { pathname } = useLocation()
+
+  // Public routes — no auth, no Telegram SDK, no stores
+  if (pathname === '/review') {
+    return <ReviewPublicScreen />
+  }
+
+  return <AuthenticatedApp />
 }
 
 export default App
