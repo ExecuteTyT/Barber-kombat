@@ -25,6 +25,7 @@ frontend/build/
 
 # Claude Code
 .claude/
+.superpowers/
 
 # IDE
 .idea/
