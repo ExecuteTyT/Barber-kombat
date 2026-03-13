@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     telegram_mini_app_url: str = ""
 
     # YClients
-    yclients_api_key: str = ""
-    yclients_bearer_token: str = ""
+    yclients_partner_token: str = ""
+    yclients_user_token: str = ""
     yclients_company_id: str = ""
     yclients_webhook_secret: str = ""
 

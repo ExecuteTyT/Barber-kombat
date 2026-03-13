@@ -33,7 +33,7 @@ class User(Base):
         UniqueConstraint("yclients_staff_id", "organization_id", name="uq_users_staff_org"),
         Index("ix_users_organization_id", "organization_id"),
         Index("ix_users_branch_id", "branch_id"),
-        Index("ix_users_telegram_id", "telegram_id", unique=True),
+        Index("ix_users_telegram_id", "telegram_id", unique=True, postgresql_where="telegram_id IS NOT NULL"),
         Index("ix_users_yclients_staff_id", "yclients_staff_id"),
         Index("ix_users_role", "role"),
     )
@@ -43,7 +43,7 @@ class User(Base):
         ForeignKey("organizations.id"), nullable=False
     )
     branch_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("branches.id"), nullable=True)
-    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     role: Mapped[UserRole] = mapped_column(
         Enum(
             UserRole,

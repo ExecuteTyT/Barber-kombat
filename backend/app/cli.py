@@ -651,6 +651,248 @@ async def _seed_demo():
         click.echo("=" * 60)
 
 
+@cli.command("seed-real")
+def seed_real():
+    """Create MAKON organization with real YClients branches.
+
+    Creates org with 2 branches linked to YClients company IDs,
+    owner + admin users, and default rating/PVR configs.
+    """
+    _run_async(_seed_real())
+
+
+async def _seed_real():
+    """Create MAKON org with both branches."""
+    from app.database import async_session
+    from app.models.branch import Branch
+    from app.models.organization import Organization
+    from app.models.pvr_config import PVRConfig
+    from app.models.rating_config import RatingConfig
+    from app.models.user import User, UserRole
+
+    async with async_session() as db:
+        # 1. Organization
+        org = Organization(name="MAKON", slug="makon")
+        db.add(org)
+        await db.flush()
+
+        # 2. Two branches with real YClients IDs
+        branch1 = Branch(
+            organization_id=org.id,
+            name="MAKON - Mendeleeva 17B",
+            address="ul. Mendeleeva d. 17B, TC AYAZ",
+            yclients_company_id=227300,
+        )
+        branch2 = Branch(
+            organization_id=org.id,
+            name="MAKON - Korabelnaya 53",
+            address="Korabelnaya ulitsa, 53",
+            yclients_company_id=1256155,
+        )
+        db.add_all([branch1, branch2])
+        await db.flush()
+
+        # 3. Owner (client / business owner)
+        owner = User(
+            organization_id=org.id,
+            branch_id=None,
+            telegram_id=98813640,
+            role=UserRole.OWNER,
+            name="Akhmadullo",
+        )
+        db.add(owner)
+
+        # 4. Admin (developer)
+        admin = User(
+            organization_id=org.id,
+            branch_id=None,
+            telegram_id=237237535,
+            role=UserRole.ADMIN,
+            name="Developer",
+        )
+        db.add(admin)
+
+        # 5. Rating config with defaults
+        rating_config = RatingConfig(
+            organization_id=org.id,
+            revenue_weight=20,
+            cs_weight=20,
+            products_weight=25,
+            extras_weight=25,
+            reviews_weight=10,
+            prize_gold_pct=0.5,
+            prize_silver_pct=0.3,
+            prize_bronze_pct=0.1,
+            extra_services=[
+                "vosk",
+                "kamuflyazh golovy",
+                "kamuflyazh borody",
+                "massazh",
+                "premium pomyvka",
+            ],
+        )
+        db.add(rating_config)
+
+        # 6. PVR config with defaults
+        pvr_config = PVRConfig(
+            organization_id=org.id,
+            thresholds=[
+                {"amount": 30_000_000, "bonus": 1_000_000},
+                {"amount": 35_000_000, "bonus": 1_500_000},
+                {"amount": 40_000_000, "bonus": 2_000_000},
+                {"amount": 50_000_000, "bonus": 3_000_000},
+                {"amount": 60_000_000, "bonus": 4_000_000},
+                {"amount": 80_000_000, "bonus": 5_000_000},
+            ],
+            count_products=False,
+            count_certificates=False,
+        )
+        db.add(pvr_config)
+
+        await db.commit()
+
+        click.echo("")
+        click.echo("=" * 60)
+        click.echo("  MAKON ORGANIZATION CREATED")
+        click.echo("=" * 60)
+        click.echo(f"  Org ID:     {org.id}")
+        click.echo(f"  Branch 1:   {branch1.name} (id={branch1.id}, yclients={branch1.yclients_company_id})")
+        click.echo(f"  Branch 2:   {branch2.name} (id={branch2.id}, yclients={branch2.yclients_company_id})")
+        click.echo(f"  Owner:      {owner.name} (tg={owner.telegram_id})")
+        click.echo(f"  Admin:      {admin.name} (tg={admin.telegram_id})")
+        click.echo("")
+        click.echo("  Next step: run initial sync:")
+        click.echo(f"    python -m app.cli sync-initial --org-id={org.id}")
+        click.echo("=" * 60)
+
+
+@cli.command("yclients-auth")
+@click.option("--login", required=True, help="YClients user login (email or phone)")
+@click.option("--password", required=True, help="YClients user password")
+def yclients_auth(login: str, password: str):
+    """Get YClients User Token using login/password.
+
+    Requires YCLIENTS_PARTNER_TOKEN to be set in .env.
+    Prints the user_token to use as YCLIENTS_USER_TOKEN.
+    """
+    _run_async(_yclients_auth(login, password))
+
+
+async def _yclients_auth(login: str, password: str):
+    """Authenticate with YClients API and get user token."""
+    import httpx
+
+    from app.config import settings
+
+    partner_token = settings.yclients_partner_token
+    if not partner_token:
+        click.echo("ERROR: YCLIENTS_PARTNER_TOKEN is not set in .env")
+        raise SystemExit(1)
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.yclients.com/api/v1/auth",
+            headers={
+                "Authorization": f"Bearer {partner_token}",
+                "Accept": "application/vnd.yclients.v2+json",
+                "Content-Type": "application/json",
+            },
+            json={"login": login, "password": password},
+        )
+
+        data = response.json()
+
+        if not data.get("success"):
+            click.echo(f"ERROR: Authentication failed: {data.get('meta', data)}")
+            raise SystemExit(1)
+
+        user_token = data["data"].get("user_token", "")
+        user_id = data["data"].get("id", "")
+        user_name = data["data"].get("name", "")
+
+        click.echo("")
+        click.echo("=" * 60)
+        click.echo("  YCLIENTS AUTH SUCCESS")
+        click.echo("=" * 60)
+        click.echo(f"  User ID:    {user_id}")
+        click.echo(f"  Name:       {user_name}")
+        click.echo(f"  User Token: {user_token}")
+        click.echo("")
+        click.echo("  Add to your .env:")
+        click.echo(f"  YCLIENTS_USER_TOKEN={user_token}")
+        click.echo("=" * 60)
+
+
+@cli.command("yclients-companies")
+def yclients_companies():
+    """List companies (branches) available to the authenticated user.
+
+    Requires YCLIENTS_PARTNER_TOKEN and YCLIENTS_USER_TOKEN in .env.
+    Shows company IDs to use as YCLIENTS_COMPANY_ID or branch mapping.
+    """
+    _run_async(_yclients_companies())
+
+
+async def _yclients_companies():
+    """Fetch and display all companies available to the user."""
+    import httpx
+
+    from app.config import settings
+
+    partner_token = settings.yclients_partner_token
+    user_token = settings.yclients_user_token
+
+    if not partner_token:
+        click.echo("ERROR: YCLIENTS_PARTNER_TOKEN is not set in .env")
+        raise SystemExit(1)
+    if not user_token:
+        click.echo("ERROR: YCLIENTS_USER_TOKEN is not set. Run 'yclients-auth' first.")
+        raise SystemExit(1)
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            "https://api.yclients.com/api/v1/companies",
+            headers={
+                "Authorization": f"Bearer {partner_token}, User {user_token}",
+                "Accept": "application/vnd.yclients.v2+json",
+            },
+            params={"my": 1},
+        )
+
+        data = response.json()
+
+        if not data.get("success"):
+            click.echo(f"ERROR: Failed to fetch companies: {data.get('meta', data)}")
+            raise SystemExit(1)
+
+        companies = data.get("data", [])
+        if not companies:
+            click.echo("No companies found for this user.")
+            return
+
+        click.echo("")
+        click.echo("=" * 60)
+        click.echo("  YOUR YCLIENTS COMPANIES")
+        click.echo("=" * 60)
+        for c in companies:
+            cid = c.get("id", "?")
+            title = c.get("title", "Unknown")
+            address = c.get("address", "")
+            phone = c.get("phone", "")
+            click.echo(f"  ID: {cid}")
+            click.echo(f"    Name:    {title}")
+            if address:
+                click.echo(f"    Address: {address}")
+            if phone:
+                click.echo(f"    Phone:   {phone}")
+            click.echo("")
+        click.echo(f"  Total: {len(companies)} companies")
+        click.echo("")
+        click.echo("  Use the ID as YCLIENTS_COMPANY_ID in .env")
+        click.echo("  or pass it with --yclients-company-id in 'seed' command.")
+        click.echo("=" * 60)
+
+
 @cli.command("sync-initial")
 @click.option("--org-id", required=True, type=str, help="Organization UUID")
 def sync_initial(org_id: str):
@@ -661,13 +903,17 @@ def sync_initial(org_id: str):
 async def _sync_initial(org_id: uuid.UUID):
     """Async implementation of sync-initial."""
     from app.database import async_session
-    from app.redis import redis_client
+    from app.integrations.yclients.client import YClientsClient
     from app.services.sync import SyncService
 
-    async with async_session() as db:
-        sync_service = SyncService(db=db, redis=redis_client)
-        await sync_service.initial_sync(org_id)
-        click.echo(f"Initial sync completed for org {org_id}")
+    yclients = YClientsClient()
+    try:
+        async with async_session() as db:
+            sync_service = SyncService(db=db, yclients=yclients)
+            await sync_service.initial_sync(org_id)
+            click.echo(f"Initial sync completed for org {org_id}")
+    finally:
+        await yclients.close()
 
 
 @cli.command("monthly-reset")

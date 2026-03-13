@@ -21,8 +21,8 @@ from app.integrations.yclients.schemas import (
 @pytest.fixture
 def client():
     return YClientsClient(
-        api_key="test_key",
-        bearer_token="test_token",
+        partner_token="test_partner_token",
+        user_token="test_user_token",
         base_url="https://api.test.com/api/v1",
         max_concurrent=10,
     )
@@ -352,7 +352,7 @@ class TestRateLimiting:
             return mock_response({"success": True, "data": []})
 
         yclient = YClientsClient(
-            api_key="k", bearer_token="t", base_url="https://test.com", max_concurrent=3
+            partner_token="k", user_token="t", base_url="https://test.com", max_concurrent=3
         )
 
         with patch.object(yclient, "_get_client") as mock_get:
@@ -376,5 +376,14 @@ class TestRateLimiting:
 class TestHeaders:
     def test_auth_headers(self, client):
         headers = client._get_headers()
-        assert headers["Authorization"] == "Bearer test_token"
+        assert headers["Authorization"] == "Bearer test_partner_token, User test_user_token"
         assert "yclients" in headers["Accept"]
+
+    def test_auth_headers_partner_only(self):
+        c = YClientsClient(
+            partner_token="partner_only",
+            user_token="",
+            base_url="https://test.com",
+        )
+        headers = c._get_headers()
+        assert headers["Authorization"] == "Bearer partner_only"

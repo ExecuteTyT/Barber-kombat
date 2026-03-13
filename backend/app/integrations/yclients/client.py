@@ -27,24 +27,32 @@ class YClientsClient:
     - Rate limiting via asyncio.Semaphore (10 concurrent requests)
     - Retry with exponential backoff (3 attempts: 10s, 30s, 90s)
     - Pydantic parsing of all responses
+
+    Authentication per YClients docs:
+    - Partner token (Bearer) is always required
+    - User token is required for methods accessing user-specific data
+    - Header format: Authorization: Bearer <partner>, User <user>
     """
 
     def __init__(
         self,
-        api_key: str | None = None,
-        bearer_token: str | None = None,
+        partner_token: str | None = None,
+        user_token: str | None = None,
         base_url: str = YCLIENTS_BASE_URL,
         max_concurrent: int = 10,
     ):
-        self.api_key = api_key or settings.yclients_api_key
-        self.bearer_token = bearer_token or settings.yclients_bearer_token
+        self.partner_token = partner_token or settings.yclients_partner_token
+        self.user_token = user_token or settings.yclients_user_token
         self.base_url = base_url
         self._semaphore = asyncio.Semaphore(max_concurrent)
         self._client: httpx.AsyncClient | None = None
 
     def _get_headers(self) -> dict[str, str]:
+        auth = f"Bearer {self.partner_token}"
+        if self.user_token:
+            auth += f", User {self.user_token}"
         return {
-            "Authorization": f"Bearer {self.bearer_token}",
+            "Authorization": auth,
             "Accept": "application/vnd.yclients.v2+json",
             "Content-Type": "application/json",
         }
@@ -75,7 +83,7 @@ class YClientsClient:
 
                     data = response.json()
 
-                    # YClients wraps responses in {"success": true, "data": ...}
+                    # YClients v2 wraps responses in {"success": true, "data": ..., "meta": ...}
                     if isinstance(data, dict) and "data" in data:
                         return data["data"]
                     return data

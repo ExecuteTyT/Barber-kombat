@@ -104,7 +104,7 @@ def map_record_to_visit_dict(
         "barber_id": barber_id,
         "client_id": client_id,
         "yclients_record_id": record.id,
-        "date": date.fromisoformat(record.date) if record.date else date.today(),
+        "date": date.fromisoformat(record.date[:10]) if record.date else date.today(),
         "revenue": rubles_to_kopecks(record.cost),
         "services_revenue": services_revenue,
         "products_revenue": products_revenue,
@@ -316,7 +316,7 @@ class SyncService:
             id=uuid.uuid4(),
             organization_id=organization_id,
             branch_id=branch_id,
-            telegram_id=0,  # placeholder, updated when user authenticates
+            telegram_id=None,  # set when user authenticates via Telegram
             role=UserRole.BARBER,
             name=staff.name,
             yclients_staff_id=staff.id,
