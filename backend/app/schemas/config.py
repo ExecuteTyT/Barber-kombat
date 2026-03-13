@@ -148,7 +148,7 @@ class BranchListResponse(BaseModel):
 class UserCreateRequest(BaseModel):
     """Request body for creating a user."""
 
-    telegram_id: int
+    telegram_id: int | None = None
     name: str = Field(min_length=1, max_length=255)
     role: UserRole
     branch_id: uuid.UUID | None = None
@@ -175,7 +175,7 @@ class UserResponse(BaseModel):
     id: uuid.UUID
     organization_id: uuid.UUID
     branch_id: uuid.UUID | None
-    telegram_id: int
+    telegram_id: int | None
     role: UserRole
     name: str
     grade: str | None

@@ -89,6 +89,13 @@ def map_record_to_visit_dict(
     services_revenue = rubles_to_kopecks(sum(s.cost for s in record.services))
     products_revenue = rubles_to_kopecks(sum(g.cost * g.amount for g in record.goods_transactions))
 
+    # YClients returns cost=0 for records that haven't been fully settled yet,
+    # but individual service/product costs are already populated.
+    # Fall back to sum of services + products when record.cost is zero.
+    record_cost = rubles_to_kopecks(record.cost)
+    if record_cost == 0:
+        record_cost = services_revenue + products_revenue
+
     # Mark extras in services list
     extras = 0
     if extra_services_list:
@@ -105,7 +112,7 @@ def map_record_to_visit_dict(
         "client_id": client_id,
         "yclients_record_id": record.id,
         "date": date.fromisoformat(record.date[:10]) if record.date else date.today(),
-        "revenue": rubles_to_kopecks(record.cost),
+        "revenue": record_cost,
         "services_revenue": services_revenue,
         "products_revenue": products_revenue,
         "services": services_list,

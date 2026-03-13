@@ -183,12 +183,35 @@ class PVRService:
         organization_id: uuid.UUID,
         target_month: date | None = None,
     ) -> dict:
-        """Get PVR data for a single barber."""
+        """Get PVR data for a single barber.
+
+        Falls back to live calculation if no pre-calculated record exists.
+        """
         month_start = (target_month or date.today()).replace(day=1)
         record = await self._get_record(barber_id, month_start)
         config = await self._load_config(organization_id)
         thresholds = self._get_thresholds(config)
         barber = await self._get_barber(barber_id)
+
+        if record is None and barber is not None:
+            cumulative = await self._calc_clean_revenue(barber_id, month_start, config)
+            current_threshold, bonus_amount = self._find_threshold(cumulative, thresholds)
+            next_threshold: int | None = None
+            for t in sorted(thresholds, key=lambda x: x["amount"]):
+                if t["amount"] > cumulative:
+                    next_threshold = t["amount"]
+                    break
+            remaining = (next_threshold - cumulative) if next_threshold else None
+            return {
+                "barber_id": barber_id,
+                "name": barber.name,
+                "cumulative_revenue": cumulative,
+                "current_threshold": current_threshold,
+                "bonus_amount": bonus_amount,
+                "next_threshold": next_threshold,
+                "remaining_to_next": remaining,
+                "thresholds_reached": [],
+            }
 
         return self._format_barber_pvr(record, barber, thresholds)
 
@@ -197,7 +220,11 @@ class PVRService:
         branch_id: uuid.UUID,
         organization_id: uuid.UUID,
     ) -> list[dict]:
-        """Get PVR data for all active barbers in a branch (current month)."""
+        """Get PVR data for all active barbers in a branch (current month).
+
+        If no pre-calculated PVR record exists for a barber, calculates
+        live from visit data so the UI always shows current revenue.
+        """
         month_start = date.today().replace(day=1)
 
         result = await self.db.execute(
@@ -215,7 +242,28 @@ class PVRService:
         pvr_list: list[dict] = []
         for barber in barbers:
             record = await self._get_record(barber.id, month_start)
-            pvr_list.append(self._format_barber_pvr(record, barber, thresholds))
+            if record is None:
+                # No pre-calculated record — compute live from visits
+                cumulative = await self._calc_clean_revenue(barber.id, month_start, config)
+                current_threshold, bonus_amount = self._find_threshold(cumulative, thresholds)
+                next_threshold: int | None = None
+                for t in sorted(thresholds, key=lambda x: x["amount"]):
+                    if t["amount"] > cumulative:
+                        next_threshold = t["amount"]
+                        break
+                remaining = (next_threshold - cumulative) if next_threshold else None
+                pvr_list.append({
+                    "barber_id": barber.id,
+                    "name": barber.name,
+                    "cumulative_revenue": cumulative,
+                    "current_threshold": current_threshold,
+                    "bonus_amount": bonus_amount,
+                    "next_threshold": next_threshold,
+                    "remaining_to_next": remaining,
+                    "thresholds_reached": [],
+                })
+            else:
+                pvr_list.append(self._format_barber_pvr(record, barber, thresholds))
         return pvr_list
 
     async def get_thresholds(

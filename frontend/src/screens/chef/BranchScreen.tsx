@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useParams } from 'react-router-dom'
 
 import { StarRating, IconCheckCircle, IconRefresh, IconUsers } from '../../components/Icons'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
@@ -266,7 +267,10 @@ function ReviewsFeed({
 
 export default function BranchScreen() {
   const user = useAuthStore((s) => s.user)
-  const branchId = user?.branch_id
+  const { branchId: urlBranchId } = useParams<{ branchId: string }>()
+  // Owner navigates via /owner/branch/:branchId (URL param),
+  // Chef has branch_id on their user profile
+  const branchId = urlBranchId ?? user?.branch_id
 
   const { todayRating, fetchTodayRating } = useKombatStore()
   const { branchPvr, thresholds, fetchBranchPvr, fetchThresholds } = usePvrStore()
