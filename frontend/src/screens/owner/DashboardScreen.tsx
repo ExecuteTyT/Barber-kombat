@@ -11,6 +11,14 @@ function formatMoney(kopecks: number): string {
   return rubles.toLocaleString('ru-RU') + '\u{00A0}\u{20BD}'
 }
 
+function formatDateRu(): string {
+  return new Date().toLocaleDateString('ru-RU', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'long',
+  })
+}
+
 function BranchCard({ branch, onClick }: { branch: BranchRevenue; onClick: () => void }) {
   return (
     <button
@@ -48,7 +56,7 @@ function BranchCard({ branch, onClick }: { branch: BranchRevenue; onClick: () =>
         </div>
         <div className="mt-1.5 flex items-baseline justify-between text-xs">
           <span className="text-[var(--bk-text-dim)]">
-            {formatMoney(branch.revenue_mtd)} / {formatMoney(branch.plan_target)}
+            {formatMoney(branch.revenue_mtd)} / {branch.plan_target > 0 ? formatMoney(branch.plan_target) : 'нет плана'}
           </span>
           <span className="font-bold tabular-nums text-[var(--bk-gold)]">
             {branch.plan_percentage.toFixed(0)}%
@@ -95,10 +103,20 @@ export default function DashboardScreen() {
 
   if (!revenue) return null
 
+  const networkPlanTarget = revenue.branches.reduce((s, b) => s + b.plan_target, 0)
+  const networkPlanPct = networkPlanTarget > 0
+    ? ((revenue.network_total_mtd / networkPlanTarget) * 100).toFixed(0)
+    : null
+
   return (
     <div className="pb-4 pt-4">
       <div className="px-4">
-        <h1 className="bk-heading text-xl">Дашборд</h1>
+        <div className="flex items-baseline justify-between">
+          <h1 className="bk-heading text-xl">Дашборд</h1>
+          <span className="text-xs text-[var(--bk-text-dim)]">{formatDateRu()}</span>
+        </div>
+
+        {/* Network totals */}
         <div className="mt-3 flex gap-4">
           <div className="flex-1">
             <p className="text-xs text-[var(--bk-text-secondary)]">Сегодня</p>
@@ -117,8 +135,14 @@ export default function DashboardScreen() {
             >
               {formatMoney(revenue.network_total_mtd)}
             </p>
+            {networkPlanPct && (
+              <p className="mt-0.5 text-xs font-semibold text-[var(--bk-gold)]">
+                {networkPlanPct}% плана сети
+              </p>
+            )}
           </div>
         </div>
+
         {alarumTotal > 0 && (
           <div className="mt-3 flex items-center gap-2 text-sm text-[var(--bk-red)]">
             <span className="bk-live-pulse inline-block h-2.5 w-2.5 rounded-full bg-[var(--bk-red)]" />

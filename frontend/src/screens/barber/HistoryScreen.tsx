@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 
 import { MedalBadge, IconArrowLeft, IconArrowRight, IconX } from '../../components/Icons'
+import InfoSheet, { InfoButton, InfoSection } from '../../components/InfoSheet'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useAuthStore } from '../../stores/authStore'
 import { useKombatStore } from '../../stores/kombatStore'
@@ -72,7 +73,7 @@ function DayDetail({ entry, onClose }: { entry: DailyScoreEntry; onClose: () => 
           <IconX size={16} />
         </button>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-3">
+      <div className="mt-3 grid grid-cols-3 gap-3">
         <div>
           <span className="text-xs text-[var(--bk-text-secondary)]">Место</span>
           <div className="mt-1">
@@ -86,6 +87,15 @@ function DayDetail({ entry, onClose }: { entry: DailyScoreEntry; onClose: () => 
             style={{ fontFamily: 'var(--bk-font-heading)' }}
           >
             {entry.score.toFixed(1)}
+          </p>
+        </div>
+        <div>
+          <span className="text-xs text-[var(--bk-text-secondary)]">Выручка</span>
+          <p
+            className="mt-1 text-lg font-bold tabular-nums"
+            style={{ fontFamily: 'var(--bk-font-heading)' }}
+          >
+            {formatMoney(entry.revenue)}
           </p>
         </div>
       </div>
@@ -165,9 +175,57 @@ function Calendar({
   )
 }
 
+function HistoryInfoSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <InfoSheet open={open} onClose={onClose} title="История рейтинга">
+      <InfoSection title="Календарь">
+        <p>
+          Каждый рабочий день отмечен цветом в зависимости от места в рейтинге.
+          Нажми на день, чтобы увидеть детали.
+        </p>
+        <div className="mt-2.5 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="bk-medal-gold flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold">1</span>
+            <span className="text-sm text-[var(--bk-text)]">Золото — 1-е место</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="bk-medal-silver flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold">2</span>
+            <span className="text-sm text-[var(--bk-text)]">Серебро — 2-е место</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="bk-medal-bronze flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold">3</span>
+            <span className="text-sm text-[var(--bk-text)]">Бронза — 3-е место</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--bk-bg-elevated)] text-xs font-bold text-[var(--bk-text-dim)]">4</span>
+            <span className="text-sm text-[var(--bk-text)]">Без призового места</span>
+          </div>
+        </div>
+      </InfoSection>
+
+      <InfoSection title="Итоги месяца">
+        <p>
+          Под календарём показаны суммарные результаты за выбранный месяц: количество побед,
+          средний рейтинг, общая выручка и средний чек. Используй стрелки для переключения месяцев.
+        </p>
+      </InfoSection>
+
+      <InfoSection title="Как улучшить результат">
+        <ul className="list-inside list-disc space-y-1">
+          <li>Продавай товары и доп. услуги — они дают 50% от общего балла</li>
+          <li>Повышай средний чек — предлагай уходы и комплексные услуги</li>
+          <li>Проси клиентов оставить отзыв — даже 10% помогают</li>
+          <li>Стабильность важнее — лучше каждый день в топ-3, чем раз в неделю #1</li>
+        </ul>
+      </InfoSection>
+    </InfoSheet>
+  )
+}
+
 export default function HistoryScreen() {
   const user = useAuthStore((s) => s.user)
   const { barberStats, isLoading, error, fetchBarberStats } = useKombatStore()
+  const [infoOpen, setInfoOpen] = useState(false)
 
   const now = new Date()
   const [viewYear, setViewYear] = useState(now.getFullYear())
@@ -228,7 +286,10 @@ export default function HistoryScreen() {
         >
           <IconArrowLeft size={20} />
         </button>
-        <h1 className="bk-heading text-lg">{formatMonthYear(viewYear, viewMonth)}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="bk-heading text-lg">{formatMonthYear(viewYear, viewMonth)}</h1>
+          <InfoButton onClick={() => setInfoOpen(true)} />
+        </div>
         <button
           type="button"
           className={`rounded-lg p-2 ${
@@ -255,7 +316,7 @@ export default function HistoryScreen() {
               { label: 'Побед', value: String(barberStats.wins) },
               { label: 'Средний рейтинг', value: barberStats.avg_score.toFixed(1) },
               { label: 'Выручка', value: formatMoney(barberStats.total_revenue) },
-              { label: 'Средний ЧС', value: barberStats.avg_cs.toFixed(2) },
+              { label: 'Средний чек', value: `×${barberStats.avg_cs.toFixed(2)}` },
             ].map((s) => (
               <div key={s.label} className="flex justify-between">
                 <span className="text-[var(--bk-text-secondary)]">{s.label}</span>
@@ -265,6 +326,8 @@ export default function HistoryScreen() {
           </div>
         </div>
       )}
+
+      <HistoryInfoSheet open={infoOpen} onClose={() => setInfoOpen(false)} />
     </div>
   )
 }

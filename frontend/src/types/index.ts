@@ -31,6 +31,8 @@ export interface TabItem {
   path: string
   label: string
   icon: import('react').ReactNode
+  /** Additional path prefixes that should also mark this tab as active */
+  alsoActiveFor?: string[]
 }
 
 // --- Kombat types ---
@@ -102,6 +104,7 @@ export interface DailyScoreEntry {
   date: string
   score: number
   rank: number
+  revenue: number
 }
 
 export interface BarberStatsResponse {
@@ -237,6 +240,10 @@ export interface BranchClients {
   new_clients_mtd: number
   returning_clients_mtd: number
   total_mtd: number
+  retention_rate: number
+  avg_check_new: number
+  avg_check_returning: number
+  visits_mtd: number
 }
 
 export interface ClientsReport {
@@ -245,6 +252,9 @@ export interface ClientsReport {
   network_new_mtd: number
   network_returning_mtd: number
   network_total_mtd: number
+  network_retention_rate: number
+  network_avg_check_new: number
+  network_avg_check_returning: number
 }
 
 // --- Config types ---

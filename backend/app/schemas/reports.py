@@ -78,6 +78,10 @@ class BranchClients(BaseModel):
     new_clients_mtd: int
     returning_clients_mtd: int
     total_mtd: int
+    retention_rate: float
+    avg_check_new: int
+    avg_check_returning: int
+    visits_mtd: int
 
 
 class ClientsReport(BaseModel):
@@ -88,6 +92,9 @@ class ClientsReport(BaseModel):
     network_new_mtd: int
     network_returning_mtd: int
     network_total_mtd: int
+    network_retention_rate: float
+    network_avg_check_new: int
+    network_avg_check_returning: int
 
 
 # --- Kombat daily standings ---

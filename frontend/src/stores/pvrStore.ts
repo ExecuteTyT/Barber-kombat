@@ -34,7 +34,7 @@ export const usePvrStore = create<PVRState>((set) => ({
       const { data } = await api.get<BarberPVRResponse>(`/pvr/barber/${barberId}`)
       set({ barberPvr: data, isLoading: false })
     } catch {
-      set({ error: 'Не удалось загрузить ПВР', isLoading: false })
+      set({ error: 'Не удалось загрузить данные по премиям', isLoading: false })
     }
   },
 
@@ -44,7 +44,7 @@ export const usePvrStore = create<PVRState>((set) => ({
       const { data } = await api.get<BranchPVRResponse>(`/pvr/${branchId}/current`)
       set({ branchPvr: data, isLoading: false })
     } catch {
-      set({ error: 'Не удалось загрузить ПВР филиала', isLoading: false })
+      set({ error: 'Не удалось загрузить данные по премиям филиала', isLoading: false })
     }
   },
 

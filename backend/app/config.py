@@ -24,10 +24,14 @@ class Settings(BaseSettings):
     yclients_company_id: str = ""
     yclients_webhook_secret: str = ""
 
-    # WhatsApp (optional)
+    # WhatsApp (optional — GreenAPI)
     whatsapp_api_url: str = ""
     whatsapp_api_token: str = ""
     whatsapp_instance_id: str = ""
+
+    # Review request
+    review_form_url: str = ""
+    review_request_delay_minutes: int = 30
 
     # JWT
     jwt_secret: str = "change-this-to-a-random-secret-at-least-32-chars"

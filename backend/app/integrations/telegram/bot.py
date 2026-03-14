@@ -220,6 +220,20 @@ def format_pvr_bell(barber_name: str, threshold: int, bonus: int) -> str:
     return "\n".join(lines)
 
 
+def format_review_request(barber_name: str, review_url: str) -> str:
+    """Format review request message for WhatsApp / Telegram.
+
+    Plain text (no MarkdownV2) — WhatsApp doesn't support it.
+    """
+    return (
+        f"Здравствуйте! Спасибо, что посетили нашу барбершоп.\n"
+        f"Ваш мастер сегодня — {barber_name}.\n\n"
+        f"Будем благодарны за обратную связь — это займёт меньше минуты:\n"
+        f"{review_url}\n\n"
+        f"Спасибо! 💈"
+    )
+
+
 def format_negative_review(
     branch_name: str,
     barber_name: str,
@@ -357,6 +371,16 @@ class TelegramBot:
         text = format_pvr_bell(barber_name, threshold, bonus)
         return await self.send_message(chat_id, text)
 
+    async def send_plain_message(self, chat_id: int, text: str) -> bool:
+        """Send a plain-text message (no MarkdownV2 parsing)."""
+        try:
+            await self.bot.send_message(chat_id=chat_id, text=text)
+            await logger.ainfo("Telegram plain message sent", chat_id=chat_id)
+            return True
+        except Exception:
+            await logger.aexception("Failed to send Telegram plain message", chat_id=chat_id)
+            return False
+
     async def send_negative_review(
         self,
         chat_id: int,
@@ -382,3 +406,8 @@ class TelegramBot:
             label="\u041e\u0431\u0440\u0430\u0431\u043e\u0442\u0430\u0442\u044c \u2192",
         )
         return await self.send_message(chat_id, text, keyboard)
+
+    async def send_review_request(self, chat_id: int, barber_name: str, review_url: str) -> bool:
+        """Send review request to client via Telegram (fallback if WhatsApp fails)."""
+        text = format_review_request(barber_name, review_url)
+        return await self.send_plain_message(chat_id, text)

@@ -123,6 +123,7 @@ class DailyScoreEntry(BaseModel):
     date: date
     score: float
     rank: int
+    revenue: int = 0
 
 
 class BarberStatsResponse(BaseModel):

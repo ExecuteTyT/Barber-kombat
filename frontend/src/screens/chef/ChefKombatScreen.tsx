@@ -92,9 +92,9 @@ function BarberDetailModal({ barberId, onClose }: { barberId: string; onClose: (
                     label="Ср. выручка/день"
                     value={formatMoney(stats.avg_revenue_per_day)}
                   />
-                  <StatCard label="Ср. ЧС" value={stats.avg_cs.toFixed(2)} />
+                  <StatCard label="Ср. чек" value={stats.avg_cs.toFixed(2)} />
                   <StatCard label="Товары" value={`${stats.total_products} шт`} />
-                  <StatCard label="Допы" value={`${stats.total_extras} шт`} />
+                  <StatCard label="Доп. услуги" value={`${stats.total_extras} шт`} />
                   <StatCard
                     label="Ср. отзыв"
                     value={stats.avg_review !== null ? stats.avg_review.toFixed(1) : '\u{2014}'}

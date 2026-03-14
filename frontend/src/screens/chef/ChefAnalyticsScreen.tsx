@@ -107,12 +107,12 @@ export default function ChefAnalyticsScreen() {
         <KPICard
           label="Выручка сегодня"
           value={formatMoney(analytics.revenue_today)}
-          sub={`МТД: ${formatMoney(analytics.revenue_mtd)}`}
+          sub={`За месяц: ${formatMoney(analytics.revenue_mtd)}`}
         />
         <KPICard
           label="Средний чек"
           value={formatMoney(analytics.avg_check_today)}
-          sub={`МТД: ${formatMoney(analytics.avg_check_mtd)}`}
+          sub={`За месяц: ${formatMoney(analytics.avg_check_mtd)}`}
         />
         <KPICard
           label="Клиентов сегодня"
@@ -200,7 +200,7 @@ export default function ChefAnalyticsScreen() {
             value={`${analytics.barbers_in_shift}/${analytics.barbers_total}`}
             icon={<IconUsers size={16} />}
           />
-          <StatCell label="Визитов МТД" value={String(analytics.visits_mtd)} />
+          <StatCell label="Визитов За месяц" value={String(analytics.visits_mtd)} />
           <StatCell label="Новых клиентов" value={String(analytics.new_clients_mtd)} />
         </div>
       </div>

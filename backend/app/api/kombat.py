@@ -405,6 +405,7 @@ async def get_barber_stats(
             date=dr.date,
             score=round(dr.total_score, 2),
             rank=dr.rank,
+            revenue=dr.revenue,
         )
         for dr in daily_ratings
     ]

@@ -117,7 +117,10 @@ async def get_clients_report(
 
     report = await report_service.get_report(current_user.organization_id, "clients", report_date)
     if report and report.data:
-        return ClientsReport(**report.data)
+        try:
+            return ClientsReport(**report.data)
+        except Exception:
+            pass  # Cached data has stale schema — regenerate below
 
     data = await report_service.generate_clients_report(current_user.organization_id, report_date)
     return ClientsReport(**data)

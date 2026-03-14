@@ -108,37 +108,66 @@ class PlanService:
         organization_id: uuid.UUID,
         month: date | None = None,
     ) -> dict:
-        """Get plans for all branches in the organization."""
+        """Get plans for all active branches in the organization.
+
+        Branches without a plan for the given month are included with
+        target_amount=0 so the frontend can display them and allow the
+        owner to set a plan.
+        """
         month_start = (month or date.today()).replace(day=1)
 
-        result = await self.db.execute(
-            select(Plan, Branch.name)
-            .join(Branch, Plan.branch_id == Branch.id)
+        # Fetch all active branches
+        branches_result = await self.db.execute(
+            select(Branch)
             .where(
-                Plan.organization_id == organization_id,
-                Plan.month == month_start,
+                Branch.organization_id == organization_id,
+                Branch.is_active.is_(True),
             )
             .order_by(Branch.name)
         )
-        rows = result.all()
+        all_branches = branches_result.scalars().all()
+
+        # Fetch existing plans for this month
+        plans_result = await self.db.execute(
+            select(Plan).where(
+                Plan.organization_id == organization_id,
+                Plan.month == month_start,
+            )
+        )
+        plans_by_branch: dict[uuid.UUID, Plan] = {
+            p.branch_id: p for p in plans_result.scalars().all()
+        }
 
         plans = []
         total_target = 0
         total_current = 0
 
-        for plan, branch_name in rows:
-            plans.append(
-                {
-                    "branch_id": plan.branch_id,
-                    "branch_name": branch_name,
-                    "target_amount": plan.target_amount,
-                    "current_amount": plan.current_amount,
-                    "percentage": plan.percentage,
-                    "forecast_amount": plan.forecast_amount,
-                }
-            )
-            total_target += plan.target_amount
-            total_current += plan.current_amount
+        for branch in all_branches:
+            plan = plans_by_branch.get(branch.id)
+            if plan:
+                plans.append(
+                    {
+                        "branch_id": plan.branch_id,
+                        "branch_name": branch.name,
+                        "target_amount": plan.target_amount,
+                        "current_amount": plan.current_amount,
+                        "percentage": plan.percentage,
+                        "forecast_amount": plan.forecast_amount,
+                    }
+                )
+                total_target += plan.target_amount
+                total_current += plan.current_amount
+            else:
+                plans.append(
+                    {
+                        "branch_id": branch.id,
+                        "branch_name": branch.name,
+                        "target_amount": 0,
+                        "current_amount": 0,
+                        "percentage": 0.0,
+                        "forecast_amount": None,
+                    }
+                )
 
         total_pct = (total_current / total_target * 100) if total_target > 0 else 0.0
 

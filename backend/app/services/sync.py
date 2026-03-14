@@ -65,8 +65,12 @@ def count_extras(services: list[dict], extra_services_list: list[str]) -> int:
 
 
 def count_products(goods_transactions: list[dict]) -> int:
-    """Sum product quantities from goods transactions."""
-    return sum(g.get("amount", 1) for g in goods_transactions)
+    """Sum product quantities from goods transactions.
+
+    Only counts positive amounts (sales). Negative amounts are returns
+    and should not reduce the sold-product count.
+    """
+    return sum(max(g.get("amount", 1), 0) for g in goods_transactions)
 
 
 def map_record_to_visit_dict(

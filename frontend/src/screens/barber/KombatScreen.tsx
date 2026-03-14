@@ -1,7 +1,8 @@
 import { useState } from 'react'
 
 import { MedalBadge, IconTarget } from '../../components/Icons'
-import { ScoreBar, RatingDetail, formatMoney, formatDate } from '../../components/KombatComponents'
+import InfoSheet, { InfoButton, InfoSection, InfoMetricRow } from '../../components/InfoSheet'
+import { ScoreBar, RatingDetail, formatMoney, formatDate, SEGMENT_COLORS } from '../../components/KombatComponents'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useKombatRating } from '../../hooks/useKombatRating'
 import { useAuthStore } from '../../stores/authStore'
@@ -47,7 +48,14 @@ function RatingRow({
               {entry.total_score.toFixed(1)}
             </span>
           </div>
-          <ScoreBar entry={entry} weights={weights} />
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <ScoreBar entry={entry} weights={weights} />
+            </div>
+            <span className="ml-2 text-xs tabular-nums text-[var(--bk-text-secondary)]">
+              {formatMoney(entry.revenue)}
+            </span>
+          </div>
         </div>
       </button>
 
@@ -62,9 +70,83 @@ function RatingRow({
   )
 }
 
+function KombatInfoSheet({ open, onClose, weights }: { open: boolean; onClose: () => void; weights: RatingWeights }) {
+  return (
+    <InfoSheet open={open} onClose={onClose} title="Как работает Комбат">
+      <InfoSection title="Суть соревнования">
+        <p>
+          Каждый день все барберы филиала соревнуются между собой. Система автоматически считает баллы
+          по 5 показателям и формирует рейтинг. Топ-3 по итогам дня получают призы.
+        </p>
+      </InfoSection>
+
+      <InfoSection title="Из чего складывается балл">
+        <p className="mb-2">
+          Итоговый балл (макс. 100) — это сумма 5 показателей. По каждому лучший в филиале получает
+          максимум, остальные — пропорционально.
+        </p>
+        <div className="space-y-0.5">
+          <InfoMetricRow
+            color={SEGMENT_COLORS[0]}
+            label="Выручка"
+            weight={weights.revenue}
+            description="Общая сумма за день. Больше клиентов и услуг — больше баллов."
+          />
+          <InfoMetricRow
+            color={SEGMENT_COLORS[1]}
+            label="Средний чек"
+            weight={weights.cs}
+            description="Средняя стоимость услуги относительно базовой стрижки. Доп. услуги и уходы повышают показатель."
+          />
+          <InfoMetricRow
+            color={SEGMENT_COLORS[2]}
+            label="Товары"
+            weight={weights.products}
+            description="Количество проданных товаров (воск, шампунь и т.д.)."
+          />
+          <InfoMetricRow
+            color={SEGMENT_COLORS[3]}
+            label="Доп. услуги"
+            weight={weights.extras}
+            description="Количество доп. услуг (камуфляж, уход за бородой, маска и т.д.)."
+          />
+          <InfoMetricRow
+            color={SEGMENT_COLORS[4]}
+            label="Отзывы"
+            weight={weights.reviews}
+            description="Средняя оценка от клиентов за день. Нет отзывов = 0 баллов."
+          />
+        </div>
+      </InfoSection>
+
+      <InfoSection title="Цветная полоска">
+        <p>
+          Полоска под именем показывает вклад каждого показателя. Яркий цвет — есть баллы, тусклый — нет.
+          Нажми на барбера, чтобы увидеть детали.
+        </p>
+      </InfoSection>
+
+      <InfoSection title="Призовой фонд">
+        <p>
+          Призы рассчитываются как процент от общей выручки филиала с 1-го числа месяца.
+          Чем больше зарабатывает филиал — тем больше призы. Выплачиваются ежедневно победителям.
+        </p>
+      </InfoSection>
+
+      <InfoSection title="План филиала">
+        <p>
+          Прогресс выполнения месячного плана выручки. Показывает, сколько осталось
+          до цели и сколько нужно зарабатывать в день.
+        </p>
+      </InfoSection>
+    </InfoSheet>
+  )
+}
+
 export default function KombatScreen() {
   const { todayRating, isLoading, error } = useKombatRating()
   const user = useAuthStore((s) => s.user)
+  const [infoOpen, setInfoOpen] = useState(false)
 
   if (isLoading && !todayRating) {
     return (
@@ -99,12 +181,15 @@ export default function KombatScreen() {
           <h1 className="bk-heading text-xl">{branch_name}</h1>
           <p className="mt-0.5 text-sm text-[var(--bk-text-secondary)]">{formatDate(date)}</p>
         </div>
-        {is_active && (
-          <span className="bk-live-pulse flex items-center gap-1.5 rounded-full bg-[var(--bk-red)]/10 px-3 py-1.5 text-xs font-bold tracking-wider text-[var(--bk-red)]">
-            <span className="inline-block h-2 w-2 rounded-full bg-[var(--bk-red)]" />
-            LIVE
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          <InfoButton onClick={() => setInfoOpen(true)} />
+          {is_active && (
+            <span className="bk-live-pulse flex items-center gap-1.5 rounded-full bg-[var(--bk-red)]/10 px-3 py-1.5 text-xs font-bold tracking-wider text-[var(--bk-red)]">
+              <span className="inline-block h-2 w-2 rounded-full bg-[var(--bk-red)]" />
+              LIVE
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Rating list */}
@@ -174,6 +259,8 @@ export default function KombatScreen() {
           )}
         </div>
       )}
+
+      <KombatInfoSheet open={infoOpen} onClose={() => setInfoOpen(false)} weights={weights} />
     </div>
   )
 }

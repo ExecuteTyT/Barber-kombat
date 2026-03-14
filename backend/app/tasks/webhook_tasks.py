@@ -60,6 +60,25 @@ async def _process_record(company_id: int, record_id: int, event_status: str) ->
                             barber_id=str(visit.barber_id),
                         )
 
+                        # Schedule review request if visit is completed
+                        if (
+                            visit.status == "completed"
+                            and not visit.review_request_sent
+                        ):
+                            from app.config import settings
+                            from app.tasks.review_tasks import send_review_request
+
+                            delay_seconds = settings.review_request_delay_minutes * 60
+                            send_review_request.apply_async(
+                                args=[str(visit.id)],
+                                countdown=delay_seconds,
+                            )
+                            await logger.ainfo(
+                                "Review request scheduled",
+                                visit_id=str(visit.id),
+                                delay_minutes=settings.review_request_delay_minutes,
+                            )
+
                     # Update plan progress for this branch
                     plan_service = PlanService(db=db, redis=redis_client)
                     await plan_service.update_progress(branch.id)

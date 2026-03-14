@@ -117,18 +117,32 @@ class YClientsClient:
         page: int = 1,
         count: int = 300,
     ) -> list[YClientRecord]:
-        """Get visit records for a company within a date range."""
-        params = {
-            "start_date": date_from.isoformat(),
-            "end_date": date_to.isoformat(),
-            "page": page,
-            "count": count,
-        }
-        data = await self._request("GET", f"/records/{company_id}", params=params)
+        """Get visit records for a company within a date range.
 
-        if not isinstance(data, list):
-            return []
-        return [YClientRecord.model_validate(item) for item in data]
+        Automatically paginates to fetch all records when page=1.
+        """
+        all_records: list[YClientRecord] = []
+        current_page = page
+
+        while True:
+            params = {
+                "start_date": date_from.isoformat(),
+                "end_date": date_to.isoformat(),
+                "page": current_page,
+                "count": count,
+            }
+            data = await self._request("GET", f"/records/{company_id}", params=params)
+
+            if not isinstance(data, list) or len(data) == 0:
+                break
+
+            all_records.extend(YClientRecord.model_validate(item) for item in data)
+
+            if len(data) < count:
+                break  # last page
+            current_page += 1
+
+        return all_records
 
     async def get_record(self, company_id: int, record_id: int) -> YClientRecord:
         """Get a single visit record by ID."""

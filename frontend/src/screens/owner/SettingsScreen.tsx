@@ -15,6 +15,8 @@ import type {
   PVRThresholdsConfig,
   PVRThreshold,
   PlanNetworkEntry,
+  BranchConfig,
+  NotificationConfig,
   UserConfig,
   UserRole,
 } from '../../types'
@@ -27,8 +29,8 @@ function formatMoney(kopecks: number): string {
 type Section = 'kombat' | 'pvr' | 'plans' | 'branches' | 'staff' | 'notifications'
 
 const SECTIONS: { key: Section; label: string }[] = [
-  { key: 'kombat', label: 'Kombat' },
-  { key: 'pvr', label: 'ПВР' },
+  { key: 'kombat', label: 'Рейтинг' },
+  { key: 'pvr', label: 'Премии' },
   { key: 'plans', label: 'Планы' },
   { key: 'branches', label: 'Филиалы' },
   { key: 'staff', label: 'Сотрудники' },
@@ -100,14 +102,14 @@ function KombatSection() {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm font-medium text-[var(--bk-text)]">Веса рейтинга (сумма = 100%)</p>
+      <p className="text-sm font-medium text-[var(--bk-text)]">Что важнее в оценке (сумма = 100%)</p>
       <WeightSlider
         label="Выручка"
         value={draft.revenue_weight}
         onChange={(v) => setDraft({ ...draft, revenue_weight: v })}
       />
       <WeightSlider
-        label="ЧС"
+        label="Средний чек"
         value={draft.cs_weight}
         onChange={(v) => setDraft({ ...draft, cs_weight: v })}
       />
@@ -117,7 +119,7 @@ function KombatSection() {
         onChange={(v) => setDraft({ ...draft, products_weight: v })}
       />
       <WeightSlider
-        label="Допы"
+        label="Доп. услуги"
         value={draft.extras_weight}
         onChange={(v) => setDraft({ ...draft, extras_weight: v })}
       />
@@ -343,15 +345,15 @@ function PlansSection() {
             ) : (
               <button
                 type="button"
-                className="text-sm font-medium text-[var(--bk-gold)]"
+                className={`text-sm font-medium ${p.target_amount > 0 ? 'text-[var(--bk-gold)]' : 'text-[var(--bk-text-dim)]'}`}
                 onClick={() =>
                   setEditingPlan({
                     branchId: p.branch_id,
-                    value: String(p.target_amount / 100),
+                    value: p.target_amount > 0 ? String(p.target_amount / 100) : '',
                   })
                 }
               >
-                {formatMoney(p.target_amount)}
+                {p.target_amount > 0 ? formatMoney(p.target_amount) : 'Задать план'}
               </button>
             )}
           </div>
@@ -361,34 +363,190 @@ function PlansSection() {
   )
 }
 
+interface BranchFormData {
+  name: string
+  address: string
+  yclients_company_id: string
+  telegram_group_id: string
+}
+
+const EMPTY_BRANCH_FORM: BranchFormData = {
+  name: '',
+  address: '',
+  yclients_company_id: '',
+  telegram_group_id: '',
+}
+
 function BranchesSection() {
-  const { branches, fetchBranches } = useOwnerStore()
+  const { branches, settingsSaving, fetchBranches, createBranch, saveBranch } = useOwnerStore()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [form, setForm] = useState<BranchFormData>(EMPTY_BRANCH_FORM)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchBranches()
   }, [fetchBranches])
 
-  if (branches.length === 0) return <LoadingSkeleton lines={3} />
+  if (branches.length === 0 && !creating) return <LoadingSkeleton lines={3} />
+
+  const startEdit = (b: BranchConfig) => {
+    setCreating(false)
+    setEditingId(b.id)
+    setForm({
+      name: b.name,
+      address: b.address || '',
+      yclients_company_id: b.yclients_company_id?.toString() || '',
+      telegram_group_id: b.telegram_group_id?.toString() || '',
+    })
+    setError(null)
+  }
+
+  const startCreate = () => {
+    setEditingId(null)
+    setCreating(true)
+    setForm(EMPTY_BRANCH_FORM)
+    setError(null)
+  }
+
+  const cancel = () => {
+    setEditingId(null)
+    setCreating(false)
+    setError(null)
+  }
+
+  const handleSave = async () => {
+    if (!form.name.trim()) {
+      setError('Введите название')
+      return
+    }
+    setError(null)
+
+    const payload: Record<string, unknown> = { name: form.name.trim() }
+    if (form.address.trim()) payload.address = form.address.trim()
+    if (form.yclients_company_id) payload.yclients_company_id = Number(form.yclients_company_id)
+    if (form.telegram_group_id) payload.telegram_group_id = Number(form.telegram_group_id)
+
+    let ok: boolean
+    if (creating) {
+      ok = await createBranch(payload as { name: string })
+    } else if (editingId) {
+      ok = await saveBranch(editingId, payload)
+    } else {
+      return
+    }
+
+    if (ok) {
+      cancel()
+    } else {
+      setError('Ошибка сохранения')
+    }
+  }
+
+  const handleToggleActive = async (b: BranchConfig) => {
+    await saveBranch(b.id, { is_active: !b.is_active } as Partial<BranchConfig>)
+  }
+
+  const formUI = (
+    <div className="bk-card space-y-2 p-3">
+      <input
+        type="text"
+        placeholder="Название *"
+        className="w-full rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
+        value={form.name}
+        onChange={(e) => setForm({ ...form, name: e.target.value })}
+        autoFocus
+      />
+      <input
+        type="text"
+        placeholder="Адрес"
+        className="w-full rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
+        value={form.address}
+        onChange={(e) => setForm({ ...form, address: e.target.value })}
+      />
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          type="number"
+          placeholder="YClients ID"
+          className="rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
+          value={form.yclients_company_id}
+          onChange={(e) => setForm({ ...form, yclients_company_id: e.target.value })}
+        />
+        <input
+          type="number"
+          placeholder="TG группа ID"
+          className="rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
+          value={form.telegram_group_id}
+          onChange={(e) => setForm({ ...form, telegram_group_id: e.target.value })}
+        />
+      </div>
+      {error && <p className="text-sm text-[var(--bk-red)]">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="flex-1 rounded-lg bg-[var(--bk-gold)] py-1.5 text-sm font-semibold text-[var(--bk-bg-primary)] disabled:opacity-50"
+          disabled={settingsSaving}
+          onClick={handleSave}
+        >
+          {settingsSaving ? 'Сохранение...' : creating ? 'Создать' : 'Сохранить'}
+        </button>
+        <button
+          type="button"
+          className="rounded-lg bg-[var(--bk-bg-elevated)] px-3 py-1.5 text-sm text-[var(--bk-text-secondary)]"
+          onClick={cancel}
+        >
+          Отмена
+        </button>
+      </div>
+    </div>
+  )
 
   return (
     <div className="space-y-2">
-      {branches.map((b) => (
-        <div key={b.id} className="bk-card p-3">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-[var(--bk-text)]">{b.name}</span>
-            <span
-              className={`text-xs font-semibold ${b.is_active ? 'text-[var(--bk-green)]' : 'text-[var(--bk-red)]'}`}
-            >
-              {b.is_active ? 'Активен' : 'Неактивен'}
-            </span>
+      {branches.map((b) =>
+        editingId === b.id ? (
+          <div key={b.id}>{formUI}</div>
+        ) : (
+          <div key={b.id} className="bk-card p-3">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-[var(--bk-text)]">{b.name}</span>
+              <button
+                type="button"
+                className={`text-xs font-semibold ${b.is_active ? 'text-[var(--bk-green)]' : 'text-[var(--bk-red)]'}`}
+                onClick={() => handleToggleActive(b)}
+              >
+                {b.is_active ? 'Активен' : 'Неактивен'}
+              </button>
+            </div>
+            {b.address && (
+              <p className="mt-1 text-xs text-[var(--bk-text-secondary)]">{b.address}</p>
+            )}
+            <div className="mt-1 flex items-center justify-between">
+              <div className="flex gap-3 text-xs text-[var(--bk-text-dim)]">
+                {b.yclients_company_id && <span>YClients: {b.yclients_company_id}</span>}
+                {b.telegram_group_id && <span>TG: {b.telegram_group_id}</span>}
+              </div>
+              <button
+                type="button"
+                className="text-xs font-medium text-[var(--bk-gold)]"
+                onClick={() => startEdit(b)}
+              >
+                Изменить
+              </button>
+            </div>
           </div>
-          {b.address && <p className="mt-1 text-xs text-[var(--bk-text-secondary)]">{b.address}</p>}
-          <div className="mt-1 flex gap-3 text-xs text-[var(--bk-text-dim)]">
-            {b.yclients_company_id && <span>YClients: {b.yclients_company_id}</span>}
-            {b.telegram_group_id && <span>TG: {b.telegram_group_id}</span>}
-          </div>
-        </div>
-      ))}
+        ),
+      )}
+      {creating && formUI}
+      {!creating && !editingId && (
+        <button
+          type="button"
+          className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-[var(--bk-border)] py-3 text-sm font-medium text-[var(--bk-gold)]"
+          onClick={startCreate}
+        >
+          <IconPlus size={14} /> Добавить филиал
+        </button>
+      )}
     </div>
   )
 }
@@ -468,39 +626,240 @@ function StaffSection() {
   )
 }
 
+const NOTIF_TYPES: { value: string; label: string }[] = [
+  { value: 'daily_rating', label: 'Итоги рейтинга' },
+  { value: 'daily_revenue', label: 'Выручка дня' },
+  { value: 'day_to_day', label: 'День-ко-дню' },
+  { value: 'pvr_threshold', label: 'Порог премии' },
+  { value: 'negative_review', label: 'Негативный отзыв' },
+  { value: 'kombat_monthly', label: 'Итоги месяца' },
+]
+
+const NOTIF_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  NOTIF_TYPES.map((t) => [t.value, t.label]),
+)
+
+interface NotifFormData {
+  notification_type: string
+  telegram_chat_id: string
+  branch_id: string
+  schedule_time: string
+}
+
+const EMPTY_NOTIF_FORM: NotifFormData = {
+  notification_type: 'daily_revenue',
+  telegram_chat_id: '',
+  branch_id: '',
+  schedule_time: '',
+}
+
 function NotificationsSection() {
-  const { notifications, fetchNotifications } = useOwnerStore()
+  const {
+    notifications,
+    branches,
+    settingsSaving,
+    fetchNotifications,
+    fetchBranches,
+    createNotification,
+    updateNotification,
+    deleteNotification,
+  } = useOwnerStore()
+
+  const [creating, setCreating] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState<NotifFormData>(EMPTY_NOTIF_FORM)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchNotifications()
-  }, [fetchNotifications])
+    if (branches.length === 0) fetchBranches()
+  }, [fetchNotifications, branches.length, fetchBranches])
 
-  if (notifications.length === 0) {
-    return (
-      <p className="py-4 text-center text-sm text-[var(--bk-text-secondary)]">
-        Уведомления не настроены
-      </p>
-    )
+  const startCreate = () => {
+    setEditingId(null)
+    setCreating(true)
+    setForm(EMPTY_NOTIF_FORM)
+    setError(null)
   }
+
+  const startEdit = (n: NotificationConfig) => {
+    setCreating(false)
+    setEditingId(n.id)
+    setForm({
+      notification_type: n.notification_type,
+      telegram_chat_id: String(n.telegram_chat_id),
+      branch_id: n.branch_id ?? '',
+      schedule_time: n.schedule_time ?? '',
+    })
+    setError(null)
+  }
+
+  const cancel = () => {
+    setCreating(false)
+    setEditingId(null)
+    setError(null)
+  }
+
+  const handleSave = async () => {
+    if (!form.telegram_chat_id) {
+      setError('Введите Telegram Chat ID')
+      return
+    }
+    setError(null)
+
+    let ok: boolean
+    if (creating) {
+      ok = await createNotification({
+        notification_type: form.notification_type,
+        telegram_chat_id: Number(form.telegram_chat_id),
+        branch_id: form.branch_id || undefined,
+        schedule_time: form.schedule_time || undefined,
+      })
+    } else if (editingId) {
+      ok = await updateNotification(editingId, {
+        telegram_chat_id: Number(form.telegram_chat_id),
+        schedule_time: form.schedule_time || null,
+      })
+    } else {
+      return
+    }
+
+    if (ok) cancel()
+    else setError('Ошибка сохранения')
+  }
+
+  const handleToggle = async (n: NotificationConfig) => {
+    await updateNotification(n.id, { is_enabled: !n.is_enabled })
+  }
+
+  const handleDelete = async (n: NotificationConfig) => {
+    await deleteNotification(n.id)
+  }
+
+  const formUI = (
+    <div className="bk-card space-y-2 p-3">
+      {creating && (
+        <>
+          <select
+            className="w-full rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
+            value={form.notification_type}
+            onChange={(e) => setForm({ ...form, notification_type: e.target.value })}
+          >
+            {NOTIF_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="w-full rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
+            value={form.branch_id}
+            onChange={(e) => setForm({ ...form, branch_id: e.target.value })}
+          >
+            <option value="">Вся сеть</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </>
+      )}
+      <input
+        type="number"
+        placeholder="Telegram Chat ID *"
+        className="w-full rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
+        value={form.telegram_chat_id}
+        onChange={(e) => setForm({ ...form, telegram_chat_id: e.target.value })}
+        autoFocus
+      />
+      <input
+        type="time"
+        placeholder="Время отправки"
+        className="w-full rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
+        value={form.schedule_time}
+        onChange={(e) => setForm({ ...form, schedule_time: e.target.value })}
+      />
+      {error && <p className="text-sm text-[var(--bk-red)]">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="flex-1 rounded-lg bg-[var(--bk-gold)] py-1.5 text-sm font-semibold text-[var(--bk-bg-primary)] disabled:opacity-50"
+          disabled={settingsSaving}
+          onClick={handleSave}
+        >
+          {settingsSaving ? 'Сохранение...' : creating ? 'Создать' : 'Сохранить'}
+        </button>
+        <button
+          type="button"
+          className="rounded-lg bg-[var(--bk-bg-elevated)] px-3 py-1.5 text-sm text-[var(--bk-text-secondary)]"
+          onClick={cancel}
+        >
+          Отмена
+        </button>
+      </div>
+    </div>
+  )
 
   return (
     <div className="space-y-2">
-      {notifications.map((n) => (
-        <div key={n.id} className="bk-card flex items-center justify-between p-3">
-          <div>
-            <p className="text-sm font-medium text-[var(--bk-text)]">{n.notification_type}</p>
-            <p className="text-xs text-[var(--bk-text-dim)]">
+      {notifications.map((n) =>
+        editingId === n.id ? (
+          <div key={n.id}>{formUI}</div>
+        ) : (
+          <div key={n.id} className="bk-card p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-[var(--bk-text)]">
+                {NOTIF_TYPE_LABELS[n.notification_type] ?? n.notification_type}
+              </p>
+              <button
+                type="button"
+                className={`text-xs font-semibold ${n.is_enabled ? 'text-[var(--bk-green)]' : 'text-[var(--bk-text-dim)]'}`}
+                onClick={() => handleToggle(n)}
+              >
+                {n.is_enabled ? 'Вкл' : 'Выкл'}
+              </button>
+            </div>
+            <p className="mt-0.5 text-xs text-[var(--bk-text-dim)]">
               Chat: {n.telegram_chat_id}
               {n.schedule_time && ` \u{2022} ${n.schedule_time}`}
+              {n.branch_id &&
+                ` \u{2022} ${branches.find((b) => b.id === n.branch_id)?.name ?? 'Филиал'}`}
             </p>
+            <div className="mt-1.5 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                className="text-xs font-medium text-[var(--bk-gold)]"
+                onClick={() => startEdit(n)}
+              >
+                Изменить
+              </button>
+              <button
+                type="button"
+                className="text-xs font-medium text-[var(--bk-red)]"
+                onClick={() => handleDelete(n)}
+              >
+                Удалить
+              </button>
+            </div>
           </div>
-          <span
-            className={`text-xs font-semibold ${n.is_enabled ? 'text-[var(--bk-green)]' : 'text-[var(--bk-text-dim)]'}`}
-          >
-            {n.is_enabled ? 'Вкл' : 'Выкл'}
-          </span>
-        </div>
-      ))}
+        ),
+      )}
+      {creating && formUI}
+      {notifications.length === 0 && !creating && (
+        <p className="py-2 text-center text-sm text-[var(--bk-text-secondary)]">
+          Уведомления не настроены
+        </p>
+      )}
+      {!creating && !editingId && (
+        <button
+          type="button"
+          className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-[var(--bk-border)] py-3 text-sm font-medium text-[var(--bk-gold)]"
+          onClick={startCreate}
+        >
+          <IconPlus size={14} /> Добавить уведомление
+        </button>
+      )}
     </div>
   )
 }

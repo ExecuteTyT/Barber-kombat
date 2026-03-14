@@ -1,85 +1,226 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 
-import { StarRating, IconCheckCircle, IconRefresh, IconUsers } from '../../components/Icons'
+import {
+  StarRating,
+  IconCheckCircle,
+  IconRefresh,
+  IconUsers,
+  IconArrowLeft,
+  IconDollarSign,
+  IconShoppingBag,
+  IconGift,
+  IconTarget,
+  IconCrown,
+  IconStar,
+} from '../../components/Icons'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { useAuthStore } from '../../stores/authStore'
 import { useKombatStore } from '../../stores/kombatStore'
 import { usePvrStore } from '../../stores/pvrStore'
 import { useReviewsStore } from '../../stores/reviewsStore'
+import { useChefAnalyticsStore } from '../../stores/chefAnalyticsStore'
 import ReviewProcessModal from './ReviewProcessModal'
-import type { BarberPVRResponse, ReviewResponse, ReviewStatus, WSMessage } from '../../types'
+import type {
+  BarberPVRResponse,
+  BranchAnalytics,
+  RatingEntry,
+  ReviewResponse,
+  ReviewStatus,
+  WSMessage,
+} from '../../types'
 
 function formatMoney(kopecks: number): string {
   const rubles = Math.round(kopecks / 100)
   return rubles.toLocaleString('ru-RU') + '\u{00A0}\u{20BD}'
 }
 
-function TodayStats({
-  revenueToday,
-  revenueMonth,
-  planPercentage,
-  planTarget,
-  barbersInShift,
-  barbersTotal,
-}: {
-  revenueToday: number
-  revenueMonth: number
-  planPercentage: number
-  planTarget: number
-  barbersInShift: number
-  barbersTotal: number
-}) {
+// --- Analytics KPI cards ---
+
+function KPIGrid({ analytics }: { analytics: BranchAnalytics }) {
+  const kpis = [
+    {
+      label: 'Выручка сегодня',
+      value: formatMoney(analytics.revenue_today),
+      accent: true,
+    },
+    {
+      label: 'С начала месяца',
+      value: formatMoney(analytics.revenue_mtd),
+    },
+    {
+      label: 'Средний чек',
+      value: formatMoney(analytics.avg_check_today),
+      sub: `За месяц: ${formatMoney(analytics.avg_check_mtd)}`,
+    },
+    {
+      label: 'Визитов сегодня',
+      value: String(analytics.visits_today),
+      sub: `За месяц: ${analytics.visits_mtd}`,
+    },
+    {
+      label: 'Клиентов сегодня',
+      value: String(analytics.clients_today),
+      sub: `Новых: ${analytics.new_clients_mtd} / Повторных: ${analytics.returning_clients_mtd}`,
+    },
+    {
+      label: 'В смене',
+      value: `${analytics.barbers_in_shift} / ${analytics.barbers_total}`,
+    },
+  ]
+
   return (
-    <div className="bk-card mx-4 p-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <p className="text-xs text-[var(--bk-text-secondary)]">Выручка дня</p>
+    <div className="mx-4 grid grid-cols-2 gap-2">
+      {kpis.map((k) => (
+        <div key={k.label} className="bk-card p-3">
+          <p className="text-[10px] uppercase tracking-wider text-[var(--bk-text-dim)]">
+            {k.label}
+          </p>
           <p
-            className="text-lg font-bold tabular-nums"
+            className={`mt-0.5 text-lg font-bold tabular-nums ${k.accent ? 'text-[var(--bk-gold)]' : 'text-[var(--bk-text)]'}`}
             style={{ fontFamily: 'var(--bk-font-heading)' }}
           >
-            {formatMoney(revenueToday)}
+            {k.value}
           </p>
+          {k.sub && (
+            <p className="mt-0.5 text-[10px] text-[var(--bk-text-dim)]">{k.sub}</p>
+          )}
         </div>
-        <div>
-          <p className="text-xs text-[var(--bk-text-secondary)]">Выручка месяца</p>
-          <p
-            className="text-lg font-bold tabular-nums"
-            style={{ fontFamily: 'var(--bk-font-heading)' }}
-          >
-            {formatMoney(revenueMonth)}
-          </p>
+      ))}
+    </div>
+  )
+}
+
+// --- Plan progress ---
+
+function PlanProgress({ analytics }: { analytics: BranchAnalytics }) {
+  if (analytics.plan_target <= 0) return null
+
+  return (
+    <div className="mx-4 mt-3">
+      <div className="bk-card p-3">
+        <div className="flex items-center gap-1.5">
+          <IconTarget size={14} className="text-[var(--bk-gold)]" />
+          <span className="text-xs font-semibold text-[var(--bk-text)]">План месяца</span>
         </div>
-      </div>
-      <div className="mt-3">
-        <div className="flex items-baseline justify-between">
-          <span className="text-xs text-[var(--bk-text-secondary)]">План</span>
-          <span className="text-sm font-bold tabular-nums text-[var(--bk-gold)]">
-            {planPercentage.toFixed(0)}%
-          </span>
-        </div>
-        <div className="mt-1 h-2 overflow-hidden rounded-full bg-[var(--bk-bg-elevated)]">
+        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[var(--bk-bg-elevated)]">
           <div
             className="bk-progress-fill h-full transition-all duration-700"
-            style={{ width: `${Math.min(planPercentage, 100)}%` }}
+            style={{ width: `${Math.min(analytics.plan_percentage, 100)}%` }}
           />
         </div>
-        <p className="mt-1 text-xs tabular-nums text-[var(--bk-text-dim)]">
-          {formatMoney(revenueMonth)} из {formatMoney(planTarget)}
-        </p>
-      </div>
-      <div className="mt-3 flex items-center gap-1.5 text-sm">
-        <IconUsers size={14} className="text-[var(--bk-text-secondary)]" />
-        <span className="text-[var(--bk-text-secondary)]">В смене:</span>
-        <span className="font-medium text-[var(--bk-text)]">
-          {barbersInShift}/{barbersTotal}
-        </span>
+        <div className="mt-1.5 flex items-baseline justify-between">
+          <span className="text-xs tabular-nums text-[var(--bk-text-dim)]">
+            {formatMoney(analytics.revenue_mtd)} из {formatMoney(analytics.plan_target)}
+          </span>
+          <span className="text-sm font-bold tabular-nums text-[var(--bk-gold)]">
+            {analytics.plan_percentage.toFixed(0)}%
+          </span>
+        </div>
       </div>
     </div>
   )
 }
+
+// --- Monthly metrics row ---
+
+function MonthlyMetrics({ analytics }: { analytics: BranchAnalytics }) {
+  return (
+    <div className="mx-4 mt-3 flex gap-2">
+      <div className="bk-card flex flex-1 items-center gap-2 p-3">
+        <IconShoppingBag size={16} className="text-[var(--bk-text-secondary)]" />
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-[var(--bk-text-dim)]">
+            Товары
+          </p>
+          <p className="text-base font-bold tabular-nums text-[var(--bk-text)]">
+            {analytics.total_products_mtd}
+          </p>
+        </div>
+      </div>
+      <div className="bk-card flex flex-1 items-center gap-2 p-3">
+        <IconGift size={16} className="text-[var(--bk-text-secondary)]" />
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-[var(--bk-text-dim)]">
+            Доп. услуги
+          </p>
+          <p className="text-base font-bold tabular-nums text-[var(--bk-text)]">
+            {analytics.total_extras_mtd}
+          </p>
+        </div>
+      </div>
+      {analytics.avg_review_score !== null && (
+        <div className="bk-card flex flex-1 items-center gap-2 p-3">
+          <IconStar size={16} className="text-[var(--bk-gold)]" />
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-[var(--bk-text-dim)]">
+              Отзывы
+            </p>
+            <p className="text-base font-bold tabular-nums text-[var(--bk-text)]">
+              {analytics.avg_review_score.toFixed(1)}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// --- Today rating table ---
+
+function TodayRatingTable({ ratings }: { ratings: RatingEntry[] }) {
+  if (ratings.length === 0) return null
+
+  return (
+    <div className="mx-4 mt-4">
+      <h3 className="bk-heading text-base">Барберы сегодня</h3>
+      <div className="mt-2 space-y-1.5">
+        {ratings.map((r) => {
+          const medalColors: Record<number, string> = {
+            1: 'text-[var(--bk-gold)]',
+            2: 'text-[#C0C0C0]',
+            3: 'text-[#CD7F32]',
+          }
+          const medal = medalColors[r.rank]
+
+          return (
+            <div key={r.barber_id} className="bk-card p-3">
+              <div className="flex items-center gap-3">
+                <span
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    medal
+                      ? `${medal} bg-[var(--bk-bg-elevated)]`
+                      : 'bg-[var(--bk-bg-elevated)] text-[var(--bk-text-dim)]'
+                  }`}
+                >
+                  {r.rank <= 3 ? <IconCrown size={14} /> : r.rank}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[var(--bk-text)] truncate">{r.name}</p>
+                </div>
+                <span
+                  className="text-base font-bold tabular-nums text-[var(--bk-text)]"
+                  style={{ fontFamily: 'var(--bk-font-heading)' }}
+                >
+                  {formatMoney(r.revenue)}
+                </span>
+              </div>
+              <div className="mt-1.5 ml-10 flex gap-3 text-[10px] text-[var(--bk-text-dim)]">
+                <span>Рейтинг: {r.total_score.toFixed(0)}</span>
+                <span>Ср. чек ×{r.cs_value.toFixed(2)}</span>
+                <span>Товары {r.products_count}</span>
+                <span>Доп. услуги {r.extras_count}</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// --- Premium bonuses ---
 
 function BingoTable({
   barbers,
@@ -92,7 +233,7 @@ function BingoTable({
 
   return (
     <div className="mx-4 mt-4">
-      <h3 className="bk-heading text-base">Бинго</h3>
+      <h3 className="bk-heading text-base">Премии за выручку</h3>
       <div className="mt-2 space-y-2">
         {sorted.map((b, i) => {
           const pct =
@@ -120,7 +261,7 @@ function BingoTable({
               <div className="mt-1 flex items-center justify-between text-xs text-[var(--bk-text-dim)]">
                 <span>Премия: {formatMoney(b.bonus_amount)}</span>
                 {b.next_threshold && b.remaining_to_next !== null && (
-                  <span>До след: {formatMoney(b.remaining_to_next)}</span>
+                  <span>До следующего порога: {formatMoney(b.remaining_to_next)}</span>
                 )}
               </div>
             </div>
@@ -133,6 +274,8 @@ function BingoTable({
     </div>
   )
 }
+
+// --- Reviews ---
 
 function ReviewCard({
   review,
@@ -265,15 +408,21 @@ function ReviewsFeed({
   )
 }
 
+// --- Main screen ---
+
 export default function BranchScreen() {
   const user = useAuthStore((s) => s.user)
+  const navigate = useNavigate()
   const { branchId: urlBranchId } = useParams<{ branchId: string }>()
   // Owner navigates via /owner/branch/:branchId (URL param),
   // Chef has branch_id on their user profile
   const branchId = urlBranchId ?? user?.branch_id
+  const showBackButton = !!urlBranchId
+  const isOwnerView = user?.role === 'owner'
 
   const { todayRating, fetchTodayRating } = useKombatStore()
   const { branchPvr, thresholds, fetchBranchPvr, fetchThresholds } = usePvrStore()
+  const { analytics, fetchAnalytics } = useChefAnalyticsStore()
   const {
     reviews,
     total,
@@ -297,8 +446,9 @@ export default function BranchScreen() {
       fetchTodayRating(branchId)
       fetchBranchPvr(branchId)
       fetchThresholds()
+      fetchAnalytics(branchId)
     }
-  }, [branchId, fetchTodayRating, fetchBranchPvr, fetchThresholds])
+  }, [branchId, fetchTodayRating, fetchBranchPvr, fetchThresholds, fetchAnalytics])
 
   useEffect(() => {
     if (branchId) {
@@ -337,40 +487,49 @@ export default function BranchScreen() {
   )
   useWebSocket(handleWSMessage)
 
-  const revenueToday = todayRating ? todayRating.ratings.reduce((sum, r) => sum + r.revenue, 0) : 0
-  const revenueMonth = todayRating?.plan?.current ?? 0
-  const planPercentage = todayRating?.plan?.percentage ?? 0
-  const planTarget = todayRating?.plan?.target ?? 0
-  const barbersInShift = todayRating?.ratings.length ?? 0
-  const barbersTotal = branchPvr?.barbers.length ?? barbersInShift
-
   const thresholdMax = thresholds.length > 0 ? Math.max(...thresholds.map((t) => t.amount)) : 0
 
   if (!branchId) {
     return <div className="p-8 text-center text-[var(--bk-text-secondary)]">Филиал не назначен</div>
   }
 
+  const branchName = analytics?.branch_name ?? todayRating?.branch_name ?? 'Филиал'
+
   return (
     <div className="pb-4 pt-4">
-      <h1 className="bk-heading px-4 text-xl">{todayRating?.branch_name ?? 'Филиал'}</h1>
+      {/* Header */}
+      <div className="flex items-center gap-2 px-4">
+        {showBackButton && (
+          <button
+            type="button"
+            className="flex items-center gap-1 text-sm text-[var(--bk-gold)]"
+            onClick={() => navigate(-1)}
+          >
+            <IconArrowLeft size={18} />
+          </button>
+        )}
+        <h1 className="bk-heading text-xl">{branchName}</h1>
+      </div>
 
+      {/* Analytics KPIs */}
       <div className="mt-3">
-        {todayRating ? (
-          <TodayStats
-            revenueToday={revenueToday}
-            revenueMonth={revenueMonth}
-            planPercentage={planPercentage}
-            planTarget={planTarget}
-            barbersInShift={barbersInShift}
-            barbersTotal={barbersTotal}
-          />
+        {analytics ? (
+          <>
+            <KPIGrid analytics={analytics} />
+            <PlanProgress analytics={analytics} />
+            <MonthlyMetrics analytics={analytics} />
+          </>
         ) : (
           <div className="mx-4">
-            <LoadingSkeleton lines={4} />
+            <LoadingSkeleton lines={6} />
           </div>
         )}
       </div>
 
+      {/* Today rating */}
+      {todayRating && <TodayRatingTable ratings={todayRating.ratings} />}
+
+      {/* PVR Bingo */}
       {branchPvr ? (
         <BingoTable barbers={branchPvr.barbers} thresholdMax={thresholdMax} />
       ) : (
@@ -379,6 +538,7 @@ export default function BranchScreen() {
         </div>
       )}
 
+      {/* Reviews */}
       {reviewsLoading && reviews.length === 0 ? (
         <div className="mx-4 mt-4">
           <LoadingSkeleton lines={4} />

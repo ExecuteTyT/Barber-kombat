@@ -103,8 +103,10 @@ async def dev_login(
         )
         user = result.scalar_one_or_none()
     else:
-        # Return list of available users for the dev login UI
-        result = await db.execute(select(User).where(User.is_active.is_(True)))
+        # Return list of available users for the dev login UI (only users with telegram_id)
+        result = await db.execute(
+            select(User).where(User.is_active.is_(True), User.telegram_id.isnot(None))
+        )
         users = result.scalars().all()
         return {
             "users": [
@@ -153,7 +155,9 @@ async def dev_users(
     if not settings.is_development:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
-    result = await db.execute(select(User).where(User.is_active.is_(True)))
+    result = await db.execute(
+        select(User).where(User.is_active.is_(True), User.telegram_id.isnot(None))
+    )
     users = result.scalars().all()
     return {
         "users": [

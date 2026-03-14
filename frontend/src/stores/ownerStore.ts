@@ -66,10 +66,14 @@ type OwnerState = DashboardState &
     fetchPvrThresholds: () => Promise<void>
     savePvrThresholds: (data: PVRThresholdsConfig) => Promise<boolean>
     fetchBranches: () => Promise<void>
+    createBranch: (data: { name: string; address?: string; yclients_company_id?: number; telegram_group_id?: number }) => Promise<boolean>
     saveBranch: (id: string, data: Partial<BranchConfig>) => Promise<boolean>
     fetchUsers: (branchId?: string) => Promise<void>
     saveUser: (id: string, data: Partial<UserConfig>) => Promise<boolean>
     fetchNotifications: () => Promise<void>
+    createNotification: (data: { branch_id?: string; notification_type: string; telegram_chat_id: number; is_enabled?: boolean; schedule_time?: string }) => Promise<boolean>
+    updateNotification: (id: string, data: { telegram_chat_id?: number; is_enabled?: boolean; schedule_time?: string | null }) => Promise<boolean>
+    deleteNotification: (id: string) => Promise<boolean>
     fetchPlans: (month?: string) => Promise<void>
     savePlan: (branchId: string, month: string, targetAmount: number) => Promise<boolean>
   }
@@ -202,6 +206,19 @@ export const useOwnerStore = create<OwnerState>((set) => ({
     }
   },
 
+  createBranch: async (payload): Promise<boolean> => {
+    set({ settingsSaving: true })
+    try {
+      await api.post('/config/branches', payload)
+      const { data } = await api.get<BranchListResponse>('/config/branches')
+      set({ branches: data.branches, settingsSaving: false })
+      return true
+    } catch {
+      set({ settingsSaving: false })
+      return false
+    }
+  },
+
   saveBranch: async (id: string, payload: Partial<BranchConfig>): Promise<boolean> => {
     set({ settingsSaving: true })
     try {
@@ -248,6 +265,45 @@ export const useOwnerStore = create<OwnerState>((set) => ({
       set({ notifications: data.notifications, settingsLoading: false })
     } catch {
       set({ settingsError: 'Не удалось загрузить уведомления', settingsLoading: false })
+    }
+  },
+
+  createNotification: async (payload): Promise<boolean> => {
+    set({ settingsSaving: true })
+    try {
+      await api.post('/config/notifications', payload)
+      const { data } = await api.get<NotificationConfigListResponse>('/config/notifications')
+      set({ notifications: data.notifications, settingsSaving: false })
+      return true
+    } catch {
+      set({ settingsSaving: false })
+      return false
+    }
+  },
+
+  updateNotification: async (id, payload): Promise<boolean> => {
+    set({ settingsSaving: true })
+    try {
+      await api.put(`/config/notifications/${id}`, payload)
+      const { data } = await api.get<NotificationConfigListResponse>('/config/notifications')
+      set({ notifications: data.notifications, settingsSaving: false })
+      return true
+    } catch {
+      set({ settingsSaving: false })
+      return false
+    }
+  },
+
+  deleteNotification: async (id): Promise<boolean> => {
+    set({ settingsSaving: true })
+    try {
+      await api.delete(`/config/notifications/${id}`)
+      const { data } = await api.get<NotificationConfigListResponse>('/config/notifications')
+      set({ notifications: data.notifications, settingsSaving: false })
+      return true
+    } catch {
+      set({ settingsSaving: false })
+      return false
     }
   },
 

@@ -47,9 +47,9 @@ export function ScoreBar({ entry, weights }: { entry: RatingEntry; weights: Rati
 export function RatingDetail({ entry }: { entry: RatingEntry }) {
   const metrics = [
     { label: 'Выручка', value: formatMoney(entry.revenue) },
-    { label: 'ЧС', value: entry.cs_value.toFixed(2) },
+    { label: 'Ср. чек', value: `×${entry.cs_value.toFixed(2)}` },
     { label: 'Товары', value: `${entry.products_count} шт` },
-    { label: 'Допы', value: `${entry.extras_count} шт` },
+    { label: 'Доп. услуги', value: `${entry.extras_count} шт` },
     {
       label: 'Отзывы',
       value: entry.reviews_avg !== null ? entry.reviews_avg.toFixed(1) : '\u{2014}',

@@ -26,7 +26,7 @@ class YClientGoodsTransaction(BaseModel):
 class YClientRecordClient(BaseModel):
     """Client info nested in a record."""
 
-    id: int
+    id: int = 0
     name: str = ""
     phone: str = ""
 

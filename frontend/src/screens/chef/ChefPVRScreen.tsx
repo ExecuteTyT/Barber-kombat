@@ -145,7 +145,7 @@ export default function ChefPVRScreen() {
 
   return (
     <div className="pb-4 pt-4">
-      <h1 className="bk-heading px-4 text-xl">ПВР филиала</h1>
+      <h1 className="bk-heading px-4 text-xl">Премии за выручку</h1>
       {branchPvr && (
         <p className="mt-1 px-4 text-sm text-[var(--bk-text-secondary)]">{branchPvr.month}</p>
       )}
@@ -155,7 +155,7 @@ export default function ChefPVRScreen() {
           <BarberPVRCard key={b.barber_id} barber={b} thresholds={thresholds} />
         ))}
         {sorted.length === 0 && (
-          <p className="py-8 text-center text-[var(--bk-text-secondary)]">Нет данных по ПВР</p>
+          <p className="py-8 text-center text-[var(--bk-text-secondary)]">Нет данных по премиям</p>
         )}
       </div>
     </div>

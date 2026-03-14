@@ -192,7 +192,11 @@ class ReportService:
         organization_id: uuid.UUID,
         target_date: date,
     ) -> dict:
-        """Generate client statistics report (new vs returning)."""
+        """Generate client statistics report (new vs returning).
+
+        Includes retention rate, average check by client type, and
+        visit counts for deeper insight.
+        """
         month_start = target_date.replace(day=1)
         branches = await self._get_active_branches(organization_id)
 
@@ -200,6 +204,10 @@ class ReportService:
         network_new_mtd = 0
         network_returning_mtd = 0
         network_total_mtd = 0
+        network_revenue_new = 0
+        network_visits_new = 0
+        network_revenue_returning = 0
+        network_visits_returning = 0
 
         for branch in branches:
             # Today
@@ -216,6 +224,24 @@ class ReportService:
             total_mtd = await self._count_unique_clients(branch.id, month_start, target_date)
             returning_mtd = total_mtd - new_mtd
 
+            # Retention rate: returning / total * 100
+            retention_rate = round(
+                (returning_mtd / total_mtd * 100) if total_mtd > 0 else 0.0, 1
+            )
+
+            # Average check by client type (MTD)
+            rev_new, vis_new = await self._revenue_by_client_type(
+                branch.id, organization_id, month_start, target_date, new_only=True
+            )
+            rev_ret, vis_ret = await self._revenue_by_client_type(
+                branch.id, organization_id, month_start, target_date, new_only=False
+            )
+            avg_check_new = rev_new // vis_new if vis_new > 0 else 0
+            avg_check_returning = rev_ret // vis_ret if vis_ret > 0 else 0
+
+            # Total visits MTD
+            visits_mtd = await self._count_visits(branch.id, month_start, target_date)
+
             branch_data.append(
                 {
                     "branch_id": str(branch.id),
@@ -226,12 +252,32 @@ class ReportService:
                     "new_clients_mtd": new_mtd,
                     "returning_clients_mtd": returning_mtd,
                     "total_mtd": total_mtd,
+                    "retention_rate": retention_rate,
+                    "avg_check_new": avg_check_new,
+                    "avg_check_returning": avg_check_returning,
+                    "visits_mtd": visits_mtd,
                 }
             )
 
             network_new_mtd += new_mtd
             network_returning_mtd += returning_mtd
             network_total_mtd += total_mtd
+            network_revenue_new += rev_new
+            network_visits_new += vis_new
+            network_revenue_returning += rev_ret
+            network_visits_returning += vis_ret
+
+        network_retention = round(
+            (network_returning_mtd / network_total_mtd * 100) if network_total_mtd > 0 else 0.0, 1
+        )
+        network_avg_check_new = (
+            network_revenue_new // network_visits_new if network_visits_new > 0 else 0
+        )
+        network_avg_check_returning = (
+            network_revenue_returning // network_visits_returning
+            if network_visits_returning > 0
+            else 0
+        )
 
         report_data = {
             "date": str(target_date),
@@ -239,6 +285,9 @@ class ReportService:
             "network_new_mtd": network_new_mtd,
             "network_returning_mtd": network_returning_mtd,
             "network_total_mtd": network_total_mtd,
+            "network_retention_rate": network_retention,
+            "network_avg_check_new": network_avg_check_new,
+            "network_avg_check_returning": network_avg_check_returning,
         }
 
         await self._save_report(
@@ -623,6 +672,59 @@ class ReportService:
 
         result = await self.db.execute(stmt)
         return result.scalar_one()
+
+    async def _revenue_by_client_type(
+        self,
+        branch_id: uuid.UUID,
+        organization_id: uuid.UUID,
+        date_from: date,
+        date_to: date,
+        new_only: bool,
+    ) -> tuple[int, int]:
+        """Sum revenue and count visits for new or returning clients.
+
+        Args:
+            new_only: If True, counts only new clients (first visit in range).
+                      If False, counts only returning clients (had prior visits).
+
+        Returns:
+            (total_revenue, visit_count) tuple.
+        """
+        # Subquery: clients with visits before date_from
+        prev_clients = (
+            select(Visit.client_id)
+            .where(
+                Visit.organization_id == organization_id,
+                Visit.date < date_from,
+                Visit.status == "completed",
+                Visit.client_id.isnot(None),
+            )
+            .distinct()
+            .scalar_subquery()
+        )
+
+        base_conditions = [
+            Visit.branch_id == branch_id,
+            Visit.date >= date_from,
+            Visit.date <= date_to,
+            Visit.status == "completed",
+            Visit.client_id.isnot(None),
+        ]
+
+        if new_only:
+            base_conditions.append(Visit.client_id.notin_(prev_clients))
+        else:
+            base_conditions.append(Visit.client_id.in_(prev_clients))
+
+        rev_stmt = select(sa_func.coalesce(sa_func.sum(Visit.revenue), 0)).where(
+            *base_conditions
+        )
+        cnt_stmt = select(sa_func.count()).where(*base_conditions)
+
+        rev_result = await self.db.execute(rev_stmt)
+        cnt_result = await self.db.execute(cnt_stmt)
+
+        return rev_result.scalar_one(), cnt_result.scalar_one()
 
     async def _count_unique_clients(
         self,

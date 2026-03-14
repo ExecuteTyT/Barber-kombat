@@ -125,13 +125,13 @@ export default function CompetitionsScreen() {
 
   return (
     <div className="pb-4 pt-4">
-      <h1 className="bk-heading px-4 text-xl">Соревнования</h1>
+      <h1 className="bk-heading px-4 text-xl">Рейтинг и премии</h1>
 
       {/* Tabs */}
       <div className="mx-4 mt-3 flex gap-2">
         {[
-          { key: 'kombat' as Tab, label: 'Kombat' },
-          { key: 'pvr' as Tab, label: 'ПВР' },
+          { key: 'kombat' as Tab, label: 'Рейтинг дня' },
+          { key: 'pvr' as Tab, label: 'Премии' },
         ].map((t) => (
           <button
             key={t.key}
@@ -215,7 +215,11 @@ export default function CompetitionsScreen() {
             <div className="bk-card overflow-hidden">
               <div className="px-3 pb-1 pt-3">
                 <span className="text-sm font-medium text-[var(--bk-text-secondary)]">
-                  ПВР \u{2022} {branchPvr.month}
+                  Премии \u{2022}{' '}
+                  {new Date(branchPvr.month + '-01').toLocaleDateString('ru-RU', {
+                    month: 'long',
+                    year: 'numeric',
+                  })}
                 </span>
               </div>
               <div className="divide-y divide-[var(--bk-border)]">
@@ -227,7 +231,7 @@ export default function CompetitionsScreen() {
               </div>
               {branchPvr.barbers.length === 0 && (
                 <p className="p-4 text-center text-sm text-[var(--bk-text-secondary)]">
-                  Нет данных ПВР
+                  Нет данных по премиям
                 </p>
               )}
             </div>

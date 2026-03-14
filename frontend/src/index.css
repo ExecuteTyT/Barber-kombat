@@ -171,6 +171,25 @@ body {
   animation: bk-fade-up 0.35s ease-out both;
 }
 
+/* Bottom sheet animations */
+@keyframes bk-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes bk-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.bk-fade-in {
+  animation: bk-fade-in 0.2s ease-out both;
+}
+
+.bk-slide-up {
+  animation: bk-slide-up 0.3s ease-out both;
+}
+
 /* Tab bar glass effect */
 .bk-tab-bar {
   background: rgba(12, 12, 14, 0.92);
