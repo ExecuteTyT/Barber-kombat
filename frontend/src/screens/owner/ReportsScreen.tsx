@@ -355,7 +355,7 @@ function BranchClientCard({ branch: b }: { branch: BranchClients }) {
 
 export default function ReportsScreen() {
   const [activeReport, setActiveReport] = useState<ReportType | null>(null)
-  const { revenue, reportsLoading, fetchDashboard } = useOwnerStore()
+  const { revenue, fetchDashboard } = useOwnerStore()
 
   useEffect(() => {
     if (!revenue) fetchDashboard()

@@ -5,9 +5,7 @@ import {
   StarRating,
   IconCheckCircle,
   IconRefresh,
-  IconUsers,
   IconArrowLeft,
-  IconDollarSign,
   IconShoppingBag,
   IconGift,
   IconTarget,
@@ -418,7 +416,6 @@ export default function BranchScreen() {
   // Chef has branch_id on their user profile
   const branchId = urlBranchId ?? user?.branch_id
   const showBackButton = !!urlBranchId
-  const isOwnerView = user?.role === 'owner'
 
   const { todayRating, fetchTodayRating } = useKombatStore()
   const { branchPvr, thresholds, fetchBranchPvr, fetchThresholds } = usePvrStore()
