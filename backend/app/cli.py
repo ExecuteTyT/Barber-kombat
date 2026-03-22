@@ -164,7 +164,7 @@ async def _seed(
 def seed_demo():
     """Populate DB with full realistic demo data for local testing.
 
-    Creates: organization, 2 branches, 8 users (barbers + chef + owner + admin),
+    Creates: organization, 2 branches, 9 users (barbers + owner + admin),
     7 days of DailyRating & Visit records, PVR records, Plans, Reviews, Reports.
     No YClients or Telegram required.
     """
@@ -265,14 +265,18 @@ async def _seed_demo():
             barbers_b2.append(u)
             tg_id += 1
 
-        # Chef (manages branch 1)
-        chef = User(
+        # Extra barber for branch 1
+        barber_extra = User(
             organization_id=org_id,
             branch_id=branch1.id,
             telegram_id=tg_id,
-            role=UserRole.CHEF,
-            name="Анна Смирнова",
+            role=UserRole.BARBER,
+            name="Сайфидин",
+            grade="middle",
+            haircut_price=180000,
+            yclients_staff_id=1004,
         )
+        barbers_b1.append(barber_extra)
         tg_id += 1
 
         # Owner
@@ -295,7 +299,7 @@ async def _seed_demo():
         )
         tg_id += 1
 
-        all_users = barbers_b1 + barbers_b2 + [chef, owner, admin]
+        all_users = barbers_b1 + barbers_b2 + [owner, admin]
         db.add_all(all_users)
         await db.flush()
         all_barbers = barbers_b1 + barbers_b2

@@ -53,13 +53,13 @@ async def _validate_branch(
 async def get_branch_plan(
     branch_id: uuid.UUID,
     current_user: Annotated[
-        User, Depends(require_role(UserRole.CHEF, UserRole.OWNER, UserRole.ADMIN))
+        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
     month: Annotated[date | None, Query(description="First day of month, e.g. 2024-10-01")] = None,
 ):
-    """Get plan for a branch. Chef, owner, admin only."""
+    """Get plan for a branch. Owner, admin only."""
     await _validate_branch(branch_id, current_user.organization_id, db)
 
     plan_service = PlanService(db=db, redis=redis)

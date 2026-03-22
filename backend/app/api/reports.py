@@ -37,14 +37,14 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 async def get_revenue_report(
     current_user: Annotated[
         User,
-        Depends(require_role(UserRole.OWNER, UserRole.MANAGER, UserRole.ADMIN)),
+        Depends(require_role(UserRole.OWNER, UserRole.ADMIN)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     target_date: Annotated[
         date | None, Query(description="Report date (defaults to today)")
     ] = None,
 ):
-    """Get daily revenue report. Owner, manager, admin only.
+    """Get daily revenue report. Owner, admin only.
 
     Returns per-branch revenue for the requested day, month-to-date
     totals, plan progress, and network-wide aggregates.  If no stored
@@ -71,7 +71,7 @@ async def get_revenue_report(
 async def get_day_to_day_report(
     current_user: Annotated[
         User,
-        Depends(require_role(UserRole.OWNER, UserRole.MANAGER, UserRole.ADMIN)),
+        Depends(require_role(UserRole.OWNER, UserRole.ADMIN)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     target_date: Annotated[
@@ -81,7 +81,7 @@ async def get_day_to_day_report(
         uuid.UUID | None, Query(description="Branch filter (null = entire network)")
     ] = None,
 ):
-    """Get day-to-day month comparison report. Owner, manager, admin only."""
+    """Get day-to-day month comparison report. Owner, admin only."""
     report_date = target_date or date.today()
     report_service = ReportService(db=db)
 
@@ -104,14 +104,14 @@ async def get_day_to_day_report(
 async def get_clients_report(
     current_user: Annotated[
         User,
-        Depends(require_role(UserRole.OWNER, UserRole.MANAGER, UserRole.ADMIN)),
+        Depends(require_role(UserRole.OWNER, UserRole.ADMIN)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     target_date: Annotated[
         date | None, Query(description="Report date (defaults to today)")
     ] = None,
 ):
-    """Get client statistics report (new vs returning). Owner, manager, admin only."""
+    """Get client statistics report (new vs returning). Owner, admin only."""
     report_date = target_date or date.today()
     report_service = ReportService(db=db)
 
@@ -133,14 +133,14 @@ async def get_clients_report(
 async def get_bingo_report(
     current_user: Annotated[
         User,
-        Depends(require_role(UserRole.CHEF, UserRole.OWNER, UserRole.MANAGER, UserRole.ADMIN)),
+        Depends(require_role(UserRole.OWNER, UserRole.ADMIN)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     target_date: Annotated[
         date | None, Query(description="Report date (defaults to today)")
     ] = None,
 ):
-    """Get Barber Kombat daily standings (bingo view). Chef+ access."""
+    """Get Barber Kombat daily standings (bingo view). Owner/admin only."""
     report_date = target_date or date.today()
     report_service = ReportService(db=db)
 
@@ -161,14 +161,14 @@ async def get_bingo_report(
 async def get_bingo_monthly_report(
     current_user: Annotated[
         User,
-        Depends(require_role(UserRole.CHEF, UserRole.OWNER, UserRole.MANAGER, UserRole.ADMIN)),
+        Depends(require_role(UserRole.OWNER, UserRole.ADMIN)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     month: Annotated[
         date | None, Query(description="Month (first day, defaults to current month)")
     ] = None,
 ):
-    """Get Barber Kombat monthly summary. Chef+ access."""
+    """Get Barber Kombat monthly summary. Owner/admin only."""
     month_start = (month or date.today()).replace(day=1)
     report_service = ReportService(db=db)
 
@@ -182,7 +182,7 @@ async def get_bingo_monthly_report(
     return KombatMonthlyReport(**data)
 
 
-# --- Branch analytics (chef dashboard) ---
+# --- Branch analytics ---
 
 
 @router.get("/branch-analytics/{branch_id}", response_model=BranchAnalytics)
@@ -190,23 +190,14 @@ async def get_branch_analytics(
     branch_id: uuid.UUID,
     current_user: Annotated[
         User,
-        Depends(
-            require_role(UserRole.CHEF, UserRole.OWNER, UserRole.MANAGER, UserRole.ADMIN)
-        ),
+        Depends(require_role(UserRole.OWNER, UserRole.ADMIN)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     target_date: Annotated[
         date | None, Query(description="Report date (defaults to today)")
     ] = None,
 ):
-    """Get comprehensive branch analytics. Chef can only access own branch."""
-    # Chef can only view their own branch
-    if current_user.role == UserRole.CHEF and current_user.branch_id != branch_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Chef can only access own branch analytics",
-        )
-
+    """Get comprehensive branch analytics. Owner/admin only."""
     report_date = target_date or date.today()
     report_service = ReportService(db=db)
     data = await report_service.generate_branch_analytics(

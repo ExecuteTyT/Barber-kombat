@@ -280,12 +280,12 @@ async def get_standings(
 @router.get("/history/{branch_id}", response_model=HistoryResponse)
 async def get_history(
     branch_id: uuid.UUID,
-    current_user: Annotated[User, Depends(require_role(UserRole.CHEF, UserRole.OWNER))],
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
     date_from: Annotated[date, Query(description="Start date (YYYY-MM-DD)")],
     date_to: Annotated[date, Query(description="End date (YYYY-MM-DD)")],
 ):
-    """Get rating history for a branch. Chef and owner only."""
+    """Get rating history for a branch. Owner and admin only."""
     await _validate_branch(branch_id, current_user.organization_id, db)
 
     result = await db.execute(

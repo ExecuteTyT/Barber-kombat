@@ -13,11 +13,7 @@ import BarberLayout from './screens/barber/BarberLayout'
 import KombatScreen from './screens/barber/KombatScreen'
 import ProgressScreen from './screens/barber/ProgressScreen'
 import HistoryScreen from './screens/barber/HistoryScreen'
-import ChefLayout from './screens/chef/ChefLayout'
 import BranchScreen from './screens/chef/BranchScreen'
-import ChefAnalyticsScreen from './screens/chef/ChefAnalyticsScreen'
-import ChefKombatScreen from './screens/chef/ChefKombatScreen'
-import ChefPVRScreen from './screens/chef/ChefPVRScreen'
 import OwnerLayout from './screens/owner/OwnerLayout'
 import DashboardScreen from './screens/owner/DashboardScreen'
 import ReportsScreen from './screens/owner/ReportsScreen'
@@ -30,16 +26,13 @@ import AdminHistoryScreen from './screens/admin/AdminHistoryScreen'
 
 const DEFAULT_ROUTES: Record<string, string> = {
   barber: '/barber/kombat',
-  chef: '/chef/kombat',
   owner: '/owner/dashboard',
   admin: '/admin/metrics',
-  manager: '/chef/kombat',
 }
 
 /** Which roles are allowed to access each route section */
 const SECTION_ROLES: Record<string, UserRole[]> = {
   barber: ['barber'],
-  chef: ['chef', 'manager'],
   owner: ['owner'],
   admin: ['admin'],
 }
@@ -126,21 +119,6 @@ function AuthenticatedApp() {
             <Route path="kombat" element={<KombatScreen />} />
             <Route path="progress" element={<ProgressScreen />} />
             <Route path="history" element={<HistoryScreen />} />
-            <Route index element={<Navigate to="kombat" replace />} />
-          </Route>
-
-          <Route
-            path="/chef"
-            element={
-              <RoleGuard section="chef">
-                <ChefLayout />
-              </RoleGuard>
-            }
-          >
-            <Route path="kombat" element={<ChefKombatScreen />} />
-            <Route path="branch" element={<BranchScreen />} />
-            <Route path="pvr" element={<ChefPVRScreen />} />
-            <Route path="analytics" element={<ChefAnalyticsScreen />} />
             <Route index element={<Navigate to="kombat" replace />} />
           </Route>
 

@@ -6,18 +6,14 @@ import { useAuthStore } from '../stores/authStore'
 
 const ROLE_LABELS: Record<string, string> = {
   barber: 'Барбер',
-  chef: 'Шеф',
   owner: 'Владелец',
   admin: 'Администратор',
-  manager: 'Менеджер',
 }
 
 const ROLE_COLORS: Record<string, string> = {
   barber: 'bg-[var(--bk-gold)]/20 text-[var(--bk-gold)]',
-  chef: 'bg-[var(--bk-score-extras)]/20 text-[var(--bk-score-extras)]',
   owner: 'bg-[var(--bk-gold-bright)]/20 text-[var(--bk-gold-bright)]',
   admin: 'bg-[var(--bk-green)]/20 text-[var(--bk-green)]',
-  manager: 'bg-[var(--bk-silver)]/20 text-[var(--bk-silver)]',
 }
 
 export default function DevLoginScreen() {

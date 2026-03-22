@@ -154,7 +154,7 @@ async def submit_review(
 async def get_branch_reviews(
     branch_id: uuid.UUID,
     current_user: Annotated[
-        User, Depends(require_role(UserRole.CHEF, UserRole.OWNER, UserRole.ADMIN))
+        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
@@ -164,7 +164,7 @@ async def get_branch_reviews(
     page: Annotated[int, Query(ge=1)] = 1,
     per_page: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
-    """Get reviews for a branch with optional filters. Chef/owner/admin only."""
+    """Get reviews for a branch with optional filters. Owner/admin only."""
     await _validate_branch(branch_id, current_user.organization_id, db)
 
     review_service = ReviewService(db=db, redis=redis)
@@ -191,12 +191,12 @@ async def process_review(
     review_id: uuid.UUID,
     body: ReviewProcessRequest,
     current_user: Annotated[
-        User, Depends(require_role(UserRole.CHEF, UserRole.OWNER, UserRole.ADMIN))
+        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
-    """Process a review (change status, add comment). Chef/owner/admin only."""
+    """Process a review (change status, add comment). Owner/admin only."""
     review_service = ReviewService(db=db, redis=redis)
     review = await review_service.process_review(
         review_id=review_id,
@@ -219,19 +219,16 @@ async def process_review(
 @router.get("/alarum/feed", response_model=AlarumResponse)
 async def get_alarum(
     current_user: Annotated[
-        User, Depends(require_role(UserRole.CHEF, UserRole.OWNER, UserRole.ADMIN))
+        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
     """Get alarum feed: unprocessed negative reviews.
 
-    Owner/admin sees all branches. Chef sees only their branch.
+    Owner/admin sees all branches.
     """
-    # Chef only sees their branch
     branch_id = None
-    if current_user.role == UserRole.CHEF:
-        branch_id = current_user.branch_id
 
     review_service = ReviewService(db=db, redis=redis)
     reviews, total = await review_service.get_alarum(

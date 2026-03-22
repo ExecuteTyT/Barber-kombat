@@ -31,7 +31,7 @@ async def get_admin_metrics(
     branch_id: uuid.UUID,
     current_user: Annotated[
         User,
-        Depends(require_role(UserRole.ADMIN, UserRole.OWNER, UserRole.MANAGER)),
+        Depends(require_role(UserRole.ADMIN, UserRole.OWNER)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     target_date: Annotated[
@@ -49,7 +49,7 @@ async def get_admin_tasks(
     branch_id: uuid.UUID,
     current_user: Annotated[
         User,
-        Depends(require_role(UserRole.ADMIN, UserRole.OWNER, UserRole.MANAGER)),
+        Depends(require_role(UserRole.ADMIN, UserRole.OWNER)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -64,7 +64,7 @@ async def confirm_records(
     body: ConfirmRequest,
     current_user: Annotated[
         User,
-        Depends(require_role(UserRole.ADMIN, UserRole.OWNER, UserRole.MANAGER)),
+        Depends(require_role(UserRole.ADMIN, UserRole.OWNER)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -79,7 +79,7 @@ async def get_admin_history(
     branch_id: uuid.UUID,
     current_user: Annotated[
         User,
-        Depends(require_role(UserRole.ADMIN, UserRole.OWNER, UserRole.MANAGER)),
+        Depends(require_role(UserRole.ADMIN, UserRole.OWNER)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     month: Annotated[

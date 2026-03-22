@@ -85,7 +85,7 @@ async def dev_login(
 
     Use one of:
     - ``telegram_id``: login as specific user by their telegram_id
-    - ``role``: login as the first user with this role (owner/chef/barber/admin)
+    - ``role``: login as the first user with this role (owner/barber/admin)
     - neither: returns list of available demo users
     """
     if not settings.is_development:

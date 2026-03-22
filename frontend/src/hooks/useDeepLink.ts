@@ -15,9 +15,6 @@ function resolveDeepLink(startParam: string, role: UserRole): DeepLinkTarget | n
     switch (role) {
       case 'barber':
         return { path: '/barber/kombat' }
-      case 'chef':
-      case 'manager':
-        return { path: '/chef/kombat' }
       case 'owner':
         return { path: `/owner/branch/${branchId}` }
       case 'admin':
@@ -28,20 +25,15 @@ function resolveDeepLink(startParam: string, role: UserRole): DeepLinkTarget | n
   const reviewMatch = startParam.match(/^review_(.+)$/)
   if (reviewMatch) {
     const reviewId = reviewMatch[1]
-    switch (role) {
-      case 'chef':
-      case 'manager':
-        return { path: '/chef/branch', state: { reviewId } }
-      case 'owner':
-        return { path: '/owner/dashboard', state: { reviewId } }
-      default:
-        return null
+    if (role === 'owner') {
+      return { path: '/owner/dashboard', state: { reviewId } }
     }
+    return null
   }
 
   const reportMatch = startParam.match(/^report_([a-z-]+)_(\d{4}-\d{2}-\d{2})$/)
   if (reportMatch) {
-    if (role === 'owner' || role === 'manager') {
+    if (role === 'owner') {
       return { path: '/owner/reports', state: { reportType: reportMatch[1], reportDate: reportMatch[2] } }
     }
     return null

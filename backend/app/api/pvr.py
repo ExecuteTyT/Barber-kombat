@@ -53,7 +53,7 @@ async def _validate_branch(
 async def get_branch_pvr(
     branch_id: uuid.UUID,
     current_user: Annotated[
-        User, Depends(require_role(UserRole.CHEF, UserRole.OWNER, UserRole.ADMIN))
+        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
@@ -63,7 +63,7 @@ async def get_branch_pvr(
         pattern=r"^\d{4}-\d{2}$",
     ),
 ):
-    """Get PVR for all barbers in a branch. Chef, owner, admin only."""
+    """Get PVR for all barbers in a branch. Owner, admin only."""
     await _validate_branch(branch_id, current_user.organization_id, db)
 
     if month:
