@@ -219,13 +219,14 @@ class PVRService:
         self,
         branch_id: uuid.UUID,
         organization_id: uuid.UUID,
+        target_date: date | None = None,
     ) -> list[dict]:
-        """Get PVR data for all active barbers in a branch (current month).
+        """Get PVR data for all active barbers in a branch.
 
         If no pre-calculated PVR record exists for a barber, calculates
         live from visit data so the UI always shows current revenue.
         """
-        month_start = date.today().replace(day=1)
+        month_start = (target_date or date.today()).replace(day=1)
 
         result = await self.db.execute(
             select(User).where(

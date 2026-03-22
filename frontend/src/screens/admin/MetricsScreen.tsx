@@ -60,7 +60,7 @@ export default function MetricsScreen() {
       color: 'var(--bk-green)',
     },
     {
-      label: 'Заполненных ДР',
+      label: 'Заполненных дн. рожд.',
       value: `${metrics.filled_birthdays} / ${metrics.total_clients}`,
       hint: 'клиентов',
       icon: <IconGift size={24} className="text-[var(--bk-score-extras)]" />,

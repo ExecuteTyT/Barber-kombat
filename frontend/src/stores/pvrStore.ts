@@ -16,7 +16,7 @@ interface PVRState {
   error: string | null
 
   fetchBarberPvr: (barberId: string) => Promise<void>
-  fetchBranchPvr: (branchId: string) => Promise<void>
+  fetchBranchPvr: (branchId: string, month?: string) => Promise<void>
   fetchThresholds: () => Promise<void>
   reset: () => void
 }
@@ -38,10 +38,11 @@ export const usePvrStore = create<PVRState>((set) => ({
     }
   },
 
-  fetchBranchPvr: async (branchId: string) => {
+  fetchBranchPvr: async (branchId: string, month?: string) => {
     set({ isLoading: true, error: null })
     try {
-      const { data } = await api.get<BranchPVRResponse>(`/pvr/${branchId}/current`)
+      const params = month ? { month } : undefined
+      const { data } = await api.get<BranchPVRResponse>(`/pvr/${branchId}/current`, { params })
       set({ branchPvr: data, isLoading: false })
     } catch {
       set({ error: 'Не удалось загрузить данные по премиям филиала', isLoading: false })

@@ -2,11 +2,11 @@
 
 import uuid
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Optional
 
 import redis.asyncio as aioredis
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,15 +57,32 @@ async def get_branch_pvr(
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
+    month: Optional[str] = Query(
+        None,
+        description="Month in YYYY-MM format. Defaults to current month.",
+        pattern=r"^\d{4}-\d{2}$",
+    ),
 ):
     """Get PVR for all barbers in a branch. Chef, owner, admin only."""
     await _validate_branch(branch_id, current_user.organization_id, db)
 
-    pvr_service = PVRService(db=db, redis=redis)
-    barbers_data = await pvr_service.get_branch_pvr(branch_id, current_user.organization_id)
+    if month:
+        try:
+            target_date = date.fromisoformat(month + "-01")
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid month format. Use YYYY-MM.",
+            )
+        month_label = month
+    else:
+        target_date = date.today()
+        month_label = f"{target_date.year}-{target_date.month:02d}"
 
-    today = date.today()
-    month_label = f"{today.year}-{today.month:02d}"
+    pvr_service = PVRService(db=db, redis=redis)
+    barbers_data = await pvr_service.get_branch_pvr(
+        branch_id, current_user.organization_id, target_date=target_date,
+    )
 
     return BranchPVRResponse(
         branch_id=branch_id,

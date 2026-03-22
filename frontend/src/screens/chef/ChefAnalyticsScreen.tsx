@@ -184,7 +184,7 @@ export default function ChefAnalyticsScreen() {
             icon={<IconShoppingBag size={16} />}
           />
           <StatCell
-            label="Допуслуг"
+            label="Доп. услуги"
             value={String(analytics.total_extras_mtd)}
             icon={<IconGift size={16} />}
           />

@@ -38,7 +38,7 @@ type ReportType = 'revenue' | 'day-to-day' | 'clients'
 
 const REPORT_CARDS: { key: ReportType; label: string; desc: string }[] = [
   { key: 'revenue', label: 'Выручка по филиалам', desc: 'Дневная выручка, месяц и план' },
-  { key: 'day-to-day', label: 'Day-to-day', desc: 'Сравнение с предыдущими месяцами' },
+  { key: 'day-to-day', label: 'День за днём', desc: 'Сравнение с предыдущими месяцами' },
   { key: 'clients', label: 'Клиенты', desc: 'Удержание, средний чек, новые vs повторные' },
 ]
 

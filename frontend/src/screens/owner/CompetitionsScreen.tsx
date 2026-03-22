@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 
-import { MedalBadge } from '../../components/Icons'
+import { MedalBadge, IconArrowLeft, IconArrowRight } from '../../components/Icons'
+import InfoSheet, { InfoButton, InfoSection, InfoMetricRow } from '../../components/InfoSheet'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { useKombatStore } from '../../stores/kombatStore'
@@ -24,6 +25,24 @@ const SEGMENT_COLORS = [
 const SEGMENT_LABELS = ['Выручка', 'Ср. чек', 'Товары', 'Доп. услуги', 'Отзывы']
 
 type Tab = 'kombat' | 'pvr'
+
+function getCurrentMonth(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+function shiftMonth(month: string, delta: number): string {
+  const [y, m] = month.split('-').map(Number)
+  const d = new Date(y, m - 1 + delta, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+function formatMonthLabel(month: string): string {
+  return new Date(month + '-01').toLocaleDateString('ru-RU', {
+    month: 'long',
+    year: 'numeric',
+  })
+}
 
 function RatingRow({ entry, weights }: { entry: RatingEntry; weights: RatingWeights }) {
   const segments = [
@@ -96,12 +115,15 @@ function PVRRow({ barber }: { barber: BarberPVRResponse }) {
 export default function CompetitionsScreen() {
   const [tab, setTab] = useState<Tab>('kombat')
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null)
+  const [infoOpen, setInfoOpen] = useState(false)
+  const [pvrMonth, setPvrMonth] = useState(getCurrentMonth)
 
   const { revenue, fetchDashboard } = useOwnerStore()
   const { todayRating, fetchTodayRating, applyRatingUpdate } = useKombatStore()
   const { branchPvr, fetchBranchPvr, fetchThresholds } = usePvrStore()
 
   const branches = useMemo(() => revenue?.branches ?? [], [revenue])
+  const isCurrentMonth = pvrMonth === getCurrentMonth()
 
   useEffect(() => {
     if (!revenue) fetchDashboard()
@@ -116,10 +138,10 @@ export default function CompetitionsScreen() {
     if (tab === 'kombat') {
       fetchTodayRating(selectedBranchId)
     } else {
-      fetchBranchPvr(selectedBranchId)
+      fetchBranchPvr(selectedBranchId, pvrMonth)
       fetchThresholds()
     }
-  }, [selectedBranchId, tab, fetchTodayRating, fetchBranchPvr, fetchThresholds])
+  }, [selectedBranchId, tab, pvrMonth, fetchTodayRating, fetchBranchPvr, fetchThresholds])
 
   const handleWSMessage = useCallback(
     (message: WSMessage) => {
@@ -136,7 +158,10 @@ export default function CompetitionsScreen() {
 
   return (
     <div className="pb-4 pt-4">
-      <h1 className="bk-heading px-4 text-xl">Рейтинг и премии</h1>
+      <div className="flex items-center justify-between px-4">
+        <h1 className="bk-heading text-xl">Рейтинг и премии</h1>
+        <InfoButton onClick={() => setInfoOpen(true)} />
+      </div>
 
       {/* Tabs */}
       <div className="mx-4 mt-3 flex gap-2">
@@ -245,13 +270,26 @@ export default function CompetitionsScreen() {
           (branchPvr ? (
             <div className="bk-card overflow-hidden">
               <div className="px-3 pb-1 pt-3">
-                <span className="text-sm font-medium text-[var(--bk-text)]">
-                  Выручка и премии за{' '}
-                  {new Date(branchPvr.month + '-01').toLocaleDateString('ru-RU', {
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-                </span>
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--bk-text-secondary)] active:bg-[var(--bk-bg-elevated)]"
+                    onClick={() => setPvrMonth((m) => shiftMonth(m, -1))}
+                  >
+                    <IconArrowLeft size={16} />
+                  </button>
+                  <span className="text-sm font-medium text-[var(--bk-text)]">
+                    {formatMonthLabel(pvrMonth)}
+                  </span>
+                  <button
+                    type="button"
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--bk-text-secondary)] active:bg-[var(--bk-bg-elevated)] disabled:opacity-30"
+                    disabled={isCurrentMonth}
+                    onClick={() => setPvrMonth((m) => shiftMonth(m, 1))}
+                  >
+                    <IconArrowRight size={16} />
+                  </button>
+                </div>
                 <p className="mt-0.5 text-[10px] leading-relaxed text-[var(--bk-text-dim)]">
                   Накопительная выручка каждого барбера с 1-го числа. При достижении порога начисляется премия.
                 </p>
@@ -273,6 +311,73 @@ export default function CompetitionsScreen() {
             <LoadingSkeleton lines={6} />
           ))}
       </div>
+
+      <InfoSheet
+        open={infoOpen}
+        onClose={() => setInfoOpen(false)}
+        title={tab === 'kombat' ? 'Как работает рейтинг' : 'Как работают премии'}
+      >
+        {tab === 'kombat' ? (
+          <>
+            <InfoSection title="Система баллов">
+              Каждый рабочий день барберы соревнуются по 5 показателям. Лучший по каждому
+              получает максимальный балл, остальные — пропорционально. Итоговый балл (макс.
+              100) складывается из всех показателей.
+            </InfoSection>
+            <InfoSection title="Показатели">
+              <InfoMetricRow
+                color="bg-[var(--bk-score-revenue)]"
+                label="Выручка"
+                weight={40}
+                description="Общая выручка за день (без товаров)"
+              />
+              <InfoMetricRow
+                color="bg-[var(--bk-score-cs)]"
+                label="Средний чек"
+                weight={25}
+                description="Средняя сумма визита"
+              />
+              <InfoMetricRow
+                color="bg-[var(--bk-score-products)]"
+                label="Товары"
+                weight={15}
+                description="Количество проданных товаров"
+              />
+              <InfoMetricRow
+                color="bg-[var(--bk-score-extras)]"
+                label="Доп. услуги"
+                weight={10}
+                description="Количество дополнительных услуг"
+              />
+              <InfoMetricRow
+                color="bg-[var(--bk-score-reviews)]"
+                label="Отзывы"
+                weight={10}
+                description="Средняя оценка отзывов за день"
+              />
+            </InfoSection>
+            <InfoSection title="Призы">
+              По итогам дня три лучших барбера получают денежные призы: золото, серебро
+              и бронза. Размер призового фонда настраивается администратором.
+            </InfoSection>
+          </>
+        ) : (
+          <>
+            <InfoSection title="Накопительная выручка">
+              Система отслеживает общую выручку каждого барбера с 1-го числа месяца.
+              При достижении установленных порогов начисляется премия.
+            </InfoSection>
+            <InfoSection title="Пороги">
+              Администратор задаёт пороги выручки и размер премии за каждый порог.
+              Барбер может достичь нескольких порогов за месяц — премии суммируются.
+            </InfoSection>
+            <InfoSection title="Сброс">
+              Накопительная выручка обнуляется 1-го числа каждого месяца. Премии
+              начисляются заново.
+            </InfoSection>
+          </>
+        )}
+      </InfoSheet>
     </div>
   )
 }
