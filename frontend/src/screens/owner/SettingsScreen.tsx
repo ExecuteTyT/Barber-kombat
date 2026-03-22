@@ -562,8 +562,6 @@ function StaffSection() {
 
   const ROLE_LABELS: Record<UserRole, string> = {
     owner: 'Владелец',
-    manager: 'Управляющий',
-    chef: 'Шеф-барбер',
     barber: 'Барбер',
     admin: 'Администратор',
   }
