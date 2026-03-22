@@ -215,7 +215,7 @@ export default function CompetitionsScreen() {
             <div className="bk-card overflow-hidden">
               <div className="px-3 pb-1 pt-3">
                 <span className="text-sm font-medium text-[var(--bk-text-secondary)]">
-                  Премии \u{2022}{' '}
+                  Премии •{' '}
                   {new Date(branchPvr.month + '-01').toLocaleDateString('ru-RU', {
                     month: 'long',
                     year: 'numeric',
