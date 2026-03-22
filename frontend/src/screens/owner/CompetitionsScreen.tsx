@@ -21,6 +21,8 @@ const SEGMENT_COLORS = [
   'bg-[var(--bk-score-reviews)]',
 ]
 
+const SEGMENT_LABELS = ['Выручка', 'Ср. чек', 'Товары', 'Доп. услуги', 'Отзывы']
+
 type Tab = 'kombat' | 'pvr'
 
 function RatingRow({ entry, weights }: { entry: RatingEntry; weights: RatingWeights }) {
@@ -38,9 +40,14 @@ function RatingRow({ entry, weights }: { entry: RatingEntry; weights: RatingWeig
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between">
           <span className="truncate text-sm font-medium text-[var(--bk-text)]">{entry.name}</span>
-          <span className="ml-1 font-bold tabular-nums text-[var(--bk-text)]">
-            {entry.total_score.toFixed(1)}
-          </span>
+          <div className="ml-1 flex items-baseline gap-2">
+            <span className="text-xs tabular-nums text-[var(--bk-text-secondary)]">
+              {formatMoney(entry.revenue)}
+            </span>
+            <span className="font-bold tabular-nums text-[var(--bk-text)]">
+              {entry.total_score.toFixed(1)}
+            </span>
+          </div>
         </div>
         <div className="mt-0.5 flex h-1 gap-px overflow-hidden rounded-full">
           {segments.map((s, i) => (
@@ -58,26 +65,30 @@ function RatingRow({ entry, weights }: { entry: RatingEntry; weights: RatingWeig
 
 function PVRRow({ barber }: { barber: BarberPVRResponse }) {
   return (
-    <div className="flex items-center justify-between px-3 py-2.5">
-      <div className="min-w-0 flex-1">
+    <div className="px-3 py-2.5">
+      <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-[var(--bk-text)]">{barber.name}</span>
-        {barber.thresholds_reached.length > 0 && (
-          <span className="ml-1.5 inline-flex items-center gap-0.5 text-xs text-[var(--bk-gold)]">
-            <IconCheck size={12} />
-            {barber.thresholds_reached.length}
-          </span>
-        )}
-      </div>
-      <div className="text-right">
         <span className="text-sm font-bold tabular-nums text-[var(--bk-text)]">
           {formatMoney(barber.cumulative_revenue)}
         </span>
-        {barber.bonus_amount > 0 && (
-          <p className="text-xs font-semibold text-[var(--bk-gold)]">
-            +{formatMoney(barber.bonus_amount)}
-          </p>
-        )}
       </div>
+      {barber.bonus_amount > 0 && (
+        <div className="mt-1 flex items-center justify-between">
+          <span className="text-xs text-[var(--bk-text-dim)]">
+            Достигнут порог {formatMoney(barber.thresholds_reached[barber.thresholds_reached.length - 1] ?? 0)}
+          </span>
+          <span className="text-xs font-semibold text-[var(--bk-gold)]">
+            Премия: +{formatMoney(barber.bonus_amount)}
+          </span>
+        </div>
+      )}
+      {barber.bonus_amount === 0 && barber.next_threshold && barber.remaining_to_next !== null && (
+        <div className="mt-1">
+          <span className="text-xs text-[var(--bk-text-dim)]">
+            До премии ещё {formatMoney(barber.remaining_to_next)}
+          </span>
+        </div>
+      )}
     </div>
   )
 }
@@ -179,6 +190,17 @@ export default function CompetitionsScreen() {
                   </span>
                 )}
               </div>
+
+              {/* Legend */}
+              <div className="flex flex-wrap gap-x-3 gap-y-1 px-3 pb-2">
+                {SEGMENT_LABELS.map((label, i) => (
+                  <span key={label} className="flex items-center gap-1 text-[10px] text-[var(--bk-text-dim)]">
+                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${SEGMENT_COLORS[i]}`} />
+                    {label}
+                  </span>
+                ))}
+              </div>
+
               <div className="divide-y divide-[var(--bk-border)]">
                 {todayRating.ratings.map((r) => (
                   <RatingRow key={r.barber_id} entry={r} weights={todayRating.weights} />
@@ -189,8 +211,17 @@ export default function CompetitionsScreen() {
                   Данных за сегодня нет
                 </p>
               )}
+
+              {/* Explanation */}
+              <div className="border-t border-[var(--bk-border)] px-3 py-2">
+                <p className="text-[10px] leading-relaxed text-[var(--bk-text-dim)]">
+                  Баллы (макс. 100) складываются из 5 показателей. Лучший по каждому получает максимум, остальные — пропорционально.
+                </p>
+              </div>
+
               {/* Prize fund */}
-              <div className="flex justify-center gap-4 border-t border-[var(--bk-border)] px-3 py-3">
+              <div className="flex justify-center gap-4 border-t border-[var(--bk-border)] px-3 py-2">
+                <span className="text-[10px] text-[var(--bk-text-dim)]">Призы за день:</span>
                 {[
                   { rank: 1, v: todayRating.prize_fund.gold },
                   { rank: 2, v: todayRating.prize_fund.silver },
@@ -214,13 +245,16 @@ export default function CompetitionsScreen() {
           (branchPvr ? (
             <div className="bk-card overflow-hidden">
               <div className="px-3 pb-1 pt-3">
-                <span className="text-sm font-medium text-[var(--bk-text-secondary)]">
-                  Премии •{' '}
+                <span className="text-sm font-medium text-[var(--bk-text)]">
+                  Выручка и премии за{' '}
                   {new Date(branchPvr.month + '-01').toLocaleDateString('ru-RU', {
                     month: 'long',
                     year: 'numeric',
                   })}
                 </span>
+                <p className="mt-0.5 text-[10px] leading-relaxed text-[var(--bk-text-dim)]">
+                  Накопительная выручка каждого барбера с 1-го числа. При достижении порога начисляется премия.
+                </p>
               </div>
               <div className="divide-y divide-[var(--bk-border)]">
                 {[...branchPvr.barbers]
