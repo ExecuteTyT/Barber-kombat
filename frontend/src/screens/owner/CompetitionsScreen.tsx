@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 
-import { MedalBadge, IconCheck } from '../../components/Icons'
+import { MedalBadge } from '../../components/Icons'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { useKombatStore } from '../../stores/kombatStore'
@@ -75,7 +75,7 @@ function PVRRow({ barber }: { barber: BarberPVRResponse }) {
       {barber.bonus_amount > 0 && (
         <div className="mt-1 flex items-center justify-between">
           <span className="text-xs text-[var(--bk-text-dim)]">
-            Достигнут порог {formatMoney(barber.thresholds_reached[barber.thresholds_reached.length - 1] ?? 0)}
+            Достигнут порог {formatMoney(barber.thresholds_reached[barber.thresholds_reached.length - 1]?.amount ?? 0)}
           </span>
           <span className="text-xs font-semibold text-[var(--bk-gold)]">
             Премия: +{formatMoney(barber.bonus_amount)}
