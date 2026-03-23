@@ -182,7 +182,7 @@ function MonthStats({
   const stats = [
     {
       icon: <IconCrown size={16} className="text-[var(--bk-gold)]" />,
-      label: 'Побед в Комбате',
+      label: 'Первых мест',
       value: String(wins),
     },
     {
