@@ -67,4 +67,11 @@ celery_app.conf.beat_schedule = {
     },
 }
 
-celery_app.autodiscover_tasks(["app.tasks"])
+celery_app.conf.include = [
+    "app.tasks.sync_tasks",
+    "app.tasks.report_tasks",
+    "app.tasks.notification_tasks",
+    "app.tasks.review_tasks",
+    "app.tasks.webhook_tasks",
+    "app.tasks.monthly_reset_tasks",
+]
