@@ -73,7 +73,7 @@ def format_kombat_report(report_data: dict, branch_data: dict) -> str:
     standings = branch_data.get("standings", [])
 
     lines = [
-        f"\U0001f3c6 *BARBER KOMBAT* \u2014 {date_str}",
+        f"\U0001f3c6 *MAKON* \u2014 {date_str}",
         "",
     ]
 
@@ -106,7 +106,7 @@ def format_kombat_monthly(report_data: dict, branch_data: dict) -> str:
     standings = branch_data.get("standings", [])
 
     lines = [
-        "\U0001f3c6 *BARBER KOMBAT \u2014 \u0418\u0442\u043e\u0433\u0438 \u043c\u0435\u0441\u044f\u0446\u0430*",
+        "\U0001f3c6 *MAKON \u2014 \u0418\u0442\u043e\u0433\u0438 \u043c\u0435\u0441\u044f\u0446\u0430*",
         f"\U0001f4c5 {month}",
         "",
     ]

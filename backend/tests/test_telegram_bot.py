@@ -217,7 +217,7 @@ class TestFormatKombatReport:
         branch = data["branches"][0]
         text = format_kombat_report(data, branch)
 
-        assert "BARBER KOMBAT" in text
+        assert "MAKON" in text
         assert "2026\\-02\\-22" in text
         assert "Павел" in text
 
@@ -243,7 +243,7 @@ class TestFormatKombatReport:
         branch = data["branches"][0]
         text = format_kombat_report(data, branch)
 
-        assert "BARBER KOMBAT" in text
+        assert "MAKON" in text
         # Should show "no data" message in Russian
         assert "\u043d\u0435\u0442" in text.lower() or "\u041d\u0435\u0442" in text
 
