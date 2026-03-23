@@ -313,13 +313,16 @@ export default function HistoryScreen() {
           <h3 className="bk-heading text-base">Итоги месяца</h3>
           <div className="mt-3 space-y-2.5 text-sm">
             {[
-              { label: 'Побед', value: String(barberStats.wins) },
-              { label: 'Средний рейтинг', value: barberStats.avg_score.toFixed(1) },
-              { label: 'Выручка', value: formatMoney(barberStats.total_revenue) },
-              { label: 'Средний чек', value: `×${barberStats.avg_cs.toFixed(2)}` },
+              { label: 'Первых мест', hint: 'дней на 1-м месте', value: String(barberStats.wins) },
+              { label: 'Средний балл', hint: 'из 100 за день', value: barberStats.avg_score.toFixed(1) },
+              { label: 'Выручка', hint: null, value: formatMoney(barberStats.total_revenue) },
+              { label: 'Средний чек', hint: barberStats.avg_cs >= 1 ? 'выше базовой стрижки' : 'ниже базовой стрижки', value: `×${barberStats.avg_cs.toFixed(2)}` },
             ].map((s) => (
-              <div key={s.label} className="flex justify-between">
-                <span className="text-[var(--bk-text-secondary)]">{s.label}</span>
+              <div key={s.label} className="flex justify-between items-center">
+                <div>
+                  <span className="text-[var(--bk-text-secondary)]">{s.label}</span>
+                  {s.hint && <p className="text-[10px] leading-tight text-[var(--bk-text-dim)]">{s.hint}</p>}
+                </div>
                 <span className="font-bold tabular-nums text-[var(--bk-text)]">{s.value}</span>
               </div>
             ))}

@@ -183,16 +183,23 @@ function MonthStats({
     {
       icon: <IconCrown size={16} className="text-[var(--bk-gold)]" />,
       label: 'Первых мест',
+      hint: 'дней на 1-м месте в рейтинге',
       value: String(wins),
     },
     {
       icon: <IconFlame size={16} className="text-[var(--bk-score-cs)]" />,
-      label: 'Средний рейтинг',
+      label: 'Средний балл',
+      hint: 'из 100 возможных за день',
       value: avgScore.toFixed(1),
     },
-    { icon: null, label: 'Средний чек', value: `×${avgCs.toFixed(2)}` },
-    { icon: null, label: 'Товаров продано', value: String(totalProducts) },
-    { icon: null, label: 'Доп. услуг оказано', value: String(totalExtras) },
+    {
+      icon: null,
+      label: 'Средний чек',
+      hint: avgCs >= 1 ? 'выше базовой стрижки' : 'ниже базовой стрижки',
+      value: `×${avgCs.toFixed(2)}`,
+    },
+    { icon: null, label: 'Товаров продано', hint: null, value: String(totalProducts) },
+    { icon: null, label: 'Доп. услуг оказано', hint: null, value: String(totalExtras) },
   ]
 
   return (
@@ -201,10 +208,15 @@ function MonthStats({
       <div className="mt-3 space-y-3">
         {stats.map((s) => (
           <div key={s.label} className="flex items-center justify-between">
-            <span className="flex items-center gap-2 text-sm text-[var(--bk-text-secondary)]">
-              {s.icon}
-              {s.label}
-            </span>
+            <div className="flex items-center gap-2">
+              {s.icon && <span className="flex-shrink-0">{s.icon}</span>}
+              <div>
+                <span className="text-sm text-[var(--bk-text-secondary)]">{s.label}</span>
+                {s.hint && (
+                  <p className="text-[10px] leading-tight text-[var(--bk-text-dim)]">{s.hint}</p>
+                )}
+              </div>
+            </div>
             <span className="font-bold tabular-nums text-[var(--bk-text)]">{s.value}</span>
           </div>
         ))}
