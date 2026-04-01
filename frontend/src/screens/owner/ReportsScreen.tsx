@@ -147,12 +147,20 @@ function DayToDayChart() {
 
   if (!dayToDay) return null
 
-  const chartData = dayToDay.current_month.daily_cumulative.map((p) => {
-    const prev = dayToDay.prev_month.daily_cumulative.find((d) => d.day === p.day)
-    const prevPrev = dayToDay.prev_prev_month.daily_cumulative.find((d) => d.day === p.day)
+  // Build chart from all available days across all 3 months
+  const allDays = new Set<number>()
+  dayToDay.current_month.daily_cumulative.forEach((d) => allDays.add(d.day))
+  dayToDay.prev_month.daily_cumulative.forEach((d) => allDays.add(d.day))
+  dayToDay.prev_prev_month.daily_cumulative.forEach((d) => allDays.add(d.day))
+  const sortedDays = Array.from(allDays).sort((a, b) => a - b)
+
+  const chartData = sortedDays.map((day) => {
+    const cur = dayToDay.current_month.daily_cumulative.find((d) => d.day === day)
+    const prev = dayToDay.prev_month.daily_cumulative.find((d) => d.day === day)
+    const prevPrev = dayToDay.prev_prev_month.daily_cumulative.find((d) => d.day === day)
     return {
-      day: p.day,
-      [dayToDay.current_month.name]: p.amount,
+      day,
+      [dayToDay.current_month.name]: cur?.amount ?? null,
       [dayToDay.prev_month.name]: prev?.amount ?? null,
       [dayToDay.prev_prev_month.name]: prevPrev?.amount ?? null,
     }

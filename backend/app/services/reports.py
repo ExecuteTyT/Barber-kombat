@@ -127,6 +127,12 @@ class ReportService:
         prev_prev_month_start = _prev_month(prev_month_start)
 
         day_num = target_date.day
+        # Full month lengths for previous months
+        import calendar
+        prev_month_days = calendar.monthrange(prev_month_start.year, prev_month_start.month)[1]
+        prev_prev_month_days = calendar.monthrange(
+            prev_prev_month_start.year, prev_prev_month_start.month
+        )[1]
 
         # Get branches to sum over
         if branch_id:
@@ -135,20 +141,27 @@ class ReportService:
             branches = await self._get_active_branches(organization_id)
             branch_ids = [b.id for b in branches]
 
-        # Build cumulative data for each month
+        # Build cumulative data: current month up to today, previous months in full
         current_cumulative = await self._daily_cumulative(branch_ids, current_month_start, day_num)
-        prev_cumulative = await self._daily_cumulative(branch_ids, prev_month_start, day_num)
+        prev_cumulative = await self._daily_cumulative(
+            branch_ids, prev_month_start, prev_month_days
+        )
         prev_prev_cumulative = await self._daily_cumulative(
-            branch_ids, prev_prev_month_start, day_num
+            branch_ids, prev_prev_month_start, prev_prev_month_days
         )
 
-        # Comparison percentages
+        # Comparison percentages: compare current total to same day in previous months
         current_total = current_cumulative[-1]["amount"] if current_cumulative else 0
-        prev_total = prev_cumulative[-1]["amount"] if prev_cumulative else 0
-        prev_prev_total = prev_prev_cumulative[-1]["amount"] if prev_prev_cumulative else 0
+        # Find same day_num in previous months for fair comparison
+        prev_same_day = next(
+            (d["amount"] for d in prev_cumulative if d["day"] == day_num), 0
+        )
+        prev_prev_same_day = next(
+            (d["amount"] for d in prev_prev_cumulative if d["day"] == day_num), 0
+        )
 
-        vs_prev = _pct_change(current_total, prev_total)
-        vs_prev_prev = _pct_change(current_total, prev_prev_total)
+        vs_prev = _pct_change(current_total, prev_same_day)
+        vs_prev_prev = _pct_change(current_total, prev_prev_same_day)
 
         report_data = {
             "branch_id": str(branch_id) if branch_id else None,
