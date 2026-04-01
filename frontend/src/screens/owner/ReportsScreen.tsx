@@ -200,24 +200,28 @@ function DayToDayChart() {
             type="monotone"
             dataKey={dayToDay.current_month.name}
             stroke="var(--bk-gold)"
-            strokeWidth={2}
-            dot={false}
+            strokeWidth={2.5}
+            dot={{ r: 2, fill: 'var(--bk-gold)' }}
+            activeDot={{ r: 5 }}
+            connectNulls={false}
           />
           <Line
             type="monotone"
             dataKey={dayToDay.prev_month.name}
-            stroke="var(--bk-score-cs)"
-            strokeWidth={1.5}
-            strokeDasharray="4 4"
+            stroke="#3b82f6"
+            strokeWidth={2}
+            strokeDasharray="6 3"
             dot={false}
+            activeDot={{ r: 4 }}
           />
           <Line
             type="monotone"
             dataKey={dayToDay.prev_prev_month.name}
-            stroke="var(--bk-text-dim)"
-            strokeWidth={1}
-            strokeDasharray="2 2"
+            stroke="#a78bfa"
+            strokeWidth={1.5}
+            strokeDasharray="3 3"
             dot={false}
+            activeDot={{ r: 4 }}
           />
         </LineChart>
       </ResponsiveContainer>
