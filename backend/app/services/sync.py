@@ -238,39 +238,49 @@ class SyncService:
         records = await self.yclients.get_records(branch.yclients_company_id, date_from, date_to)
 
         synced = 0
+        skipped = 0
         for record in records:
+            # SAVEPOINT per record: if the upsert of one record raises
+            # (FK violation, integrity error, Pydantic coercion failure, ...)
+            # the outer transaction stays valid and we keep processing the
+            # rest of the batch. Without this a single bad record poisons
+            # the whole sync with PendingRollbackError.
             try:
-                # Resolve barber
-                barber = await self._resolve_barber(record.staff_id, organization_id)
-                if barber is None:
-                    await logger.awarning(
-                        "Barber not found, skipping record",
-                        staff_id=record.staff_id,
-                        record_id=record.id,
+                async with self.db.begin_nested():
+                    # Resolve barber
+                    barber = await self._resolve_barber(
+                        record.staff_id, organization_id
                     )
-                    continue
+                    if barber is None:
+                        await logger.awarning(
+                            "Barber not found, skipping record",
+                            staff_id=record.staff_id,
+                            record_id=record.id,
+                        )
+                        skipped += 1
+                        continue
 
-                # Resolve client
-                client_id = None
-                if record.client:
-                    client_id = await self._upsert_client(
+                    # Resolve client
+                    client_id = None
+                    if record.client:
+                        client_id = await self._upsert_client(
+                            organization_id=organization_id,
+                            yclients_client_id=record.client.id,
+                            name=record.client.name,
+                            phone=record.client.phone,
+                        )
+
+                    visit_data = map_record_to_visit_dict(
+                        record=record,
                         organization_id=organization_id,
-                        yclients_client_id=record.client.id,
-                        name=record.client.name,
-                        phone=record.client.phone,
+                        branch_id=branch_id,
+                        barber_id=barber.id,
+                        client_id=client_id,
+                        extra_services_list=extra_services,
                     )
 
-                visit_data = map_record_to_visit_dict(
-                    record=record,
-                    organization_id=organization_id,
-                    branch_id=branch_id,
-                    barber_id=barber.id,
-                    client_id=client_id,
-                    extra_services_list=extra_services,
-                )
-
-                await self._upsert_visit(visit_data)
-                synced += 1
+                    await self._upsert_visit(visit_data)
+                    synced += 1
 
             except Exception:
                 await logger.aexception(
@@ -286,6 +296,7 @@ class SyncService:
             date_to=str(date_to),
             total=len(records),
             synced=synced,
+            skipped=skipped,
         )
         return synced
 

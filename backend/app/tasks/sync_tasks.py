@@ -19,12 +19,13 @@ async def _poll_all_branches() -> dict:
 
     Returns a summary dict with total synced count.
     """
-    from app.database import async_session
+    from app.database import task_sessionmaker
     from app.integrations.yclients.client import YClientsClient
     from app.models.branch import Branch
     from app.redis import redis_client
     from app.services.plans import PlanService
     from app.services.pvr import PVRService
+    from app.services.rating import RatingEngine
     from app.services.sync import SyncService
 
     today = date.today()
@@ -34,63 +35,76 @@ async def _poll_all_branches() -> dict:
 
     yclients = YClientsClient()
     try:
-        async with async_session() as db:
-            result = await db.execute(
-                select(Branch).where(
-                    Branch.is_active.is_(True),
-                    Branch.yclients_company_id.isnot(None),
+        async with task_sessionmaker() as Session:
+            # Load branches in a short-lived session so the connection doesn't
+            # stay open across the whole polling cycle.
+            async with Session() as db:
+                result = await db.execute(
+                    select(Branch).where(
+                        Branch.is_active.is_(True),
+                        Branch.yclients_company_id.isnot(None),
+                    )
                 )
-            )
-            branches = result.scalars().all()
-
-            sync_service = SyncService(db=db, yclients=yclients)
+                branches = result.scalars().all()
 
             for branch in branches:
-                try:
-                    synced = await sync_service.sync_records(branch.id, today, today)
-                    total_synced += synced
-                    branches_processed += 1
-
-                    if synced > 0:
-                        logger.info(
-                            "Polling: records synced for branch",
-                            branch_id=str(branch.id),
-                            branch_name=branch.name,
-                            synced=synced,
+                # Fresh session per branch: one broken record must not poison
+                # the transaction for the rest of the branches.
+                async with Session() as db:
+                    try:
+                        sync_service = SyncService(db=db, yclients=yclients)
+                        synced = await sync_service.sync_records(
+                            branch.id, today, today
                         )
+                        total_synced += synced
+                        branches_processed += 1
 
-                        # Recalculate PVR for all barbers in this branch
-                        pvr_service = PVRService(db=db, redis=redis_client)
-                        await pvr_service.recalculate_branch(branch.id, today)
-                        await logger.ainfo(
-                            "PVR recalculated for branch after polling",
+                        if synced > 0:
+                            await logger.ainfo(
+                                "Polling: records synced for branch",
+                                branch_id=str(branch.id),
+                                branch_name=branch.name,
+                                synced=synced,
+                            )
+
+                            # Cascade recalculations — each wrapped so one
+                            # failure does not skip the others.
+                            try:
+                                pvr_service = PVRService(db=db, redis=redis_client)
+                                await pvr_service.recalculate_branch(branch.id, today)
+                            except Exception:
+                                await logger.aexception(
+                                    "Polling: PVR recalculation failed",
+                                    branch_id=str(branch.id),
+                                )
+
+                            try:
+                                plan_service = PlanService(db=db, redis=redis_client)
+                                await plan_service.update_progress(branch.id)
+                            except Exception:
+                                await logger.aexception(
+                                    "Polling: plan progress update failed",
+                                    branch_id=str(branch.id),
+                                )
+
+                            try:
+                                rating_engine = RatingEngine(
+                                    db=db, redis=redis_client
+                                )
+                                await rating_engine.recalculate(branch.id, today)
+                            except Exception:
+                                await logger.aexception(
+                                    "Polling: rating recalculation failed",
+                                    branch_id=str(branch.id),
+                                )
+
+                    except Exception:
+                        errors += 1
+                        await db.rollback()
+                        await logger.aexception(
+                            "Polling: error syncing branch",
                             branch_id=str(branch.id),
                         )
-
-                        # Update plan progress for this branch
-                        plan_service = PlanService(db=db, redis=redis_client)
-                        await plan_service.update_progress(branch.id)
-                        await logger.ainfo(
-                            "Plan progress updated for branch after polling",
-                            branch_id=str(branch.id),
-                        )
-
-                        # Recalculate daily rating for this branch
-                        from app.services.rating import RatingEngine
-
-                        rating_engine = RatingEngine(db=db, redis=redis_client)
-                        await rating_engine.recalculate(branch.id, today)
-                        await logger.ainfo(
-                            "Rating recalculated for branch after polling",
-                            branch_id=str(branch.id),
-                        )
-
-                except Exception:
-                    errors += 1
-                    logger.exception(
-                        "Polling: error syncing branch",
-                        branch_id=str(branch.id),
-                    )
     finally:
         await yclients.close()
 
@@ -99,7 +113,7 @@ async def _poll_all_branches() -> dict:
         "total_synced": total_synced,
         "errors": errors,
     }
-    logger.info("Polling completed", **summary)
+    await logger.ainfo("Polling completed", **summary)
     return summary
 
 
@@ -112,12 +126,15 @@ async def _full_sync_all_branches() -> dict:
 
     Returns a summary dict.
     """
-    from app.database import async_session
+    from app.database import task_sessionmaker
     from app.integrations.yclients.client import YClientsClient
     from app.models.branch import Branch
+    from app.models.organization import Organization
     from app.redis import redis_client
     from app.services.plans import PlanService
     from app.services.pvr import PVRService
+    from app.services.rating import RatingEngine
+    from app.services.reports import ReportService
     from app.services.sync import SyncService
 
     yesterday = date.today() - timedelta(days=1)
@@ -128,109 +145,109 @@ async def _full_sync_all_branches() -> dict:
 
     yclients = YClientsClient()
     try:
-        async with async_session() as db:
-            result = await db.execute(
-                select(Branch).where(
-                    Branch.is_active.is_(True),
-                    Branch.yclients_company_id.isnot(None),
+        async with task_sessionmaker() as Session:
+            async with Session() as db:
+                result = await db.execute(
+                    select(Branch).where(
+                        Branch.is_active.is_(True),
+                        Branch.yclients_company_id.isnot(None),
+                    )
                 )
-            )
-            branches = result.scalars().all()
-
-            sync_service = SyncService(db=db, yclients=yclients)
-            pvr_service = PVRService(db=db, redis=redis_client)
+                branches = result.scalars().all()
 
             for branch in branches:
-                try:
-                    # Sync staff first (catch new hires / fired)
-                    s_count = await sync_service.sync_staff(branch.id)
-                    staff_synced += s_count
+                async with Session() as db:
+                    try:
+                        sync_service = SyncService(db=db, yclients=yclients)
 
-                    # Sync all records from yesterday
-                    r_count = await sync_service.sync_records(branch.id, yesterday, yesterday)
-                    total_synced += r_count
-                    branches_processed += 1
+                        # Sync staff first (catch new hires / fired)
+                        s_count = await sync_service.sync_staff(branch.id)
+                        staff_synced += s_count
 
-                    logger.info(
-                        "Full sync: branch completed",
-                        branch_id=str(branch.id),
-                        branch_name=branch.name,
-                        staff_synced=s_count,
-                        records_synced=r_count,
-                    )
+                        # Sync all records from yesterday
+                        r_count = await sync_service.sync_records(
+                            branch.id, yesterday, yesterday
+                        )
+                        total_synced += r_count
+                        branches_processed += 1
 
-                except Exception:
-                    errors += 1
-                    logger.exception(
-                        "Full sync: error syncing branch",
-                        branch_id=str(branch.id),
-                    )
+                        await logger.ainfo(
+                            "Full sync: branch completed",
+                            branch_id=str(branch.id),
+                            branch_name=branch.name,
+                            staff_synced=s_count,
+                            records_synced=r_count,
+                        )
 
-            # Recalculate PVR for all branches (current month)
+                    except Exception:
+                        errors += 1
+                        await db.rollback()
+                        await logger.aexception(
+                            "Full sync: error syncing branch",
+                            branch_id=str(branch.id),
+                        )
+
+            # Recalculate PVR / plans / ratings — each in its own session so a
+            # single failure does not cascade.
             for branch in branches:
-                try:
-                    await pvr_service.recalculate_branch(branch.id, date.today())
-                except Exception:
-                    await logger.aexception(
-                        "Full sync: PVR recalculation failed",
-                        branch_id=str(branch.id),
-                    )
-            await logger.ainfo(
-                "PVR recalculated for all branches after full sync",
-                branches=len(branches),
-            )
+                async with Session() as db:
+                    try:
+                        pvr_service = PVRService(db=db, redis=redis_client)
+                        await pvr_service.recalculate_branch(branch.id, date.today())
+                    except Exception:
+                        await db.rollback()
+                        await logger.aexception(
+                            "Full sync: PVR recalculation failed",
+                            branch_id=str(branch.id),
+                        )
 
-            # Update plan progress for all branches
-            plan_service = PlanService(db=db, redis=redis_client)
-            for branch in branches:
-                try:
-                    await plan_service.update_progress(branch.id)
-                except Exception:
-                    await logger.aexception(
-                        "Full sync: plan progress update failed",
-                        branch_id=str(branch.id),
-                    )
-            await logger.ainfo(
-                "Plan progress updated for all branches after full sync",
-                branches=len(branches),
-            )
+                async with Session() as db:
+                    try:
+                        plan_service = PlanService(db=db, redis=redis_client)
+                        await plan_service.update_progress(branch.id)
+                    except Exception:
+                        await db.rollback()
+                        await logger.aexception(
+                            "Full sync: plan progress update failed",
+                            branch_id=str(branch.id),
+                        )
 
-            # Recalculate ratings for yesterday for all branches
-            from app.services.rating import RatingEngine
-
-            rating_engine = RatingEngine(db=db, redis=redis_client)
-            for branch in branches:
-                try:
-                    await rating_engine.recalculate(branch.id, yesterday)
-                except Exception:
-                    await logger.aexception(
-                        "Full sync: rating recalculation failed",
-                        branch_id=str(branch.id),
-                    )
-            await logger.ainfo(
-                "Ratings recalculated for all branches after full sync",
-                date=str(yesterday),
-            )
+                async with Session() as db:
+                    try:
+                        rating_engine = RatingEngine(db=db, redis=redis_client)
+                        await rating_engine.recalculate(branch.id, yesterday)
+                    except Exception:
+                        await db.rollback()
+                        await logger.aexception(
+                            "Full sync: rating recalculation failed",
+                            branch_id=str(branch.id),
+                        )
 
             # Generate daily reports for yesterday's data
-            from app.models.organization import Organization
-            from app.services.reports import ReportService
-
-            org_result = await db.execute(
-                select(Organization.id).where(Organization.is_active.is_(True))
-            )
-            org_ids = org_result.scalars().all()
-            for org_id in org_ids:
+            async with Session() as db:
                 try:
-                    report_svc = ReportService(db=db)
-                    await report_svc.generate_daily_revenue(org_id, yesterday)
-                    await report_svc.generate_clients_report(org_id, yesterday)
-                    await report_svc.generate_kombat_daily(org_id, yesterday)
-                except Exception:
-                    await logger.aexception(
-                        "Full sync: report generation failed",
-                        org_id=str(org_id),
+                    org_result = await db.execute(
+                        select(Organization.id).where(Organization.is_active.is_(True))
                     )
+                    org_ids = org_result.scalars().all()
+                except Exception:
+                    org_ids = []
+                    await logger.aexception("Full sync: failed to load organizations")
+
+            for org_id in org_ids:
+                async with Session() as db:
+                    try:
+                        report_svc = ReportService(db=db)
+                        await report_svc.generate_daily_revenue(org_id, yesterday)
+                        await report_svc.generate_clients_report(org_id, yesterday)
+                        await report_svc.generate_kombat_daily(org_id, yesterday)
+                    except Exception:
+                        await db.rollback()
+                        await logger.aexception(
+                            "Full sync: report generation failed",
+                            org_id=str(org_id),
+                        )
+
             await logger.ainfo(
                 "Reports generated after full sync",
                 date=str(yesterday),
@@ -245,15 +262,15 @@ async def _full_sync_all_branches() -> dict:
         "staff_synced": staff_synced,
         "errors": errors,
     }
-    logger.info("Full sync completed", **summary)
+    await logger.ainfo("Full sync completed", **summary)
     return summary
 
 
 @celery_app.task(
     name="poll_yclients",
     bind=True,
-    max_retries=1,
-    default_retry_delay=120,
+    max_retries=3,
+    default_retry_delay=60,
 )
 def poll_yclients(self) -> dict:
     """Periodic task: poll YClients every 10 minutes."""
@@ -268,7 +285,7 @@ def poll_yclients(self) -> dict:
 @celery_app.task(
     name="full_sync_yclients",
     bind=True,
-    max_retries=1,
+    max_retries=2,
     default_retry_delay=300,
 )
 def full_sync_yclients(self) -> dict:
