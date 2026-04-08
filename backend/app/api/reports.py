@@ -85,11 +85,20 @@ async def get_day_to_day_report(
     report_date = target_date or date.today()
     report_service = ReportService(db=db)
 
-    report = await report_service.get_report(
-        current_user.organization_id, "day_to_day", report_date, branch_id
+    # The scheduled day_to_day task only runs once a day (11:00 MSK), but
+    # visits are synced every 10 minutes. For the current month we always
+    # regenerate so the chart reflects the latest visits. Historical months
+    # are served from cache.
+    today = date.today()
+    is_current_month = (
+        report_date.year == today.year and report_date.month == today.month
     )
-    if report and report.data:
-        return DayToDayReport(**report.data)
+    if not is_current_month:
+        report = await report_service.get_report(
+            current_user.organization_id, "day_to_day", report_date, branch_id
+        )
+        if report and report.data:
+            return DayToDayReport(**report.data)
 
     data = await report_service.generate_day_to_day(
         current_user.organization_id, report_date, branch_id

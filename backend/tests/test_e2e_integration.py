@@ -10,6 +10,7 @@ Covers full lifecycle flows:
 
 import json
 import uuid
+from contextlib import asynccontextmanager
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -29,6 +30,7 @@ BARBER_ID_3 = uuid.uuid4()
 
 # Patch targets — always patch at source module for lazy imports
 PATCH_SESSION = "app.database.async_session"
+PATCH_TASK_SESSIONMAKER = "app.database.task_sessionmaker"
 PATCH_YCLIENTS = "app.integrations.yclients.client.YClientsClient"
 PATCH_SYNC = "app.services.sync.SyncService"
 PATCH_PLAN = "app.services.plans.PlanService"
@@ -38,6 +40,34 @@ PATCH_REPORT_SVC = "app.services.reports.ReportService"
 PATCH_RATING_ENGINE = "app.services.rating.RatingEngine"
 PATCH_BOT = "app.integrations.telegram.bot.TelegramBot"
 PATCH_MONTHLY_RESET = "app.services.monthly_reset.MonthlyResetService"
+
+
+def make_task_sessionmaker_mock(mock_db):
+    """Build a drop-in replacement for `app.database.task_sessionmaker`.
+
+    The real implementation is an async context manager that yields an
+    `async_sessionmaker`. Callers do::
+
+        async with task_sessionmaker() as Session:
+            async with Session() as db:
+                ...
+
+    For tests we want every `Session()` call to resolve to the same
+    `mock_db`, so we return a factory whose context yields a callable
+    session factory.
+    """
+
+    @asynccontextmanager
+    async def fake_task_sessionmaker():
+        def session_factory():
+            mgr = MagicMock()
+            mgr.__aenter__ = AsyncMock(return_value=mock_db)
+            mgr.__aexit__ = AsyncMock(return_value=False)
+            return mgr
+
+        yield session_factory
+
+    return fake_task_sessionmaker
 
 # ---------------------------------------------------------------------------
 # Helper factories
@@ -188,13 +218,20 @@ class TestWebhookSyncRatingFlow:
     """Full cycle: YClients webhook triggers sync, rating recalc, WS push."""
 
     @pytest.mark.asyncio
+    @patch(PATCH_PVR)
     @patch(PATCH_RATING_ENGINE)
     @patch(PATCH_PLAN)
     @patch(PATCH_YCLIENTS)
-    @patch(PATCH_SESSION)
+    @patch(PATCH_TASK_SESSIONMAKER)
     @patch(PATCH_SYNC)
     async def test_poll_syncs_then_triggers_pvr_and_plan(
-        self, mock_sync_cls, mock_session_cls, mock_yclients_cls, mock_plan_cls, mock_rating_cls
+        self,
+        mock_sync_cls,
+        mock_task_sessionmaker,
+        mock_yclients_cls,
+        mock_plan_cls,
+        mock_rating_cls,
+        mock_pvr_cls,
     ):
         """After sync, PVR recalc and plan update are triggered for each branch."""
         from app.tasks.sync_tasks import _poll_all_branches
@@ -202,9 +239,7 @@ class TestWebhookSyncRatingFlow:
         branch = make_branch(branch_id=BRANCH_ID, org_id=ORG_ID)
         mock_db = mock_db_session()
         mock_db.execute = AsyncMock(return_value=db_result_list([branch]))
-
-        mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
-        mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_task_sessionmaker.side_effect = make_task_sessionmaker_mock(mock_db)
 
         mock_yclients = AsyncMock()
         mock_yclients_cls.return_value = mock_yclients
@@ -217,6 +252,10 @@ class TestWebhookSyncRatingFlow:
         mock_plan.update_progress = AsyncMock()
         mock_plan_cls.return_value = mock_plan
 
+        mock_pvr = AsyncMock()
+        mock_pvr.recalculate_branch = AsyncMock()
+        mock_pvr_cls.return_value = mock_pvr
+
         mock_rating = AsyncMock()
         mock_rating.recalculate = AsyncMock(return_value=[])
         mock_rating_cls.return_value = mock_rating
@@ -226,6 +265,7 @@ class TestWebhookSyncRatingFlow:
         assert result["branches_processed"] == 1
         assert result["total_synced"] == 5
         mock_sync.sync_records.assert_awaited_once()
+        mock_pvr.recalculate_branch.assert_awaited_once()
         mock_plan.update_progress.assert_awaited_once()
         mock_rating.recalculate.assert_awaited_once()
         mock_yclients.close.assert_called_once()
@@ -233,26 +273,29 @@ class TestWebhookSyncRatingFlow:
     @pytest.mark.asyncio
     @patch(PATCH_PLAN)
     @patch(PATCH_YCLIENTS)
-    @patch(PATCH_SESSION)
+    @patch(PATCH_TASK_SESSIONMAKER)
     @patch(PATCH_SYNC)
     async def test_full_sync_generates_reports_after_sync(
-        self, mock_sync_cls, mock_session_cls, mock_yclients_cls, mock_plan_cls
+        self,
+        mock_sync_cls,
+        mock_task_sessionmaker,
+        mock_yclients_cls,
+        mock_plan_cls,
     ):
         """Full sync should call report generation for all orgs after syncing."""
         from app.tasks.sync_tasks import _full_sync_all_branches
 
         branch = make_branch(branch_id=BRANCH_ID, org_id=ORG_ID)
 
-        # First execute: branches query; second: org IDs for reports
+        # Execute is called twice: branches query, then org IDs query. All
+        # subsequent DB interactions go through the mocked service classes.
         branches_result = db_result_list([branch])
         org_ids_result = MagicMock()
         org_ids_result.scalars.return_value.all.return_value = [ORG_ID]
 
         mock_db = mock_db_session()
         mock_db.execute = AsyncMock(side_effect=[branches_result, org_ids_result])
-
-        mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
-        mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_task_sessionmaker.side_effect = make_task_sessionmaker_mock(mock_db)
 
         mock_yclients = AsyncMock()
         mock_yclients_cls.return_value = mock_yclients
@@ -742,19 +785,21 @@ class TestEdgeCaseEmptyBranch:
     @pytest.mark.asyncio
     @patch(PATCH_PLAN)
     @patch(PATCH_YCLIENTS)
-    @patch(PATCH_SESSION)
+    @patch(PATCH_TASK_SESSIONMAKER)
     @patch(PATCH_SYNC)
     async def test_poll_with_zero_branches(
-        self, mock_sync_cls, mock_session_cls, mock_yclients_cls, mock_plan_cls
+        self,
+        mock_sync_cls,
+        mock_task_sessionmaker,
+        mock_yclients_cls,
+        mock_plan_cls,
     ):
         """Polling with no active branches returns zero totals."""
         from app.tasks.sync_tasks import _poll_all_branches
 
         mock_db = mock_db_session()
         mock_db.execute = AsyncMock(return_value=db_result_list([]))
-
-        mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
-        mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_task_sessionmaker.side_effect = make_task_sessionmaker_mock(mock_db)
 
         mock_yclients_cls.return_value = AsyncMock()
         mock_sync_cls.return_value = AsyncMock()
@@ -985,33 +1030,48 @@ class TestEdgeCaseMultipleBranches:
     """Edge case: organization with many branches."""
 
     @pytest.mark.asyncio
+    @patch(PATCH_PVR)
     @patch(PATCH_RATING_ENGINE)
     @patch(PATCH_PLAN)
     @patch(PATCH_YCLIENTS)
-    @patch(PATCH_SESSION)
+    @patch(PATCH_TASK_SESSIONMAKER)
     @patch(PATCH_SYNC)
     async def test_poll_handles_many_branches(
-        self, mock_sync_cls, mock_session_cls, mock_yclients_cls, mock_plan_cls, mock_rating_cls
+        self,
+        mock_sync_cls,
+        mock_task_sessionmaker,
+        mock_yclients_cls,
+        mock_plan_cls,
+        mock_rating_cls,
+        mock_pvr_cls,
     ):
-        """Polling 5 branches, one fails — others continue."""
+        """Polling 5 branches, one fails — others continue.
+
+        Regression: before the per-branch session fix, one failing branch
+        would poison the shared session and halt the rest of the poll cycle.
+        """
         from app.tasks.sync_tasks import _poll_all_branches
 
         branches = [make_branch(name=f"Branch {i}") for i in range(5)]
         mock_db = mock_db_session()
         mock_db.execute = AsyncMock(return_value=db_result_list(branches))
-
-        mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
-        mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_task_sessionmaker.side_effect = make_task_sessionmaker_mock(mock_db)
 
         mock_yclients_cls.return_value = AsyncMock()
 
         mock_sync = AsyncMock()
-        mock_sync.sync_records = AsyncMock(side_effect=[3, 5, RuntimeError("fail"), 2, 4])
+        mock_sync.sync_records = AsyncMock(
+            side_effect=[3, 5, RuntimeError("fail"), 2, 4]
+        )
         mock_sync_cls.return_value = mock_sync
 
         mock_plan = AsyncMock()
         mock_plan.update_progress = AsyncMock()
         mock_plan_cls.return_value = mock_plan
+
+        mock_pvr = AsyncMock()
+        mock_pvr.recalculate_branch = AsyncMock()
+        mock_pvr_cls.return_value = mock_pvr
 
         mock_rating = AsyncMock()
         mock_rating.recalculate = AsyncMock(return_value=[])

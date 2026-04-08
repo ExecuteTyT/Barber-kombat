@@ -920,6 +920,187 @@ async def _sync_initial(org_id: uuid.UUID):
         await yclients.close()
 
 
+@cli.command("sync-range")
+@click.option(
+    "--from",
+    "date_from",
+    required=True,
+    type=str,
+    help="Start date (YYYY-MM-DD), inclusive",
+)
+@click.option(
+    "--to",
+    "date_to",
+    required=True,
+    type=str,
+    help="End date (YYYY-MM-DD), inclusive",
+)
+@click.option(
+    "--org-id",
+    type=str,
+    default=None,
+    help="Organization UUID (default: all active organizations)",
+)
+@click.option(
+    "--branch-id",
+    type=str,
+    default=None,
+    help="Branch UUID (default: all active branches in scope)",
+)
+@click.option(
+    "--skip-reports",
+    is_flag=True,
+    default=False,
+    help="Only sync visits, skip rating / report recalculation",
+)
+def sync_range(
+    date_from: str,
+    date_to: str,
+    org_id: str | None,
+    branch_id: str | None,
+    skip_reports: bool,
+) -> None:
+    """Backfill YClients records over a date range.
+
+    Example:
+        python -m app.cli sync-range --from=2026-04-02 --to=2026-04-08
+    """
+    df = date.fromisoformat(date_from)
+    dt = date.fromisoformat(date_to)
+    if df > dt:
+        raise click.BadParameter("--from must be <= --to")
+
+    _run_async(
+        _sync_range(
+            date_from=df,
+            date_to=dt,
+            org_id=uuid.UUID(org_id) if org_id else None,
+            branch_id=uuid.UUID(branch_id) if branch_id else None,
+            skip_reports=skip_reports,
+        )
+    )
+
+
+async def _sync_range(
+    date_from: date,
+    date_to: date,
+    org_id: uuid.UUID | None,
+    branch_id: uuid.UUID | None,
+    skip_reports: bool,
+) -> None:
+    """Async implementation of sync-range.
+
+    Uses a fresh session per branch/day so one bad day or record cannot poison
+    the rest of the range. After sync, recalculates daily ratings and
+    regenerates reports for the entire range so the UI immediately reflects
+    the backfilled data.
+    """
+    from sqlalchemy import select
+
+    from app.database import async_session
+    from app.integrations.yclients.client import YClientsClient
+    from app.models.branch import Branch
+    from app.models.organization import Organization
+    from app.redis import redis_client
+    from app.services.rating import RatingEngine
+    from app.services.reports import ReportService
+    from app.services.sync import SyncService
+
+    yclients = YClientsClient()
+    try:
+        # --- Load scope ---
+        async with async_session() as db:
+            branch_q = select(Branch).where(
+                Branch.is_active.is_(True),
+                Branch.yclients_company_id.isnot(None),
+            )
+            if branch_id is not None:
+                branch_q = branch_q.where(Branch.id == branch_id)
+            if org_id is not None:
+                branch_q = branch_q.where(Branch.organization_id == org_id)
+
+            branches = (await db.execute(branch_q)).scalars().all()
+
+            org_q = select(Organization).where(Organization.is_active.is_(True))
+            if org_id is not None:
+                org_q = org_q.where(Organization.id == org_id)
+            orgs = (await db.execute(org_q)).scalars().all()
+
+        if not branches:
+            click.echo("No active branches match the given scope.")
+            return
+
+        click.echo(
+            f"Syncing {len(branches)} branch(es) "
+            f"from {date_from} to {date_to}..."
+        )
+
+        # --- Sync visits: per-branch, per-day, fresh session ---
+        total_synced = 0
+        for branch in branches:
+            d = date_from
+            while d <= date_to:
+                async with async_session() as db:
+                    try:
+                        svc = SyncService(db=db, yclients=yclients)
+                        n = await svc.sync_records(branch.id, d, d)
+                        total_synced += n
+                        click.echo(f"  {branch.name} {d}: {n}")
+                    except Exception as exc:
+                        await db.rollback()
+                        click.echo(
+                            f"  {branch.name} {d}: ERROR {exc!r}", err=True
+                        )
+                d += timedelta(days=1)
+
+        click.echo(f"Total visits synced/updated: {total_synced}")
+
+        if skip_reports:
+            click.echo("Skipping rating + report recalculation (--skip-reports).")
+            return
+
+        # --- Recalculate daily ratings ---
+        click.echo("Recalculating daily ratings...")
+        for branch in branches:
+            d = date_from
+            while d <= date_to:
+                async with async_session() as db:
+                    try:
+                        engine_svc = RatingEngine(db=db, redis=redis_client)
+                        await engine_svc.recalculate(branch.id, d)
+                    except Exception as exc:
+                        await db.rollback()
+                        click.echo(
+                            f"  Rating {branch.name} {d}: ERROR {exc!r}", err=True
+                        )
+                d += timedelta(days=1)
+
+        # --- Regenerate reports ---
+        click.echo("Regenerating reports...")
+        for org in orgs:
+            d = date_from
+            while d <= date_to:
+                async with async_session() as db:
+                    try:
+                        report_svc = ReportService(db=db)
+                        await report_svc.generate_daily_revenue(org.id, d)
+                        await report_svc.generate_clients_report(org.id, d)
+                        await report_svc.generate_kombat_daily(org.id, d)
+                        await report_svc.generate_day_to_day(
+                            org.id, d, branch_id=None
+                        )
+                    except Exception as exc:
+                        await db.rollback()
+                        click.echo(
+                            f"  Reports {org.id} {d}: ERROR {exc!r}", err=True
+                        )
+                d += timedelta(days=1)
+
+        click.echo("sync-range completed.")
+    finally:
+        await yclients.close()
+
+
 @cli.command("monthly-reset")
 @click.option(
     "--month",

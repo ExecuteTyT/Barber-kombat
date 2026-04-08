@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import date
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -12,6 +13,7 @@ from app.integrations.yclients.schemas import (
     YClientService,
 )
 from app.services.sync import (
+    SyncService,
     count_extras,
     count_products,
     map_payment_type,
@@ -464,3 +466,191 @@ class TestMapRecordToVisitDict:
         )
 
         assert result["payment_type"] == "certificate"
+
+
+# --- Tests: sync_records savepoint isolation (regression) ---
+
+
+def _make_savepoint_mock():
+    """Return a MagicMock that behaves like `AsyncSessionTransaction` —
+    supports `async with` and yields nothing."""
+    savepoint = MagicMock()
+    savepoint.__aenter__ = AsyncMock(return_value=None)
+    savepoint.__aexit__ = AsyncMock(return_value=False)
+    return savepoint
+
+
+def _make_branch_lookup_db(branch_mock, extras_list):
+    """Build a mocked `AsyncSession` that answers the two up-front queries in
+    `SyncService.sync_records` (branch lookup + RatingConfig.extra_services)
+    and supports savepoints via `begin_nested()`.
+    """
+    branch_result = MagicMock()
+    branch_result.scalar_one_or_none.return_value = branch_mock
+
+    extras_result = MagicMock()
+    extras_result.scalar_one_or_none.return_value = extras_list
+
+    db = AsyncMock()
+    db.execute = AsyncMock(side_effect=[branch_result, extras_result])
+    db.commit = AsyncMock()
+    db.rollback = AsyncMock()
+    db.begin_nested = MagicMock(side_effect=_make_savepoint_mock)
+    return db
+
+
+class TestSyncRecordsSavepointIsolation:
+    """Regression for the YClients sync incident from 2026-04-01:
+
+    Before the `begin_nested()` fix, a single failing record inside the
+    per-record loop left the outer transaction in a failed state. Every
+    subsequent record and the final `commit()` then raised
+    `PendingRollbackError`, which in turn poisoned the shared session used by
+    the polling task for the rest of the cycle.
+    """
+
+    @pytest.mark.asyncio
+    async def test_one_failing_record_does_not_halt_others(self):
+        org_uuid = uuid.uuid4()
+        branch_uuid = uuid.uuid4()
+        barber_uuid = uuid.uuid4()
+
+        branch_mock = MagicMock()
+        branch_mock.id = branch_uuid
+        branch_mock.organization_id = org_uuid
+        branch_mock.yclients_company_id = 555
+
+        db = _make_branch_lookup_db(branch_mock, extras_list=[])
+
+        # Three records with no nested client (so `_upsert_client` is skipped)
+        records = [
+            YClientRecord(
+                id=1001,
+                staff_id=10,
+                client=None,
+                date="2026-04-08",
+                services=[YClientService(id=1, title="A", cost=1000.0)],
+                cost=1000.0,
+                paid_full=1,
+                visit_attendance=1,
+            ),
+            YClientRecord(
+                id=1002,
+                staff_id=10,
+                client=None,
+                date="2026-04-08",
+                services=[YClientService(id=1, title="B", cost=1500.0)],
+                cost=1500.0,
+                paid_full=1,
+                visit_attendance=1,
+            ),
+            YClientRecord(
+                id=1003,
+                staff_id=10,
+                client=None,
+                date="2026-04-08",
+                services=[YClientService(id=1, title="C", cost=2000.0)],
+                cost=2000.0,
+                paid_full=1,
+                visit_attendance=1,
+            ),
+        ]
+
+        yclients = MagicMock()
+        yclients.get_records = AsyncMock(return_value=records)
+
+        svc = SyncService(db=db, yclients=yclients)
+
+        # Stub internal resolvers so we do not touch the DB for them
+        barber = MagicMock()
+        barber.id = barber_uuid
+        svc._resolve_barber = AsyncMock(return_value=barber)
+        svc._upsert_client = AsyncMock(return_value=uuid.uuid4())
+
+        # Second upsert raises — simulating an IntegrityError on a bad row.
+        # Without savepoint isolation, this would poison the transaction and
+        # `commit()` would also fail.
+        svc._upsert_visit = AsyncMock(
+            side_effect=[None, RuntimeError("boom: FK or integrity error"), None]
+        )
+
+        synced = await svc.sync_records(
+            branch_uuid, date(2026, 4, 8), date(2026, 4, 8)
+        )
+
+        # All three records were attempted (not halted after the bad one)
+        assert svc._upsert_visit.call_count == 3
+        # Two succeeded (record 1 and record 3)
+        assert synced == 2
+        # Final commit still happens (transaction not poisoned)
+        db.commit.assert_awaited_once()
+        # A savepoint was opened for each record
+        assert db.begin_nested.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_barber_not_found_records_are_skipped_not_failed(self):
+        """`continue` inside an `async with begin_nested()` must release the
+        savepoint cleanly and move on to the next record."""
+        org_uuid = uuid.uuid4()
+        branch_uuid = uuid.uuid4()
+
+        branch_mock = MagicMock()
+        branch_mock.id = branch_uuid
+        branch_mock.organization_id = org_uuid
+        branch_mock.yclients_company_id = 555
+
+        db = _make_branch_lookup_db(branch_mock, extras_list=[])
+
+        records = [
+            YClientRecord(
+                id=2001,
+                staff_id=111,  # known barber
+                client=None,
+                date="2026-04-08",
+                services=[YClientService(id=1, title="X", cost=1000.0)],
+                cost=1000.0,
+                visit_attendance=1,
+            ),
+            YClientRecord(
+                id=2002,
+                staff_id=222,  # unknown barber — will be skipped
+                client=None,
+                date="2026-04-08",
+                services=[YClientService(id=1, title="Y", cost=1200.0)],
+                cost=1200.0,
+                visit_attendance=1,
+            ),
+            YClientRecord(
+                id=2003,
+                staff_id=111,  # known barber
+                client=None,
+                date="2026-04-08",
+                services=[YClientService(id=1, title="Z", cost=1500.0)],
+                cost=1500.0,
+                visit_attendance=1,
+            ),
+        ]
+
+        yclients = MagicMock()
+        yclients.get_records = AsyncMock(return_value=records)
+
+        svc = SyncService(db=db, yclients=yclients)
+
+        known_barber = MagicMock()
+        known_barber.id = uuid.uuid4()
+
+        def resolve_side_effect(staff_id, _org):
+            return known_barber if staff_id == 111 else None
+
+        svc._resolve_barber = AsyncMock(side_effect=resolve_side_effect)
+        svc._upsert_visit = AsyncMock(return_value=None)
+
+        synced = await svc.sync_records(
+            branch_uuid, date(2026, 4, 8), date(2026, 4, 8)
+        )
+
+        # Only 2 records had a resolvable barber
+        assert synced == 2
+        assert svc._upsert_visit.call_count == 2
+        # Commit succeeds — skipped record did not leave the transaction dirty
+        db.commit.assert_awaited_once()
