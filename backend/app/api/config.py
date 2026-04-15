@@ -56,15 +56,13 @@ _DEFAULT_RATING_WEIGHTS = {
 
 _DEFAULT_PVR_THRESHOLDS = {
     "thresholds": [
-        {"amount": 30_000_000, "bonus": 1_000_000},
-        {"amount": 35_000_000, "bonus": 1_500_000},
-        {"amount": 40_000_000, "bonus": 2_000_000},
-        {"amount": 50_000_000, "bonus": 3_000_000},
-        {"amount": 60_000_000, "bonus": 4_000_000},
-        {"amount": 80_000_000, "bonus": 5_000_000},
+        {"score": 60, "bonus": 100_000_000},
+        {"score": 75, "bonus": 200_000_000},
+        {"score": 90, "bonus": 500_000_000},
     ],
     "count_products": False,
     "count_certificates": False,
+    "min_visits_per_month": 0,
 }
 
 
@@ -119,11 +117,14 @@ async def get_pvr_thresholds(
     if config is None:
         return PVRThresholdsResponse(**_DEFAULT_PVR_THRESHOLDS)
 
-    thresholds = config.thresholds or _DEFAULT_PVR_THRESHOLDS["thresholds"]
+    raw = config.thresholds or _DEFAULT_PVR_THRESHOLDS["thresholds"]
+    # Filter any stale legacy {amount,bonus} rows that may slip through.
+    thresholds = [t for t in raw if "score" in t] or _DEFAULT_PVR_THRESHOLDS["thresholds"]
     return PVRThresholdsResponse(
-        thresholds=[ThresholdEntry(**t) for t in sorted(thresholds, key=lambda x: x["amount"])],
+        thresholds=[ThresholdEntry(**t) for t in sorted(thresholds, key=lambda x: x["score"])],
         count_products=config.count_products,
         count_certificates=config.count_certificates,
+        min_visits_per_month=config.min_visits_per_month,
     )
 
 
@@ -142,14 +143,16 @@ async def update_pvr_thresholds(
             "thresholds": [t.model_dump() for t in body.thresholds],
             "count_products": body.count_products,
             "count_certificates": body.count_certificates,
+            "min_visits_per_month": body.min_visits_per_month,
         },
     )
 
     thresholds = config.thresholds or []
     return PVRThresholdsResponse(
-        thresholds=[ThresholdEntry(**t) for t in sorted(thresholds, key=lambda x: x["amount"])],
+        thresholds=[ThresholdEntry(**t) for t in sorted(thresholds, key=lambda x: x["score"])],
         count_products=config.count_products,
         count_certificates=config.count_certificates,
+        min_visits_per_month=config.min_visits_per_month,
     )
 
 

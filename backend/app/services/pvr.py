@@ -1,7 +1,15 @@
-"""PVR (Premium for High Results) service.
+"""PVR (Premium for High Results) service — rating-based thresholds.
 
-Calculates cumulative monthly clean revenue for barbers,
-checks threshold crossings, and sends bell notifications.
+Monthly bonuses are awarded based on a barber's **monthly rating score** (0-100)
+rather than absolute revenue. The score balances five normalized metrics
+(revenue, CS, products, extras, reviews) so that a barber with lower traffic
+but strong product sales, upsells, or reviews can still earn a premium.
+
+Pipeline (per branch per month):
+  RatingEngine.calculate_monthly()  ->  monthly score per barber
+      ->  find highest score threshold crossed
+      ->  UPSERT pvr_records
+      ->  publish bell notification on new crossing
 """
 
 import json
@@ -20,23 +28,20 @@ from app.models.pvr_config import PVRConfig
 from app.models.pvr_record import PVRRecord
 from app.models.user import User, UserRole
 from app.models.visit import Visit
+from app.services.rating import RatingEngine, _BarberMonthlyScore
 
 logger = structlog.stdlib.get_logger()
 
-# Default thresholds sorted descending by amount (in kopecks).
-# 300k rubles = 30_000_000 kopecks, bonus 10k = 1_000_000, etc.
+# Default score thresholds (0-100 scale). Bonus amounts are in kopecks.
 _DEFAULT_THRESHOLDS: list[dict[str, int]] = [
-    {"amount": 80_000_000, "bonus": 5_000_000},
-    {"amount": 60_000_000, "bonus": 4_000_000},
-    {"amount": 50_000_000, "bonus": 3_000_000},
-    {"amount": 40_000_000, "bonus": 2_000_000},
-    {"amount": 35_000_000, "bonus": 1_500_000},
-    {"amount": 30_000_000, "bonus": 1_000_000},
+    {"score": 90, "bonus": 500_000_000},
+    {"score": 75, "bonus": 200_000_000},
+    {"score": 60, "bonus": 100_000_000},
 ]
 
 
 class PVRService:
-    """Calculates PVR (cumulative monthly bonuses) for barbers."""
+    """Calculates rating-based monthly PVR bonuses for barbers."""
 
     def __init__(self, db: AsyncSession, redis: aioredis.Redis) -> None:
         self.db = db
@@ -44,70 +49,258 @@ class PVRService:
 
     # --- Public methods ---
 
+    async def recalculate_branch(
+        self,
+        branch_id: uuid.UUID,
+        target_month: date,
+    ) -> list[PVRRecord]:
+        """Recalculate PVR for all active barbers in a branch for the month.
+
+        Computes monthly ratings via RatingEngine, applies score thresholds,
+        upserts pvr_records, and emits a bell notification for every barber
+        who crossed a new threshold since the last calculation.
+        """
+        result = await self.db.execute(select(Branch).where(Branch.id == branch_id))
+        branch = result.scalar_one_or_none()
+        if branch is None:
+            return []
+
+        organization_id = branch.organization_id
+        month_start = target_month.replace(day=1)
+
+        config = await self._load_config(organization_id)
+        thresholds = self._get_thresholds(config)
+        min_visits = config.min_visits_per_month if config else 0
+
+        engine = RatingEngine(db=self.db, redis=self.redis)
+        monthly_scores = await engine.calculate_monthly(
+            branch_id, organization_id, month_start
+        )
+        scores_by_barber = {m.barber_id: m for m in monthly_scores}
+
+        result = await self.db.execute(
+            select(User).where(
+                User.branch_id == branch_id,
+                User.role == UserRole.BARBER,
+                User.is_active.is_(True),
+            )
+        )
+        barbers = list(result.scalars().all())
+
+        records: list[PVRRecord] = []
+        for barber in barbers:
+            monthly = scores_by_barber.get(barber.id)
+            record = await self._upsert_record(
+                organization_id=organization_id,
+                barber=barber,
+                month_start=month_start,
+                monthly=monthly,
+                thresholds=thresholds,
+                min_visits=min_visits,
+                config=config,
+            )
+            if record:
+                records.append(record)
+        return records
+
     async def recalculate_barber(
         self,
         barber_id: uuid.UUID,
         organization_id: uuid.UUID,
         target_month: date,
     ) -> PVRRecord | None:
-        """Recalculate PVR for a single barber for the given month.
+        """Recalculate PVR for a single barber by running the branch pipeline."""
+        barber = await self._get_barber(barber_id)
+        if barber is None or barber.branch_id is None:
+            return None
+        await self.recalculate_branch(barber.branch_id, target_month)
+        return await self._get_record(barber_id, target_month.replace(day=1))
 
-        Pipeline:
-        1. Load config (thresholds, count_products, count_certificates)
-        2. Sum clean revenue from completed visits
-        3. Find highest crossed threshold
-        4. Detect new threshold crossing vs previous record
-        5. UPSERT pvr_records
-        6. Publish bell notification if new threshold crossed
+    async def get_barber_pvr(
+        self,
+        barber_id: uuid.UUID,
+        organization_id: uuid.UUID,
+        target_month: date | None = None,
+    ) -> dict:
+        """Return PVR data for a single barber. Falls back to a live calc."""
+        month_start = (target_month or date.today()).replace(day=1)
+        record = await self._get_record(barber_id, month_start)
+        config = await self._load_config(organization_id)
+        thresholds = self._get_thresholds(config)
+        barber = await self._get_barber(barber_id)
+
+        if record is None and barber is not None and barber.branch_id is not None:
+            engine = RatingEngine(db=self.db, redis=self.redis)
+            monthly_scores = await engine.calculate_monthly(
+                barber.branch_id, organization_id, month_start
+            )
+            monthly = next((m for m in monthly_scores if m.barber_id == barber_id), None)
+            cumulative = await self._calc_display_revenue(barber_id, month_start, config)
+            return self._format_live(
+                barber=barber,
+                monthly=monthly,
+                thresholds=thresholds,
+                min_visits=config.min_visits_per_month if config else 0,
+                cumulative_revenue=cumulative,
+            )
+
+        return self._format_record(record, barber, thresholds, config)
+
+    async def get_branch_pvr(
+        self,
+        branch_id: uuid.UUID,
+        organization_id: uuid.UUID,
+        target_date: date | None = None,
+    ) -> list[dict]:
+        """Return PVR data for all active barbers in a branch."""
+        month_start = (target_date or date.today()).replace(day=1)
+
+        result = await self.db.execute(
+            select(User).where(
+                User.branch_id == branch_id,
+                User.role == UserRole.BARBER,
+                User.is_active.is_(True),
+            )
+        )
+        barbers = list(result.scalars().all())
+
+        config = await self._load_config(organization_id)
+        thresholds = self._get_thresholds(config)
+        min_visits = config.min_visits_per_month if config else 0
+
+        engine = RatingEngine(db=self.db, redis=self.redis)
+        monthly_scores = await engine.calculate_monthly(
+            branch_id, organization_id, month_start
+        )
+        scores_by_barber = {m.barber_id: m for m in monthly_scores}
+
+        out: list[dict] = []
+        for barber in barbers:
+            record = await self._get_record(barber.id, month_start)
+            if record is None:
+                cumulative = await self._calc_display_revenue(barber.id, month_start, config)
+                out.append(
+                    self._format_live(
+                        barber=barber,
+                        monthly=scores_by_barber.get(barber.id),
+                        thresholds=thresholds,
+                        min_visits=min_visits,
+                        cumulative_revenue=cumulative,
+                    )
+                )
+            else:
+                out.append(self._format_record(record, barber, thresholds, config))
+        return out
+
+    async def get_thresholds(
+        self,
+        organization_id: uuid.UUID,
+    ) -> list[dict[str, int]]:
+        """Return the threshold configuration for an organization (sorted asc)."""
+        config = await self._load_config(organization_id)
+        return sorted(self._get_thresholds(config), key=lambda t: t["score"])
+
+    async def preview(
+        self,
+        branch_id: uuid.UUID,
+        organization_id: uuid.UUID,
+        target_month: date,
+        thresholds: list[dict[str, int]],
+        min_visits: int,
+    ) -> list[dict]:
+        """Simulate PVR for all branch barbers with hypothetical config.
+
+        Does not write to the database — used by the owner's settings UI
+        to preview the impact of a weight/threshold change before saving.
+        Weights come from the currently saved RatingConfig (owner is expected
+        to save the weights first if they changed them alongside thresholds).
         """
         month_start = target_month.replace(day=1)
-
-        # 1. Load config
-        config = await self._load_config(organization_id)
-
-        # 2. Calculate clean revenue
-        cumulative_revenue = await self._calc_clean_revenue(barber_id, month_start, config)
-
-        # 3. Determine threshold
-        thresholds = self._get_thresholds(config)
-        current_threshold, bonus_amount = self._find_threshold(cumulative_revenue, thresholds)
-
-        # 4. Load previous record and detect new crossing
-        prev_record = await self._get_record(barber_id, month_start)
-        old_threshold = prev_record.current_threshold if prev_record else None
-
-        thresholds_reached: list[dict] = (
-            list(prev_record.thresholds_reached or []) if prev_record else []
+        engine = RatingEngine(db=self.db, redis=self.redis)
+        monthly_scores = await engine.calculate_monthly(
+            branch_id, organization_id, month_start
         )
 
-        new_threshold_crossed = False
+        out: list[dict] = []
+        sorted_thresholds = sorted(thresholds, key=lambda t: t["score"], reverse=True)
+        for m in monthly_scores:
+            score_int = round(m.total_score)
+            if m.working_days < min_visits:
+                score_int = 0
+            current, bonus = self._find_threshold(score_int, sorted_thresholds)
+            out.append(
+                {
+                    "barber_id": str(m.barber_id),
+                    "name": m.barber_name,
+                    "monthly_rating_score": score_int,
+                    "working_days": m.working_days,
+                    "current_threshold": current,
+                    "bonus_amount": bonus,
+                    "revenue": m.revenue,
+                }
+            )
+        out.sort(key=lambda x: x["monthly_rating_score"], reverse=True)
+        return out
+
+    # --- Internal pipeline ---
+
+    async def _upsert_record(
+        self,
+        organization_id: uuid.UUID,
+        barber: User,
+        month_start: date,
+        monthly: _BarberMonthlyScore | None,
+        thresholds: list[dict[str, int]],
+        min_visits: int,
+        config: PVRConfig | None,
+    ) -> PVRRecord | None:
+        """Persist a barber's monthly PVR record and emit bell on new crossing."""
+        score_int = round(monthly.total_score) if monthly else 0
+        working_days = monthly.working_days if monthly else 0
+        if working_days < min_visits:
+            score_int = 0
+
+        current_threshold, bonus_amount = self._find_threshold(score_int, thresholds)
+
+        cumulative_revenue = await self._calc_display_revenue(
+            barber.id, month_start, config
+        )
+
+        breakdown = self._breakdown(monthly) if monthly else None
+
+        prev = await self._get_record(barber.id, month_start)
+        old_threshold = prev.current_threshold if prev else None
+        thresholds_reached: list[dict] = (
+            list(prev.thresholds_reached or []) if prev else []
+        )
+
+        crossed_new = False
         if current_threshold is not None and current_threshold > (old_threshold or 0):
-            new_threshold_crossed = True
-            reached_amounts = {t["amount"] for t in thresholds_reached}
+            crossed_new = True
+            reached_scores = {t["score"] for t in thresholds_reached}
             today_str = str(date.today())
-            for t in sorted(thresholds, key=lambda x: x["amount"]):
+            for t in sorted(thresholds, key=lambda x: x["score"]):
                 if (
-                    t["amount"] > (old_threshold or 0)
-                    and t["amount"] <= current_threshold
-                    and t["amount"] not in reached_amounts
+                    t["score"] > (old_threshold or 0)
+                    and t["score"] <= current_threshold
+                    and t["score"] not in reached_scores
                 ):
                     thresholds_reached.append(
-                        {
-                            "amount": t["amount"],
-                            "reached_at": today_str,
-                        }
+                        {"score": t["score"], "reached_at": today_str}
                     )
 
-        # 5. UPSERT
         values: dict = {
             "id": uuid.uuid4(),
             "organization_id": organization_id,
-            "barber_id": barber_id,
+            "barber_id": barber.id,
             "month": month_start,
             "cumulative_revenue": cumulative_revenue,
             "current_threshold": current_threshold,
             "bonus_amount": bonus_amount,
             "thresholds_reached": thresholds_reached or None,
+            "monthly_rating_score": score_int,
+            "metric_breakdown": breakdown,
+            "working_days": working_days,
         }
 
         upsert_cols = (
@@ -115,6 +308,9 @@ class PVRService:
             "current_threshold",
             "bonus_amount",
             "thresholds_reached",
+            "monthly_rating_score",
+            "metric_breakdown",
+            "working_days",
         )
         stmt = pg_insert(PVRRecord).values(**values)
         update_cols = {k: getattr(stmt.excluded, k) for k in upsert_cols}
@@ -125,207 +321,86 @@ class PVRService:
         await self.db.execute(stmt)
         await self.db.commit()
 
-        # 6. Bell notification
-        if new_threshold_crossed and current_threshold is not None:
-            barber = await self._get_barber(barber_id)
-            barber_name = barber.name if barber else "Unknown"
+        if crossed_new and current_threshold is not None:
             await self._publish_bell(
-                organization_id,
-                barber_id,
-                barber_name,
-                cumulative_revenue,
-                current_threshold,
-                bonus_amount,
+                organization_id=organization_id,
+                barber_id=barber.id,
+                barber_name=barber.name,
+                score=score_int,
+                threshold=current_threshold,
+                bonus=bonus_amount,
             )
 
         await logger.ainfo(
             "PVR recalculated",
-            barber_id=str(barber_id),
+            barber_id=str(barber.id),
             month=str(month_start),
-            revenue=cumulative_revenue,
+            score=score_int,
+            working_days=working_days,
             threshold=current_threshold,
             bonus=bonus_amount,
-            bell=new_threshold_crossed,
+            bell=crossed_new,
         )
 
-        return await self._get_record(barber_id, month_start)
+        return await self._get_record(barber.id, month_start)
 
-    async def recalculate_branch(
-        self,
-        branch_id: uuid.UUID,
-        target_month: date,
-    ) -> list[PVRRecord]:
-        """Recalculate PVR for all active barbers in a branch."""
-        result = await self.db.execute(select(Branch).where(Branch.id == branch_id))
-        branch = result.scalar_one_or_none()
-        if not branch:
-            return []
-
-        result = await self.db.execute(
-            select(User).where(
-                User.branch_id == branch_id,
-                User.role == UserRole.BARBER,
-                User.is_active.is_(True),
-            )
-        )
-        barbers = result.scalars().all()
-
-        records: list[PVRRecord] = []
-        for barber in barbers:
-            record = await self.recalculate_barber(barber.id, branch.organization_id, target_month)
-            if record:
-                records.append(record)
-        return records
-
-    async def get_barber_pvr(
-        self,
-        barber_id: uuid.UUID,
-        organization_id: uuid.UUID,
-        target_month: date | None = None,
-    ) -> dict:
-        """Get PVR data for a single barber.
-
-        Falls back to live calculation if no pre-calculated record exists.
-        """
-        month_start = (target_month or date.today()).replace(day=1)
-        record = await self._get_record(barber_id, month_start)
-        config = await self._load_config(organization_id)
-        thresholds = self._get_thresholds(config)
-        barber = await self._get_barber(barber_id)
-
-        if record is None and barber is not None:
-            cumulative = await self._calc_clean_revenue(barber_id, month_start, config)
-            current_threshold, bonus_amount = self._find_threshold(cumulative, thresholds)
-            next_threshold: int | None = None
-            for t in sorted(thresholds, key=lambda x: x["amount"]):
-                if t["amount"] > cumulative:
-                    next_threshold = t["amount"]
-                    break
-            remaining = (next_threshold - cumulative) if next_threshold else None
-            return {
-                "barber_id": barber_id,
-                "name": barber.name,
-                "cumulative_revenue": cumulative,
-                "current_threshold": current_threshold,
-                "bonus_amount": bonus_amount,
-                "next_threshold": next_threshold,
-                "remaining_to_next": remaining,
-                "thresholds_reached": [],
-            }
-
-        return self._format_barber_pvr(record, barber, thresholds)
-
-    async def get_branch_pvr(
-        self,
-        branch_id: uuid.UUID,
-        organization_id: uuid.UUID,
-        target_date: date | None = None,
-    ) -> list[dict]:
-        """Get PVR data for all active barbers in a branch.
-
-        If no pre-calculated PVR record exists for a barber, calculates
-        live from visit data so the UI always shows current revenue.
-        """
-        month_start = (target_date or date.today()).replace(day=1)
-
-        result = await self.db.execute(
-            select(User).where(
-                User.branch_id == branch_id,
-                User.role == UserRole.BARBER,
-                User.is_active.is_(True),
-            )
-        )
-        barbers = result.scalars().all()
-
-        config = await self._load_config(organization_id)
-        thresholds = self._get_thresholds(config)
-
-        pvr_list: list[dict] = []
-        for barber in barbers:
-            record = await self._get_record(barber.id, month_start)
-            if record is None:
-                # No pre-calculated record — compute live from visits
-                cumulative = await self._calc_clean_revenue(barber.id, month_start, config)
-                current_threshold, bonus_amount = self._find_threshold(cumulative, thresholds)
-                next_threshold: int | None = None
-                for t in sorted(thresholds, key=lambda x: x["amount"]):
-                    if t["amount"] > cumulative:
-                        next_threshold = t["amount"]
-                        break
-                remaining = (next_threshold - cumulative) if next_threshold else None
-                pvr_list.append({
-                    "barber_id": barber.id,
-                    "name": barber.name,
-                    "cumulative_revenue": cumulative,
-                    "current_threshold": current_threshold,
-                    "bonus_amount": bonus_amount,
-                    "next_threshold": next_threshold,
-                    "remaining_to_next": remaining,
-                    "thresholds_reached": [],
-                })
-            else:
-                pvr_list.append(self._format_barber_pvr(record, barber, thresholds))
-        return pvr_list
-
-    async def get_thresholds(
-        self,
-        organization_id: uuid.UUID,
-    ) -> list[dict[str, int]]:
-        """Get the threshold configuration for an organization."""
-        config = await self._load_config(organization_id)
-        thresholds = self._get_thresholds(config)
-        return sorted(thresholds, key=lambda t: t["amount"])
-
-    # --- Private helpers ---
+    # --- Helpers ---
 
     async def _load_config(self, organization_id: uuid.UUID) -> PVRConfig | None:
-        """Load PVRConfig for the organization."""
         result = await self.db.execute(
             select(PVRConfig).where(PVRConfig.organization_id == organization_id)
         )
         return result.scalar_one_or_none()
 
     def _get_thresholds(self, config: PVRConfig | None) -> list[dict[str, int]]:
-        """Get thresholds sorted descending by amount."""
-        if config and config.thresholds:
-            return sorted(config.thresholds, key=lambda t: t["amount"], reverse=True)
-        return list(_DEFAULT_THRESHOLDS)
+        """Return thresholds sorted descending by score."""
+        raw = config.thresholds if (config and config.thresholds) else list(_DEFAULT_THRESHOLDS)
+        # Support legacy rows that slipped through with {amount, bonus}.
+        normalized = []
+        for t in raw:
+            if "score" in t:
+                normalized.append({"score": int(t["score"]), "bonus": int(t["bonus"])})
+        if not normalized:
+            normalized = list(_DEFAULT_THRESHOLDS)
+        return sorted(normalized, key=lambda t: t["score"], reverse=True)
 
     @staticmethod
     def _find_threshold(
-        revenue: int,
+        score: int,
         thresholds: list[dict[str, int]],
     ) -> tuple[int | None, int]:
-        """Find highest crossed threshold. Returns (threshold_amount, bonus)."""
-        for t in sorted(thresholds, key=lambda x: x["amount"], reverse=True):
-            if revenue >= t["amount"]:
-                return t["amount"], t["bonus"]
+        """Return the highest crossed score threshold (threshold_score, bonus)."""
+        for t in sorted(thresholds, key=lambda x: x["score"], reverse=True):
+            if score >= t["score"]:
+                return t["score"], t["bonus"]
         return None, 0
 
-    async def _calc_clean_revenue(
+    @staticmethod
+    def _breakdown(monthly: _BarberMonthlyScore) -> dict[str, int]:
+        return {
+            "revenue_score": round(monthly.revenue_score),
+            "cs_score": round(monthly.cs_score),
+            "products_score": round(monthly.products_score),
+            "extras_score": round(monthly.extras_score),
+            "reviews_score": round(monthly.reviews_score),
+        }
+
+    async def _calc_display_revenue(
         self,
         barber_id: uuid.UUID,
         month_start: date,
         config: PVRConfig | None,
     ) -> int:
-        """Sum clean revenue for a barber in the given month.
-
-        Clean revenue = services_revenue only by default.
-        Includes products_revenue if config.count_products is True.
-        Excludes certificate payments by default.
-        Includes certificates if config.count_certificates is True.
-        """
+        """Sum the barber's revenue for display purposes (not used for thresholds)."""
         if month_start.month == 12:
             month_end = month_start.replace(year=month_start.year + 1, month=1)
         else:
             month_end = month_start.replace(month=month_start.month + 1)
 
-        # Payment type filter
         allowed_payments = ["card", "cash", "qr"]
         if config and config.count_certificates:
             allowed_payments.append("certificate")
 
-        # Revenue expression
         if config and config.count_products:
             revenue_expr = Visit.services_revenue + Visit.products_revenue
         else:
@@ -338,12 +413,10 @@ class PVRService:
             Visit.status == "completed",
             Visit.payment_type.in_(allowed_payments),
         )
-
         result = await self.db.execute(stmt)
-        return result.scalar_one()
+        return int(result.scalar_one() or 0)
 
     async def _get_record(self, barber_id: uuid.UUID, month: date) -> PVRRecord | None:
-        """Load existing PVR record."""
         result = await self.db.execute(
             select(PVRRecord).where(
                 PVRRecord.barber_id == barber_id,
@@ -353,33 +426,44 @@ class PVRService:
         return result.scalar_one_or_none()
 
     async def _get_barber(self, barber_id: uuid.UUID) -> User | None:
-        """Load barber user by id."""
         result = await self.db.execute(select(User).where(User.id == barber_id))
         return result.scalar_one_or_none()
 
+    # --- Formatters ---
+
     @staticmethod
-    def _format_barber_pvr(
+    def _next_threshold_score(
+        score: int, thresholds: list[dict[str, int]]
+    ) -> int | None:
+        for t in sorted(thresholds, key=lambda x: x["score"]):
+            if t["score"] > score:
+                return t["score"]
+        return None
+
+    def _format_record(
+        self,
         record: PVRRecord | None,
         barber: User | None,
         thresholds: list[dict[str, int]],
+        config: PVRConfig | None,
     ) -> dict:
-        """Format PVR data for API response."""
+        score = record.monthly_rating_score if record else 0
         cumulative = record.cumulative_revenue if record else 0
         current_t = record.current_threshold if record else None
         bonus = record.bonus_amount if record else 0
         reached = record.thresholds_reached if record and record.thresholds_reached else []
+        breakdown = (
+            record.metric_breakdown
+            if record and record.metric_breakdown
+            else self._empty_breakdown()
+        )
+        working_days = record.working_days if record else 0
+
+        next_score = self._next_threshold_score(score, thresholds)
+        gap = (next_score - score) if next_score is not None else None
 
         barber_id = barber.id if barber else (record.barber_id if record else uuid.UUID(int=0))
         name = barber.name if barber else "Unknown"
-
-        # Next threshold = smallest threshold above cumulative_revenue
-        next_threshold: int | None = None
-        for t in sorted(thresholds, key=lambda x: x["amount"]):
-            if t["amount"] > cumulative:
-                next_threshold = t["amount"]
-                break
-
-        remaining = (next_threshold - cumulative) if next_threshold else None
 
         return {
             "barber_id": barber_id,
@@ -387,9 +471,55 @@ class PVRService:
             "cumulative_revenue": cumulative,
             "current_threshold": current_t,
             "bonus_amount": bonus,
-            "next_threshold": next_threshold,
-            "remaining_to_next": remaining,
+            "next_threshold": next_score,
+            "remaining_to_next": gap,
             "thresholds_reached": reached,
+            "monthly_rating_score": score,
+            "metric_breakdown": breakdown,
+            "working_days": working_days,
+            "min_visits_required": config.min_visits_per_month if config else 0,
+        }
+
+    def _format_live(
+        self,
+        barber: User,
+        monthly: _BarberMonthlyScore | None,
+        thresholds: list[dict[str, int]],
+        min_visits: int,
+        cumulative_revenue: int,
+    ) -> dict:
+        score = round(monthly.total_score) if monthly else 0
+        working_days = monthly.working_days if monthly else 0
+        if working_days < min_visits:
+            score = 0
+        current_t, bonus = self._find_threshold(score, thresholds)
+        next_score = self._next_threshold_score(score, thresholds)
+        gap = (next_score - score) if next_score is not None else None
+        breakdown = self._breakdown(monthly) if monthly else self._empty_breakdown()
+
+        return {
+            "barber_id": barber.id,
+            "name": barber.name,
+            "cumulative_revenue": cumulative_revenue,
+            "current_threshold": current_t,
+            "bonus_amount": bonus,
+            "next_threshold": next_score,
+            "remaining_to_next": gap,
+            "thresholds_reached": [],
+            "monthly_rating_score": score,
+            "metric_breakdown": breakdown,
+            "working_days": working_days,
+            "min_visits_required": min_visits,
+        }
+
+    @staticmethod
+    def _empty_breakdown() -> dict[str, int]:
+        return {
+            "revenue_score": 0,
+            "cs_score": 0,
+            "products_score": 0,
+            "extras_score": 0,
+            "reviews_score": 0,
         }
 
     async def _publish_bell(
@@ -397,16 +527,15 @@ class PVRService:
         organization_id: uuid.UUID,
         barber_id: uuid.UUID,
         barber_name: str,
-        revenue: int,
+        score: int,
         threshold: int,
         bonus: int,
     ) -> None:
-        """Publish bell notification via Redis Pub/Sub."""
         payload = {
             "type": "pvr_threshold",
             "barber_id": str(barber_id),
             "barber_name": barber_name,
-            "revenue": revenue,
+            "score": score,
             "threshold": threshold,
             "bonus": bonus,
             "timestamp": datetime.now(UTC).isoformat(),

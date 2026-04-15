@@ -122,16 +122,24 @@ export interface BarberStatsResponse {
   daily_scores: DailyScoreEntry[]
 }
 
-// --- PVR types ---
+// --- PVR types (rating-based) ---
 
 export interface PVRThreshold {
-  amount: number
+  score: number
   bonus: number
 }
 
 export interface ThresholdReached {
-  amount: number
+  score: number
   reached_at: string
+}
+
+export interface MetricBreakdown {
+  revenue_score: number
+  cs_score: number
+  products_score: number
+  extras_score: number
+  reviews_score: number
 }
 
 export interface BarberPVRResponse {
@@ -143,12 +151,33 @@ export interface BarberPVRResponse {
   next_threshold: number | null
   remaining_to_next: number | null
   thresholds_reached: ThresholdReached[]
+  monthly_rating_score: number
+  metric_breakdown: MetricBreakdown
+  working_days: number
+  min_visits_required: number
 }
 
 export interface ThresholdsResponse {
   thresholds: PVRThreshold[]
   count_products: boolean
   count_certificates: boolean
+  min_visits_per_month: number
+}
+
+export interface PVRPreviewEntry {
+  barber_id: string
+  name: string
+  monthly_rating_score: number
+  working_days: number
+  current_threshold: number | null
+  bonus_amount: number
+  revenue: number
+}
+
+export interface PVRPreviewResponse {
+  month: string
+  total_bonus_fund: number
+  barbers: PVRPreviewEntry[]
 }
 
 // --- Reviews types ---
@@ -275,6 +304,7 @@ export interface PVRThresholdsConfig {
   thresholds: PVRThreshold[]
   count_products: boolean
   count_certificates: boolean
+  min_visits_per_month: number
 }
 
 export interface BranchConfig {

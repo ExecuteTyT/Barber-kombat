@@ -64,9 +64,9 @@ class RatingWeightsResponse(BaseModel):
 
 
 class ThresholdEntry(BaseModel):
-    """A single PVR threshold entry."""
+    """A single PVR threshold entry (rating-based)."""
 
-    amount: int = Field(gt=0)
+    score: int = Field(ge=0, le=100)
     bonus: int = Field(gt=0)
 
 
@@ -76,17 +76,20 @@ class PVRThresholdsRequest(BaseModel):
     thresholds: list[ThresholdEntry]
     count_products: bool
     count_certificates: bool
+    min_visits_per_month: int = Field(ge=0, default=0)
 
     @field_validator("thresholds")
     @classmethod
     def validate_thresholds(cls, v: list[ThresholdEntry]) -> list[ThresholdEntry]:
         if len(v) < 1:
             raise ValueError("At least one threshold required")
-        amounts = [t.amount for t in v]
-        if amounts != sorted(amounts):
-            raise ValueError("Thresholds must be sorted ascending by amount")
-        if len(set(amounts)) != len(amounts):
-            raise ValueError("Threshold amounts must be unique")
+        if len(v) > 5:
+            raise ValueError("At most 5 thresholds allowed")
+        scores = [t.score for t in v]
+        if scores != sorted(scores):
+            raise ValueError("Thresholds must be sorted ascending by score")
+        if len(set(scores)) != len(scores):
+            raise ValueError("Threshold scores must be unique")
         return v
 
 
@@ -96,6 +99,7 @@ class PVRThresholdsResponse(BaseModel):
     thresholds: list[ThresholdEntry]
     count_products: bool
     count_certificates: bool
+    min_visits_per_month: int
 
 
 # --- Branch ---

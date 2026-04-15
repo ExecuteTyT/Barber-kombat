@@ -61,11 +61,12 @@ def make_pvr_config() -> MagicMock:
     config.id = uuid.uuid4()
     config.organization_id = ORG_ID
     config.thresholds = [
-        {"amount": 30_000_000, "bonus": 1_000_000},
-        {"amount": 50_000_000, "bonus": 3_000_000},
+        {"score": 60, "bonus": 100_000_000},
+        {"score": 80, "bonus": 300_000_000},
     ]
     config.count_products = True
     config.count_certificates = False
+    config.min_visits_per_month = 0
     return config
 
 
@@ -371,9 +372,10 @@ class TestPVRThresholds:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["thresholds"]) == 6
-        assert data["thresholds"][0]["amount"] == 30_000_000
+        assert len(data["thresholds"]) == 3
+        assert data["thresholds"][0]["score"] == 60
         assert data["count_products"] is False
+        assert data["min_visits_per_month"] == 0
 
     @pytest.mark.asyncio
     async def test_get_custom_config(self):
@@ -423,11 +425,12 @@ class TestPVRThresholds:
                 "/api/v1/config/pvr-thresholds",
                 json={
                     "thresholds": [
-                        {"amount": 30_000_000, "bonus": 1_000_000},
-                        {"amount": 50_000_000, "bonus": 3_000_000},
+                        {"score": 60, "bonus": 100_000_000},
+                        {"score": 80, "bonus": 300_000_000},
                     ],
                     "count_products": True,
                     "count_certificates": False,
+                    "min_visits_per_month": 15,
                 },
             )
 
@@ -449,11 +452,12 @@ class TestPVRThresholds:
                 "/api/v1/config/pvr-thresholds",
                 json={
                     "thresholds": [
-                        {"amount": 50_000_000, "bonus": 3_000_000},
-                        {"amount": 30_000_000, "bonus": 1_000_000},
+                        {"score": 80, "bonus": 300_000_000},
+                        {"score": 60, "bonus": 100_000_000},
                     ],
                     "count_products": False,
                     "count_certificates": False,
+                    "min_visits_per_month": 0,
                 },
             )
 

@@ -64,6 +64,22 @@ class _BarberScoredData:
     rank: int = 0
 
 
+@dataclass
+class _BarberMonthlyScore:
+    """Barber monthly rating score used by PVR."""
+
+    barber_id: uuid.UUID
+    barber_name: str
+    total_score: float
+    revenue_score: float
+    cs_score: float
+    products_score: float
+    extras_score: float
+    reviews_score: float
+    revenue: int
+    working_days: int
+
+
 # --- Default config (when no RatingConfig exists in DB) ---
 
 _DEFAULT_WEIGHTS: dict[str, int] = {
@@ -201,6 +217,137 @@ class RatingEngine:
             "silver": round(monthly_revenue * silver_pct / 100),
             "bronze": round(monthly_revenue * bronze_pct / 100),
         }
+
+    async def calculate_monthly(
+        self,
+        branch_id: uuid.UUID,
+        organization_id: uuid.UUID,
+        target_month: date,
+    ) -> list[_BarberMonthlyScore]:
+        """Compute monthly rating per barber using the same 5-metric formula.
+
+        Inputs are aggregated over the whole month (sum revenue/products/extras,
+        avg CS, avg review rating), normalized within the branch cohort to 0-100,
+        then combined via the configured weights.
+
+        Does NOT write to daily_ratings — results are consumed by PVRService
+        and persisted in pvr_records.
+        """
+        month_start = target_month.replace(day=1)
+        if month_start.month == 12:
+            month_end = month_start.replace(year=month_start.year + 1, month=1)
+        else:
+            month_end = month_start.replace(month=month_start.month + 1)
+
+        config = await self._load_rating_config(organization_id)
+        barbers = await self._get_active_barbers(branch_id)
+        if not barbers:
+            return []
+
+        raw = await self._collect_monthly_raw(branch_id, month_start, month_end, barbers)
+
+        revenues = [float(b.revenue) for b in raw]
+        cs_values = [b.cs_value for b in raw]
+        products = [float(b.products_count) for b in raw]
+        extras = [float(b.extras_count) for b in raw]
+        reviews = [b.reviews_avg if b.reviews_avg is not None else 0.0 for b in raw]
+
+        rev_scores = self._normalize(revenues)
+        cs_scores = self._normalize(cs_values)
+        prod_scores = self._normalize(products)
+        ext_scores = self._normalize(extras)
+        review_scores = self._normalize(reviews)
+
+        result: list[_BarberMonthlyScore] = []
+        for i, r in enumerate(raw):
+            total = self._compute_weighted_score(
+                rev_scores[i],
+                cs_scores[i],
+                prod_scores[i],
+                ext_scores[i],
+                review_scores[i],
+                config,
+            )
+            result.append(
+                _BarberMonthlyScore(
+                    barber_id=r.barber_id,
+                    barber_name=r.barber_name,
+                    total_score=total,
+                    revenue_score=rev_scores[i],
+                    cs_score=cs_scores[i],
+                    products_score=prod_scores[i],
+                    extras_score=ext_scores[i],
+                    reviews_score=review_scores[i],
+                    revenue=r.revenue,
+                    working_days=r.visits_count,
+                )
+            )
+        return result
+
+    async def _collect_monthly_raw(
+        self,
+        branch_id: uuid.UUID,
+        month_start: date,
+        month_end: date,
+        barbers: list[User],
+    ) -> list[_BarberRawData]:
+        """Collect raw monthly metrics per barber.
+
+        visits_count here is repurposed to working_days (distinct dates with visits).
+        """
+        visits_result = await self.db.execute(
+            select(Visit).where(
+                Visit.branch_id == branch_id,
+                Visit.date >= month_start,
+                Visit.date < month_end,
+                Visit.status == "completed",
+            )
+        )
+        all_visits = visits_result.scalars().all()
+
+        visits_by_barber: dict[uuid.UUID, list[Visit]] = {}
+        for v in all_visits:
+            visits_by_barber.setdefault(v.barber_id, []).append(v)
+
+        reviews_result = await self.db.execute(
+            select(
+                Review.barber_id,
+                sa_func.avg(Review.rating).label("avg_rating"),
+            )
+            .where(
+                Review.branch_id == branch_id,
+                cast(Review.created_at, Date) >= month_start,
+                cast(Review.created_at, Date) < month_end,
+            )
+            .group_by(Review.barber_id)
+        )
+        reviews_by_barber: dict[uuid.UUID, float] = {
+            row.barber_id: float(row.avg_rating) for row in reviews_result
+        }
+
+        raw: list[_BarberRawData] = []
+        for barber in barbers:
+            visits = visits_by_barber.get(barber.id, [])
+            revenue = sum(v.revenue for v in visits)
+            products_count = sum(v.products_count for v in visits)
+            extras_count = sum(v.extras_count for v in visits)
+            cs_value = self._compute_cs(visits, barber.haircut_price)
+            working_days = len({v.date for v in visits})
+
+            raw.append(
+                _BarberRawData(
+                    barber_id=barber.id,
+                    barber_name=barber.name,
+                    haircut_price=barber.haircut_price,
+                    revenue=revenue,
+                    visits_count=working_days,
+                    cs_value=cs_value,
+                    products_count=products_count,
+                    extras_count=extras_count,
+                    reviews_avg=reviews_by_barber.get(barber.id),
+                )
+            )
+        return raw
 
     async def get_cached_rating(
         self,

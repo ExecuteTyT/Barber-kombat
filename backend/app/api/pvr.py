@@ -18,6 +18,9 @@ from app.redis import get_redis
 from app.schemas.pvr import (
     BarberPVRResponse,
     BranchPVRResponse,
+    PVRPreviewEntry,
+    PVRPreviewRequest,
+    PVRPreviewResponse,
     ThresholdEntry,
     ThresholdsResponse,
 )
@@ -142,4 +145,45 @@ async def get_thresholds(
         thresholds=[ThresholdEntry(**t) for t in thresholds],
         count_products=config.count_products if config else False,
         count_certificates=config.count_certificates if config else False,
+        min_visits_per_month=config.min_visits_per_month if config else 0,
+    )
+
+
+@router.post("/preview", response_model=PVRPreviewResponse)
+async def preview_pvr(
+    body: PVRPreviewRequest,
+    current_user: Annotated[
+        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    redis: Annotated[aioredis.Redis, Depends(get_redis)],
+):
+    """Simulate PVR with hypothetical thresholds/min_visits. Owner/admin only.
+
+    Weights from the currently saved RatingConfig are used. Save weight
+    changes first if you want them reflected here.
+    """
+    await _validate_branch(body.branch_id, current_user.organization_id, db)
+
+    if body.month:
+        target_date = date.fromisoformat(body.month + "-01")
+        month_label = body.month
+    else:
+        target_date = date.today().replace(day=1)
+        month_label = f"{target_date.year}-{target_date.month:02d}"
+
+    pvr_service = PVRService(db=db, redis=redis)
+    barbers = await pvr_service.preview(
+        branch_id=body.branch_id,
+        organization_id=current_user.organization_id,
+        target_month=target_date,
+        thresholds=[t.model_dump() for t in body.thresholds],
+        min_visits=body.min_visits_per_month,
+    )
+
+    total_fund = sum(b["bonus_amount"] for b in barbers)
+    return PVRPreviewResponse(
+        month=month_label,
+        total_bonus_fund=total_fund,
+        barbers=[PVRPreviewEntry(**b) for b in barbers],
     )

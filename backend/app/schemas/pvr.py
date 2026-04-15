@@ -1,15 +1,26 @@
 """Pydantic schemas for PVR (Premium for High Results) API endpoints."""
 
 import uuid
+from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ThresholdReached(BaseModel):
-    """A single threshold that was reached by a barber."""
+    """A score threshold that was crossed during the month."""
 
-    amount: int
+    score: int
     reached_at: str
+
+
+class MetricBreakdown(BaseModel):
+    """Per-metric component scores (0-100) contributing to the monthly rating."""
+
+    revenue_score: int = 0
+    cs_score: int = 0
+    products_score: int = 0
+    extras_score: int = 0
+    reviews_score: int = 0
 
 
 class BarberPVRResponse(BaseModel):
@@ -23,6 +34,10 @@ class BarberPVRResponse(BaseModel):
     next_threshold: int | None
     remaining_to_next: int | None
     thresholds_reached: list[ThresholdReached]
+    monthly_rating_score: int
+    metric_breakdown: MetricBreakdown
+    working_days: int
+    min_visits_required: int
 
 
 class BranchPVRResponse(BaseModel):
@@ -36,8 +51,8 @@ class BranchPVRResponse(BaseModel):
 class ThresholdEntry(BaseModel):
     """A single threshold configuration entry."""
 
-    amount: int
-    bonus: int
+    score: int = Field(ge=0, le=100)
+    bonus: int = Field(gt=0)
 
 
 class ThresholdsResponse(BaseModel):
@@ -46,3 +61,33 @@ class ThresholdsResponse(BaseModel):
     thresholds: list[ThresholdEntry]
     count_products: bool
     count_certificates: bool
+    min_visits_per_month: int
+
+
+class PVRPreviewRequest(BaseModel):
+    """Simulate PVR with hypothetical config without saving."""
+
+    branch_id: uuid.UUID
+    thresholds: list[ThresholdEntry]
+    min_visits_per_month: int = Field(ge=0)
+    month: str | None = Field(
+        default=None,
+        pattern=r"^\d{4}-\d{2}$",
+        description="YYYY-MM. Defaults to the current month.",
+    )
+
+
+class PVRPreviewEntry(BaseModel):
+    barber_id: uuid.UUID
+    name: str
+    monthly_rating_score: int
+    working_days: int
+    current_threshold: int | None
+    bonus_amount: int
+    revenue: int
+
+
+class PVRPreviewResponse(BaseModel):
+    month: str
+    total_bonus_fund: int
+    barbers: list[PVRPreviewEntry]

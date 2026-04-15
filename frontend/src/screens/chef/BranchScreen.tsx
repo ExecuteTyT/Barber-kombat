@@ -218,24 +218,21 @@ function TodayRatingTable({ ratings }: { ratings: RatingEntry[] }) {
   )
 }
 
-// --- Premium bonuses ---
+// --- Premium bonuses (rating-based) ---
 
-function BingoTable({
-  barbers,
-  thresholdMax,
-}: {
-  barbers: BarberPVRResponse[]
-  thresholdMax: number
-}) {
-  const sorted = [...barbers].sort((a, b) => b.cumulative_revenue - a.cumulative_revenue)
+function BingoTable({ barbers }: { barbers: BarberPVRResponse[] }) {
+  const sorted = [...barbers].sort(
+    (a, b) => b.monthly_rating_score - a.monthly_rating_score,
+  )
 
   return (
     <div className="mx-4 mt-4">
-      <h3 className="bk-heading text-base">Премии за выручку</h3>
+      <h3 className="bk-heading text-base">Премии по рейтингу</h3>
       <div className="mt-2 space-y-2">
         {sorted.map((b, i) => {
-          const pct =
-            thresholdMax > 0 ? Math.min((b.cumulative_revenue / thresholdMax) * 100, 100) : 0
+          const pct = Math.max(0, Math.min(100, b.monthly_rating_score))
+          const blocked =
+            b.min_visits_required > 0 && b.working_days < b.min_visits_required
 
           return (
             <div key={b.barber_id} className="bk-card p-3">
@@ -246,9 +243,12 @@ function BingoTable({
                   </span>
                   <span className="font-medium text-[var(--bk-text)]">{b.name}</span>
                 </div>
-                <span className="font-bold tabular-nums text-[var(--bk-text)]">
-                  {formatMoney(b.cumulative_revenue)}
-                </span>
+                <div className="text-right">
+                  <span className="font-bold tabular-nums text-[var(--bk-text)]">
+                    {b.monthly_rating_score}
+                  </span>
+                  <span className="text-xs text-[var(--bk-text-dim)]"> / 100</span>
+                </div>
               </div>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--bk-bg-elevated)]">
                 <div
@@ -257,11 +257,21 @@ function BingoTable({
                 />
               </div>
               <div className="mt-1 flex items-center justify-between text-xs text-[var(--bk-text-dim)]">
-                <span>Премия: {formatMoney(b.bonus_amount)}</span>
-                {b.next_threshold && b.remaining_to_next !== null && (
-                  <span>До следующего порога: {formatMoney(b.remaining_to_next)}</span>
-                )}
+                <span>
+                  Премия:{' '}
+                  {b.bonus_amount > 0 ? formatMoney(b.bonus_amount) : '—'}
+                </span>
+                {blocked ? (
+                  <span className="text-[var(--bk-red)]">
+                    Нужно ещё {b.min_visits_required - b.working_days} раб. дн.
+                  </span>
+                ) : b.next_threshold !== null && b.remaining_to_next !== null ? (
+                  <span>До {b.next_threshold} баллов: +{b.remaining_to_next}</span>
+                ) : null}
               </div>
+              <p className="mt-1 text-[10px] text-[var(--bk-text-dim)]">
+                Выручка месяца: {formatMoney(b.cumulative_revenue)}
+              </p>
             </div>
           )
         })}
@@ -418,7 +428,7 @@ export default function BranchScreen() {
   const showBackButton = !!urlBranchId
 
   const { todayRating, fetchTodayRating } = useKombatStore()
-  const { branchPvr, thresholds, fetchBranchPvr, fetchThresholds } = usePvrStore()
+  const { branchPvr, fetchBranchPvr, fetchThresholds } = usePvrStore()
   const { analytics, fetchAnalytics } = useChefAnalyticsStore()
   const {
     reviews,
@@ -484,8 +494,6 @@ export default function BranchScreen() {
   )
   useWebSocket(handleWSMessage)
 
-  const thresholdMax = thresholds.length > 0 ? Math.max(...thresholds.map((t) => t.amount)) : 0
-
   if (!branchId) {
     return <div className="p-8 text-center text-[var(--bk-text-secondary)]">Филиал не назначен</div>
   }
@@ -528,7 +536,7 @@ export default function BranchScreen() {
 
       {/* PVR Bingo */}
       {branchPvr ? (
-        <BingoTable barbers={branchPvr.barbers} thresholdMax={thresholdMax} />
+        <BingoTable barbers={branchPvr.barbers} />
       ) : (
         <div className="mx-4 mt-4">
           <LoadingSkeleton lines={3} />

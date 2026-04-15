@@ -444,7 +444,7 @@ class TestRecalculate:
 
         # 5. Reviews query
         reviews_result = MagicMock()
-        reviews_result.__iter__ = lambda self: iter(reviews_rows)
+        reviews_result.__iter__.return_value = iter(reviews_rows)
         call_results.append(reviews_result)
 
         # 6+ UPSERT calls (one per barber)
@@ -986,3 +986,142 @@ class TestDocExample:
         assert result[0] == 100.0
         assert abs(result[1] - 91.11) < 0.01
         assert abs(result[2] - 48.15) < 0.01
+
+
+# --- Tests: calculate_monthly (used by PVRService) ---
+
+
+class TestCalculateMonthly:
+    def _make_monthly_visit(
+        self,
+        barber_id: uuid.UUID,
+        visit_date: date,
+        revenue: int = 100_000,
+        services_revenue: int = 80_000,
+        products_count: int = 0,
+        extras_count: int = 0,
+    ):
+        v = MagicMock()
+        v.barber_id = barber_id
+        v.revenue = revenue
+        v.services_revenue = services_revenue
+        v.products_count = products_count
+        v.extras_count = extras_count
+        v.status = "completed"
+        v.date = visit_date
+        return v
+
+    def _patch_db(self, mock_db, config, barbers, visits, reviews_rows):
+        config_result = MagicMock()
+        config_result.scalar_one_or_none.return_value = config
+
+        barbers_result = MagicMock()
+        barbers_result.scalars.return_value.all.return_value = barbers
+
+        visits_result = MagicMock()
+        visits_result.scalars.return_value.all.return_value = visits
+
+        reviews_result = MagicMock()
+        reviews_result.__iter__.return_value = iter(reviews_rows)
+
+        mock_db.execute = AsyncMock(
+            side_effect=[config_result, barbers_result, visits_result, reviews_result]
+        )
+
+    @pytest.mark.asyncio
+    async def test_low_revenue_high_service_barber_can_win(self):
+        """Barber with lower revenue but better products/extras/reviews should score higher."""
+        org_id = uuid.uuid4()
+        branch_id = uuid.uuid4()
+        pavel = make_barber(name="Pavel", haircut_price=100_000, branch_id=branch_id)
+        leo = make_barber(name="Leo", haircut_price=100_000, branch_id=branch_id)
+
+        # Pavel: 2x revenue but nothing else.
+        # Leo: half revenue but 3x products, 2x extras, and 5-star avg review.
+        visits = [
+            self._make_monthly_visit(
+                pavel.id, date(2026, 4, 3), revenue=1_000_000, services_revenue=1_000_000
+            ),
+            self._make_monthly_visit(
+                pavel.id, date(2026, 4, 10), revenue=1_000_000, services_revenue=1_000_000
+            ),
+            self._make_monthly_visit(
+                leo.id,
+                date(2026, 4, 5),
+                revenue=500_000,
+                services_revenue=200_000,
+                products_count=5,
+                extras_count=3,
+            ),
+            self._make_monthly_visit(
+                leo.id,
+                date(2026, 4, 15),
+                revenue=500_000,
+                services_revenue=200_000,
+                products_count=5,
+                extras_count=3,
+            ),
+        ]
+        reviews_rows = [
+            MagicMock(barber_id=leo.id, avg_rating=5.0),
+            MagicMock(barber_id=pavel.id, avg_rating=4.0),
+        ]
+
+        mock_db = AsyncMock()
+        config = make_rating_config(
+            org_id=org_id,
+            revenue_weight=20,
+            cs_weight=20,
+            products_weight=25,
+            extras_weight=25,
+            reviews_weight=10,
+        )
+        self._patch_db(mock_db, config, [pavel, leo], visits, reviews_rows)
+
+        engine = RatingEngine(db=mock_db, redis=AsyncMock())
+        result = await engine.calculate_monthly(branch_id, org_id, date(2026, 4, 1))
+
+        assert len(result) == 2
+        by_id = {r.barber_id: r for r in result}
+        # Leo should beat Pavel despite lower revenue
+        assert by_id[leo.id].total_score > by_id[pavel.id].total_score
+        # Scores are on the 0-100 scale
+        assert 0 <= by_id[pavel.id].total_score <= 100
+        assert 0 <= by_id[leo.id].total_score <= 100
+
+    @pytest.mark.asyncio
+    async def test_working_days_counts_distinct_dates(self):
+        org_id = uuid.uuid4()
+        branch_id = uuid.uuid4()
+        pavel = make_barber(haircut_price=100_000, branch_id=branch_id)
+
+        visits = [
+            self._make_monthly_visit(pavel.id, date(2026, 4, 3)),
+            self._make_monthly_visit(pavel.id, date(2026, 4, 3)),
+            self._make_monthly_visit(pavel.id, date(2026, 4, 5)),
+        ]
+
+        mock_db = AsyncMock()
+        self._patch_db(mock_db, make_rating_config(org_id=org_id), [pavel], visits, [])
+
+        engine = RatingEngine(db=mock_db, redis=AsyncMock())
+        result = await engine.calculate_monthly(branch_id, org_id, date(2026, 4, 1))
+
+        assert result[0].working_days == 2
+
+    @pytest.mark.asyncio
+    async def test_empty_month_returns_zero_score(self):
+        org_id = uuid.uuid4()
+        branch_id = uuid.uuid4()
+        pavel = make_barber(haircut_price=100_000, branch_id=branch_id)
+
+        mock_db = AsyncMock()
+        self._patch_db(mock_db, make_rating_config(org_id=org_id), [pavel], [], [])
+
+        engine = RatingEngine(db=mock_db, redis=AsyncMock())
+        result = await engine.calculate_monthly(branch_id, org_id, date(2026, 4, 1))
+
+        assert len(result) == 1
+        assert result[0].total_score == 0.0
+        assert result[0].working_days == 0
+        assert result[0].revenue == 0

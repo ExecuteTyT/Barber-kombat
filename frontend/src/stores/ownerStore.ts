@@ -8,6 +8,8 @@ import type {
   AlarumResponse,
   RatingWeightsConfig,
   PVRThresholdsConfig,
+  PVRThreshold,
+  PVRPreviewResponse,
   BranchConfig,
   BranchListResponse,
   UserConfig,
@@ -65,6 +67,12 @@ type OwnerState = DashboardState &
     saveRatingWeights: (data: RatingWeightsConfig) => Promise<boolean>
     fetchPvrThresholds: () => Promise<void>
     savePvrThresholds: (data: PVRThresholdsConfig) => Promise<boolean>
+    previewPvr: (
+      branchId: string,
+      thresholds: PVRThreshold[],
+      minVisits: number,
+      month?: string,
+    ) => Promise<PVRPreviewResponse | null>
     fetchBranches: () => Promise<void>
     createBranch: (data: { name: string; address?: string; yclients_company_id?: number; telegram_group_id?: number }) => Promise<boolean>
     saveBranch: (id: string, data: Partial<BranchConfig>) => Promise<boolean>
@@ -193,6 +201,25 @@ export const useOwnerStore = create<OwnerState>((set) => ({
     } catch {
       set({ settingsSaving: false })
       return false
+    }
+  },
+
+  previewPvr: async (
+    branchId: string,
+    thresholds: PVRThreshold[],
+    minVisits: number,
+    month?: string,
+  ): Promise<PVRPreviewResponse | null> => {
+    try {
+      const { data } = await api.post<PVRPreviewResponse>('/pvr/preview', {
+        branch_id: branchId,
+        thresholds,
+        min_visits_per_month: minVisits,
+        month,
+      })
+      return data
+    } catch {
+      return null
     }
   },
 

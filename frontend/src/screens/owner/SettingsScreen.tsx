@@ -14,6 +14,7 @@ import type {
   RatingWeightsConfig,
   PVRThresholdsConfig,
   PVRThreshold,
+  PVRPreviewResponse,
   PlanNetworkEntry,
   BranchConfig,
   NotificationConfig,
@@ -168,15 +169,34 @@ function KombatSection() {
 }
 
 function PVRSection() {
-  const { pvrThresholds, settingsSaving, fetchPvrThresholds, savePvrThresholds } = useOwnerStore()
+  const {
+    pvrThresholds,
+    branches,
+    settingsSaving,
+    fetchPvrThresholds,
+    savePvrThresholds,
+    fetchBranches,
+    previewPvr,
+  } = useOwnerStore()
 
   const [draft, setDraft] = useState<PVRThresholdsConfig | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [prevThresholds, setPrevThresholds] = useState<PVRThresholdsConfig | null>(null)
+  const [previewBranchId, setPreviewBranchId] = useState<string>('')
+  const [preview, setPreview] = useState<PVRPreviewResponse | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   useEffect(() => {
     fetchPvrThresholds()
-  }, [fetchPvrThresholds])
+    fetchBranches()
+  }, [fetchPvrThresholds, fetchBranches])
+
+  useEffect(() => {
+    if (!previewBranchId && branches.length > 0) {
+      const firstActive = branches.find((b) => b.is_active) ?? branches[0]
+      if (firstActive) setPreviewBranchId(firstActive.id)
+    }
+  }, [branches, previewBranchId])
 
   if (pvrThresholds && pvrThresholds !== prevThresholds) {
     setPrevThresholds(pvrThresholds)
@@ -184,6 +204,21 @@ function PVRSection() {
   }
 
   if (!draft) return <LoadingSkeleton lines={4} />
+
+  const validate = (d: PVRThresholdsConfig): string | null => {
+    if (d.thresholds.length < 1) return 'Нужен хотя бы один порог'
+    if (d.thresholds.length > 5) return 'Не больше 5 порогов'
+    for (const t of d.thresholds) {
+      if (t.score < 0 || t.score > 100) return 'Балл должен быть от 0 до 100'
+      if (t.bonus <= 0) return 'Премия должна быть больше нуля'
+    }
+    const scores = d.thresholds.map((t) => t.score)
+    const sorted = [...scores].sort((a, b) => a - b)
+    if (scores.join(',') !== sorted.join(',')) return 'Отсортируйте пороги по возрастанию'
+    if (new Set(scores).size !== scores.length) return 'Баллы порогов должны быть уникальными'
+    if (d.min_visits_per_month < 0) return 'Мин. визитов не может быть отрицательным'
+    return null
+  }
 
   const updateThreshold = (idx: number, field: keyof PVRThreshold, value: number) => {
     const updated = [...draft.thresholds]
@@ -193,11 +228,11 @@ function PVRSection() {
 
   const addThreshold = () => {
     const last = draft.thresholds[draft.thresholds.length - 1]
-    const newAmount = last ? last.amount + 10000000 : 30000000
-    const newBonus = last ? last.bonus + 100000 : 100000
+    const newScore = last ? Math.min(last.score + 10, 100) : 60
+    const newBonus = last ? last.bonus + 100_000_00 : 100_000_00
     setDraft({
       ...draft,
-      thresholds: [...draft.thresholds, { amount: newAmount, bonus: newBonus }],
+      thresholds: [...draft.thresholds, { score: newScore, bonus: newBonus }],
     })
   }
 
@@ -207,68 +242,134 @@ function PVRSection() {
   }
 
   const handleSave = async () => {
+    const v = validate(draft)
+    if (v) {
+      setError(v)
+      return
+    }
     setError(null)
-    const ok = await savePvrThresholds(draft)
+    const sorted = {
+      ...draft,
+      thresholds: [...draft.thresholds].sort((a, b) => a.score - b.score),
+    }
+    const ok = await savePvrThresholds(sorted)
     if (!ok) setError('Ошибка сохранения')
   }
 
-  return (
-    <div className="space-y-3">
-      <p className="text-sm font-medium text-[var(--bk-text)]">Пороги</p>
-      {draft.thresholds.map((t, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <input
-            type="number"
-            placeholder="Сумма"
-            className="flex-1 rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
-            value={t.amount / 100}
-            onChange={(e) => updateThreshold(i, 'amount', Number(e.target.value) * 100)}
-          />
-          <span className="text-xs text-[var(--bk-text-dim)]">
-            <IconArrowLeft size={14} className="rotate-180" />
-          </span>
-          <input
-            type="number"
-            placeholder="Премия"
-            className="w-24 rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
-            value={t.bonus / 100}
-            onChange={(e) => updateThreshold(i, 'bonus', Number(e.target.value) * 100)}
-          />
-          <button
-            type="button"
-            className="text-[var(--bk-red)] disabled:opacity-30"
-            disabled={draft.thresholds.length <= 1}
-            onClick={() => removeThreshold(i)}
-          >
-            <IconX size={16} />
-          </button>
-        </div>
-      ))}
-      <button
-        type="button"
-        className="flex items-center gap-1 text-sm text-[var(--bk-gold)]"
-        onClick={addThreshold}
-      >
-        <IconPlus size={14} /> Добавить порог
-      </button>
+  const handlePreview = async () => {
+    if (!previewBranchId) {
+      setError('Выберите филиал для предпросмотра')
+      return
+    }
+    const v = validate(draft)
+    if (v) {
+      setError(v)
+      return
+    }
+    setError(null)
+    setPreviewLoading(true)
+    const sorted = [...draft.thresholds].sort((a, b) => a.score - b.score)
+    const res = await previewPvr(previewBranchId, sorted, draft.min_visits_per_month)
+    setPreview(res)
+    setPreviewLoading(false)
+    if (!res) setError('Не удалось построить предпросмотр')
+  }
 
-      <div className="flex gap-4">
-        <label className="flex items-center gap-2 text-sm text-[var(--bk-text)]">
+  return (
+    <div className="space-y-4">
+      <div className="bk-card p-3">
+        <p className="text-sm font-medium text-[var(--bk-text)]">Пороги премии по рейтингу</p>
+        <p className="mt-1 text-xs text-[var(--bk-text-dim)]">
+          Премия начисляется за месячный рейтинг (0–100 баллов). Веса метрик рейтинга
+          настраиваются в разделе «Рейтинг» и работают и для Kombat, и для премий.
+        </p>
+        <div className="mt-3 space-y-2">
+          {draft.thresholds.map((t, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className="flex flex-1 items-center gap-1">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  placeholder="Балл"
+                  className="w-16 rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
+                  value={t.score}
+                  onChange={(e) => updateThreshold(i, 'score', Number(e.target.value))}
+                />
+                <span className="text-xs text-[var(--bk-text-dim)]">баллов</span>
+              </div>
+              <span className="text-xs text-[var(--bk-text-dim)]">
+                <IconArrowLeft size={14} className="rotate-180" />
+              </span>
+              <input
+                type="number"
+                placeholder="Премия, ₽"
+                className="w-28 rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
+                value={t.bonus / 100}
+                onChange={(e) => updateThreshold(i, 'bonus', Number(e.target.value) * 100)}
+              />
+              <button
+                type="button"
+                className="text-[var(--bk-red)] disabled:opacity-30"
+                disabled={draft.thresholds.length <= 1}
+                onClick={() => removeThreshold(i)}
+              >
+                <IconX size={16} />
+              </button>
+            </div>
+          ))}
+          {draft.thresholds.length < 5 && (
+            <button
+              type="button"
+              className="flex items-center gap-1 text-sm text-[var(--bk-gold)]"
+              onClick={addThreshold}
+            >
+              <IconPlus size={14} /> Добавить порог
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="bk-card space-y-3 p-3">
+        <div>
+          <label className="text-sm font-medium text-[var(--bk-text)]">
+            Минимум рабочих дней в месяце
+          </label>
+          <p className="mb-1.5 text-xs text-[var(--bk-text-dim)]">
+            Барбер не допускается к премии, если за месяц отработал меньше. 0 — выкл.
+          </p>
           <input
-            type="checkbox"
-            checked={draft.count_products}
-            onChange={(e) => setDraft({ ...draft, count_products: e.target.checked })}
+            type="number"
+            min={0}
+            className="w-24 rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
+            value={draft.min_visits_per_month}
+            onChange={(e) =>
+              setDraft({ ...draft, min_visits_per_month: Math.max(0, Number(e.target.value)) })
+            }
           />
-          Считать товары
-        </label>
-        <label className="flex items-center gap-2 text-sm text-[var(--bk-text)]">
-          <input
-            type="checkbox"
-            checked={draft.count_certificates}
-            onChange={(e) => setDraft({ ...draft, count_certificates: e.target.checked })}
-          />
-          Считать сертификаты
-        </label>
+        </div>
+
+        <div className="flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 text-sm text-[var(--bk-text)]">
+            <input
+              type="checkbox"
+              checked={draft.count_products}
+              onChange={(e) => setDraft({ ...draft, count_products: e.target.checked })}
+            />
+            Показывать товары в выручке
+          </label>
+          <label className="flex items-center gap-2 text-sm text-[var(--bk-text)]">
+            <input
+              type="checkbox"
+              checked={draft.count_certificates}
+              onChange={(e) => setDraft({ ...draft, count_certificates: e.target.checked })}
+            />
+            Показывать сертификаты
+          </label>
+        </div>
+        <p className="text-[11px] leading-tight text-[var(--bk-text-dim)]">
+          Эти флаги влияют только на отображение выручки в прогрессе барбера — не на расчёт рейтинга.
+        </p>
       </div>
 
       {error && <p className="text-sm text-[var(--bk-red)]">{error}</p>}
@@ -280,6 +381,81 @@ function PVRSection() {
       >
         {settingsSaving ? 'Сохранение...' : 'Сохранить'}
       </button>
+
+      <div className="bk-card space-y-3 p-3">
+        <p className="text-sm font-medium text-[var(--bk-text)]">Предпросмотр на текущий месяц</p>
+        <p className="text-xs text-[var(--bk-text-dim)]">
+          Кто из мастеров получит премию при этих порогах. Сохраните веса рейтинга до
+          предпросмотра, если меняли их.
+        </p>
+        <div className="flex items-center gap-2">
+          <select
+            className="flex-1 rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
+            value={previewBranchId}
+            onChange={(e) => {
+              setPreviewBranchId(e.target.value)
+              setPreview(null)
+            }}
+          >
+            <option value="">Выберите филиал</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="rounded-lg bg-[var(--bk-bg-elevated)] px-3 py-1.5 text-sm font-medium text-[var(--bk-gold)] disabled:opacity-50"
+            disabled={previewLoading || !previewBranchId}
+            onClick={handlePreview}
+          >
+            {previewLoading ? '…' : 'Рассчитать'}
+          </button>
+        </div>
+
+        {preview && (
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs text-[var(--bk-text-secondary)]">
+                Период: {preview.month}
+              </span>
+              <span className="text-sm font-semibold text-[var(--bk-gold)]">
+                Фонд: {formatMoney(preview.total_bonus_fund)}
+              </span>
+            </div>
+            <div className="space-y-1">
+              {preview.barbers.length === 0 && (
+                <p className="py-2 text-center text-xs text-[var(--bk-text-secondary)]">
+                  Нет данных за этот месяц
+                </p>
+              )}
+              {preview.barbers.map((b) => (
+                <div
+                  key={b.barber_id}
+                  className="flex items-center justify-between rounded-lg bg-[var(--bk-bg-primary)] px-2 py-1.5 text-sm"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[var(--bk-text)]">{b.name}</p>
+                    <p className="text-[11px] text-[var(--bk-text-dim)]">
+                      Рейтинг {b.monthly_rating_score}/100 · {b.working_days} раб. дн.
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    {b.bonus_amount > 0 ? (
+                      <span className="font-semibold text-[var(--bk-gold)]">
+                        +{formatMoney(b.bonus_amount)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[var(--bk-text-dim)]">—</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

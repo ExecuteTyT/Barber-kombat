@@ -677,11 +677,12 @@ class TestSchemaValidation:
         with pytest.raises(ValueError, match="ascending"):
             PVRThresholdsRequest(
                 thresholds=[
-                    ThresholdEntry(amount=50_000_000, bonus=3_000_000),
-                    ThresholdEntry(amount=30_000_000, bonus=1_000_000),
+                    ThresholdEntry(score=80, bonus=300_000_000),
+                    ThresholdEntry(score=60, bonus=100_000_000),
                 ],
                 count_products=False,
                 count_certificates=False,
+                min_visits_per_month=0,
             )
 
     def test_thresholds_empty_rejected(self):
@@ -692,6 +693,7 @@ class TestSchemaValidation:
                 thresholds=[],
                 count_products=False,
                 count_certificates=False,
+                min_visits_per_month=0,
             )
 
     def test_valid_thresholds_accepted(self):
@@ -699,10 +701,12 @@ class TestSchemaValidation:
 
         req = PVRThresholdsRequest(
             thresholds=[
-                ThresholdEntry(amount=30_000_000, bonus=1_000_000),
-                ThresholdEntry(amount=50_000_000, bonus=3_000_000),
+                ThresholdEntry(score=60, bonus=100_000_000),
+                ThresholdEntry(score=80, bonus=300_000_000),
             ],
             count_products=True,
             count_certificates=False,
+            min_visits_per_month=15,
         )
         assert len(req.thresholds) == 2
+        assert req.min_visits_per_month == 15

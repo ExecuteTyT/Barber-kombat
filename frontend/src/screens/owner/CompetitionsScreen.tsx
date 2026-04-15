@@ -83,31 +83,52 @@ function RatingRow({ entry, weights }: { entry: RatingEntry; weights: RatingWeig
 }
 
 function PVRRow({ barber }: { barber: BarberPVRResponse }) {
+  const blocked =
+    barber.min_visits_required > 0 && barber.working_days < barber.min_visits_required
+  const lastReached = barber.thresholds_reached[barber.thresholds_reached.length - 1]
+
   return (
     <div className="px-3 py-2.5">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-[var(--bk-text)]">{barber.name}</span>
-        <span className="text-sm font-bold tabular-nums text-[var(--bk-text)]">
-          {formatMoney(barber.cumulative_revenue)}
-        </span>
+        <div className="text-right">
+          <span className="text-sm font-bold tabular-nums text-[var(--bk-text)]">
+            {barber.monthly_rating_score}
+          </span>
+          <span className="text-xs text-[var(--bk-text-dim)]"> / 100</span>
+        </div>
       </div>
       {barber.bonus_amount > 0 && (
         <div className="mt-1 flex items-center justify-between">
           <span className="text-xs text-[var(--bk-text-dim)]">
-            Достигнут порог {formatMoney(barber.thresholds_reached[barber.thresholds_reached.length - 1]?.amount ?? 0)}
+            {lastReached
+              ? `Достигнут порог ${lastReached.score} баллов`
+              : `Текущий порог ${barber.current_threshold ?? 0} баллов`}
           </span>
           <span className="text-xs font-semibold text-[var(--bk-gold)]">
             Премия: +{formatMoney(barber.bonus_amount)}
           </span>
         </div>
       )}
-      {barber.bonus_amount === 0 && barber.next_threshold && barber.remaining_to_next !== null && (
+      {barber.bonus_amount === 0 && !blocked &&
+        barber.next_threshold !== null &&
+        barber.remaining_to_next !== null && (
+          <div className="mt-1">
+            <span className="text-xs text-[var(--bk-text-dim)]">
+              До {barber.next_threshold} баллов: +{barber.remaining_to_next}
+            </span>
+          </div>
+        )}
+      {blocked && (
         <div className="mt-1">
-          <span className="text-xs text-[var(--bk-text-dim)]">
-            До премии ещё {formatMoney(barber.remaining_to_next)}
+          <span className="text-xs text-[var(--bk-red)]">
+            Не допущен — {barber.min_visits_required - barber.working_days} раб. дн. до минимума
           </span>
         </div>
       )}
+      <p className="mt-1 text-[10px] text-[var(--bk-text-dim)]">
+        Выручка: {formatMoney(barber.cumulative_revenue)}
+      </p>
     </div>
   )
 }
