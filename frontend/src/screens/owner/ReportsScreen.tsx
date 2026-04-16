@@ -37,6 +37,11 @@ function monthStartIso(iso: string): string {
   return iso.slice(0, 7) + '-01'
 }
 
+const RU_MONTHS_NOM = [
+  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+]
+
 function formatMoney(kopecks: number): string {
   const rubles = Math.round(kopecks / 100)
   return rubles.toLocaleString('ru-RU') + '\u{00A0}\u{20BD}'
@@ -165,10 +170,6 @@ function RevenueReport() {
   }, [dateIso, fetchRevenueByDate])
 
   const isToday = dateIso === todayIso()
-  const monthStart = monthStartIso(dateIso)
-  const monthLabel = new Date(monthStart + 'T00:00:00').toLocaleDateString('ru-RU', {
-    month: 'long',
-  })
 
   return (
     <div>
@@ -181,7 +182,6 @@ function RevenueReport() {
           report={revenueByDate}
           dateIso={dateIso}
           isToday={isToday}
-          monthLabel={monthLabel}
         />
       )}
     </div>
@@ -192,27 +192,32 @@ function RevenueForDate({
   report,
   dateIso,
   isToday,
-  monthLabel,
 }: {
   report: { branches: BranchRevenue[]; network_total_today: number; network_total_mtd: number }
   dateIso: string
   isToday: boolean
-  monthLabel: string
 }) {
   const { branches, network_total_today: networkDay, network_total_mtd: networkMtd } = report
   const networkPlanTarget = branches.reduce((s, b) => s + b.plan_target, 0)
   const networkPlanPct =
     networkPlanTarget > 0 ? ((networkMtd / networkPlanTarget) * 100).toFixed(0) : '0'
 
+  const d = new Date(dateIso + 'T00:00:00')
+  const monthNom = RU_MONTHS_NOM[d.getMonth()]
+  const dayNum = d.getDate()
+
   const dayLabel = isToday ? 'Сегодня' : formatHumanDate(dateIso)
-  const mtdLabel = isToday ? `Месяц (${monthLabel})` : `С начала ${monthLabel} по ${formatHumanDate(dateIso)}`
+  // Days 1-N of the current month. Simpler and less ambiguous than "С начала..."
+  const mtdLabel = `${monthNom} 1–${dayNum}`
+  const mtdHint = 'накопительная сеть с 1-го по выбранный день'
 
   return (
     <>
-      <div className="mb-4 flex gap-3">
+      <div className="mb-1 flex gap-3">
         <StatCard label={dayLabel} value={formatMoney(networkDay)} />
         <StatCard label={mtdLabel} value={formatMoney(networkMtd)} sub={`${networkPlanPct}% плана`} />
       </div>
+      <p className="mb-3 px-1 text-[10px] text-[var(--bk-text-dim)]">{mtdHint}</p>
 
       <div className="space-y-2">
         {branches.map((b) => (
