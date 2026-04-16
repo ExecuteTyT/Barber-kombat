@@ -460,13 +460,17 @@ export interface BranchAnalytics {
   visits_today: number
   visits_mtd: number
   clients_today: number
+  new_clients_today: number
+  returning_clients_today: number
   new_clients_mtd: number
   returning_clients_mtd: number
   total_clients_mtd: number
   barbers_in_shift: number
   barbers_total: number
   top_barbers: TopBarber[]
+  total_products_today: number
   total_products_mtd: number
+  total_extras_today: number
   total_extras_mtd: number
   avg_review_score: number | null
 }

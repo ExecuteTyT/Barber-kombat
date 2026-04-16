@@ -370,7 +370,7 @@ export default function CompetitionsScreen() {
         {tab === 'kombat' &&
           (todayRating ? (
             <div className="bk-card overflow-hidden">
-              <div className="flex items-center justify-between px-3 pb-1 pt-3">
+              <div className="flex items-center justify-between px-3 pb-0.5 pt-3">
                 <span className="text-sm font-medium text-[var(--bk-text)]">
                   {todayRating.branch_name}
                 </span>
@@ -381,6 +381,14 @@ export default function CompetitionsScreen() {
                   </span>
                 )}
               </div>
+              <p className="px-3 pb-1.5 text-[10px] text-[var(--bk-text-dim)]">
+                Рейтинг за{' '}
+                {new Date(todayRating.date + 'T00:00:00').toLocaleDateString('ru-RU', {
+                  day: 'numeric',
+                  month: 'long',
+                })}
+                {' '}· день обнуляется в полночь
+              </p>
 
               {/* Legend */}
               <div className="flex flex-wrap gap-x-3 gap-y-1 px-3 pb-2">
@@ -457,7 +465,8 @@ export default function CompetitionsScreen() {
                   </button>
                 </div>
                 <p className="mt-0.5 text-[10px] leading-relaxed text-[var(--bk-text-dim)]">
-                  Накопительная выручка каждого барбера с 1-го числа. При достижении порога начисляется премия.
+                  Месячный рейтинг каждого барбера (0–100) накапливается с 1-го числа
+                  и отличается от дневного. Премия — при переходе порога.
                 </p>
               </div>
               <div className="divide-y divide-[var(--bk-border)]">

@@ -97,24 +97,29 @@ function StatCard({
 function DatePickerBar({
   value,
   onChange,
-  disabled,
 }: {
   value: string
   onChange: (iso: string) => void
-  disabled: boolean
 }) {
   const today = todayIso()
   const isToday = value === today
+  const canGoForward = value < today
+
+  const go = (delta: number) => (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    onChange(shiftIso(value, delta))
+  }
+
   return (
     <div className="mb-3 flex items-center gap-2">
       <button
         type="button"
-        className="rounded-lg bg-[var(--bk-bg-elevated)] p-2 text-[var(--bk-gold)] disabled:opacity-30"
-        disabled={disabled}
-        onClick={() => onChange(shiftIso(value, -1))}
+        className="rounded-lg bg-[var(--bk-bg-elevated)] p-2 text-[var(--bk-gold)] active:opacity-70"
+        onClick={go(-1)}
         aria-label="Предыдущий день"
       >
-        <IconArrowLeft size={16} />
+        <IconArrowLeft size={16} className="pointer-events-none" />
       </button>
       <input
         type="date"
@@ -126,18 +131,21 @@ function DatePickerBar({
       <button
         type="button"
         className="rounded-lg bg-[var(--bk-bg-elevated)] p-2 text-[var(--bk-gold)] disabled:opacity-30"
-        disabled={disabled || isToday}
-        onClick={() => onChange(shiftIso(value, 1))}
+        disabled={!canGoForward}
+        onClick={go(1)}
         aria-label="Следующий день"
       >
-        <IconArrowRight size={16} />
+        <IconArrowRight size={16} className="pointer-events-none" />
       </button>
       {!isToday && (
         <button
           type="button"
-          className="rounded-lg bg-[var(--bk-gold)] px-2.5 py-1.5 text-xs font-semibold text-[var(--bk-bg-primary)] disabled:opacity-50"
-          disabled={disabled}
-          onClick={() => onChange(today)}
+          className="rounded-lg bg-[var(--bk-gold)] px-2.5 py-1.5 text-xs font-semibold text-[var(--bk-bg-primary)]"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onChange(today)
+          }}
         >
           Сегодня
         </button>
@@ -147,7 +155,9 @@ function DatePickerBar({
 }
 
 function RevenueReport() {
-  const { revenueByDate, revenueByDateLoading, fetchRevenueByDate } = useOwnerStore()
+  const revenueByDate = useOwnerStore((s) => s.revenueByDate)
+  const revenueByDateLoading = useOwnerStore((s) => s.revenueByDateLoading)
+  const fetchRevenueByDate = useOwnerStore((s) => s.fetchRevenueByDate)
   const [dateIso, setDateIso] = useState<string>(todayIso())
 
   useEffect(() => {
@@ -162,7 +172,7 @@ function RevenueReport() {
 
   return (
     <div>
-      <DatePickerBar value={dateIso} onChange={setDateIso} disabled={revenueByDateLoading} />
+      <DatePickerBar value={dateIso} onChange={setDateIso} />
 
       {revenueByDateLoading && !revenueByDate && <LoadingSkeleton lines={6} />}
 

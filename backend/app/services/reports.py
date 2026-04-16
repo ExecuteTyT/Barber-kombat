@@ -510,9 +510,15 @@ class ReportService:
         top_barbers = await self._get_top_barbers(branch_id, month_start, target_date)
 
         # Aggregates
+        total_products_today = await self._sum_products(branch_id, target_date, target_date)
         total_products_mtd = await self._sum_products(branch_id, month_start, target_date)
+        total_extras_today = await self._sum_extras(branch_id, target_date, target_date)
         total_extras_mtd = await self._sum_extras(branch_id, month_start, target_date)
         avg_review_score = await self._avg_review_score(branch_id, month_start, target_date)
+        new_clients_today = await self._count_new_clients(
+            branch_id, organization_id, target_date, target_date
+        )
+        returning_clients_today = max(clients_today - new_clients_today, 0)
 
         return {
             "branch_id": str(branch_id),
@@ -527,13 +533,17 @@ class ReportService:
             "visits_today": visits_today,
             "visits_mtd": visits_mtd,
             "clients_today": clients_today,
+            "new_clients_today": new_clients_today,
+            "returning_clients_today": returning_clients_today,
             "new_clients_mtd": new_clients_mtd,
             "returning_clients_mtd": returning_clients_mtd,
             "total_clients_mtd": total_clients_mtd,
             "barbers_in_shift": barbers_in_shift,
             "barbers_total": barbers_total,
             "top_barbers": top_barbers,
+            "total_products_today": total_products_today,
             "total_products_mtd": total_products_mtd,
+            "total_extras_today": total_extras_today,
             "total_extras_mtd": total_extras_mtd,
             "avg_review_score": avg_review_score,
         }
@@ -629,11 +639,18 @@ class ReportService:
         return result.scalar_one_or_none()
 
     async def _count_barbers_in_shift(self, branch_id: uuid.UUID, target_date: date) -> int:
-        """Count barbers who had at least one visit today."""
+        """Count barbers who have any booking on the target day.
+
+        We count every barber who has at least one visit for the day whose
+        status signals real activity — completed (already served), confirmed
+        (admin-verified pending) or scheduled (booked, waiting). Previously
+        only 'completed' was counted, which made the KPI read 0 for the whole
+        morning until the first haircut was finished.
+        """
         stmt = select(sa_func.count(sa_func.distinct(Visit.barber_id))).where(
             Visit.branch_id == branch_id,
             Visit.date == target_date,
-            Visit.status == "completed",
+            Visit.status.in_(["completed", "confirmed", "scheduled"]),
         )
         result = await self.db.execute(stmt)
         return result.scalar_one()

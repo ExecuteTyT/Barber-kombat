@@ -41,11 +41,8 @@ function KPIGrid({ analytics }: { analytics: BranchAnalytics }) {
     {
       label: 'Выручка сегодня',
       value: formatMoney(analytics.revenue_today),
+      sub: `За месяц: ${formatMoney(analytics.revenue_mtd)}`,
       accent: true,
-    },
-    {
-      label: 'С начала месяца',
-      value: formatMoney(analytics.revenue_mtd),
     },
     {
       label: 'Средний чек',
@@ -56,15 +53,23 @@ function KPIGrid({ analytics }: { analytics: BranchAnalytics }) {
       label: 'Визитов сегодня',
       value: String(analytics.visits_today),
       sub: `За месяц: ${analytics.visits_mtd}`,
+      hint: 'оказанных услуг',
     },
     {
       label: 'Клиентов сегодня',
       value: String(analytics.clients_today),
-      sub: `Новых: ${analytics.new_clients_mtd} / Повторных: ${analytics.returning_clients_mtd}`,
+      sub: `${analytics.new_clients_today} нов. · ${analytics.returning_clients_today} повт.`,
+      hint: 'уникальных человек',
     },
     {
       label: 'В смене',
       value: `${analytics.barbers_in_shift} / ${analytics.barbers_total}`,
+      hint: 'у кого есть запись на сегодня',
+    },
+    {
+      label: 'Клиентов за месяц',
+      value: String(analytics.total_clients_mtd),
+      sub: `${analytics.new_clients_mtd} нов. · ${analytics.returning_clients_mtd} повт.`,
     },
   ]
 
@@ -83,6 +88,9 @@ function KPIGrid({ analytics }: { analytics: BranchAnalytics }) {
           </p>
           {k.sub && (
             <p className="mt-0.5 text-[10px] text-[var(--bk-text-dim)]">{k.sub}</p>
+          )}
+          {k.hint && (
+            <p className="mt-0.5 text-[9px] italic text-[var(--bk-text-dim)]">{k.hint}</p>
           )}
         </div>
       ))}
@@ -126,39 +134,49 @@ function PlanProgress({ analytics }: { analytics: BranchAnalytics }) {
 function MonthlyMetrics({ analytics }: { analytics: BranchAnalytics }) {
   return (
     <div className="mx-4 mt-3 flex gap-2">
-      <div className="bk-card flex flex-1 items-center gap-2 p-3">
-        <IconShoppingBag size={16} className="text-[var(--bk-text-secondary)]" />
-        <div>
+      <div className="bk-card flex-1 p-3">
+        <div className="flex items-center gap-1.5">
+          <IconShoppingBag size={14} className="text-[var(--bk-text-secondary)]" />
           <p className="text-[10px] uppercase tracking-wider text-[var(--bk-text-dim)]">
             Товары
           </p>
-          <p className="text-base font-bold tabular-nums text-[var(--bk-text)]">
-            {analytics.total_products_mtd}
-          </p>
         </div>
+        <p className="mt-0.5 text-base font-bold tabular-nums text-[var(--bk-text)]">
+          {analytics.total_products_today}
+          <span className="ml-1 text-xs font-normal text-[var(--bk-text-dim)]">сегодня</span>
+        </p>
+        <p className="text-[10px] text-[var(--bk-text-dim)]">
+          За месяц: {analytics.total_products_mtd}
+        </p>
       </div>
-      <div className="bk-card flex flex-1 items-center gap-2 p-3">
-        <IconGift size={16} className="text-[var(--bk-text-secondary)]" />
-        <div>
+      <div className="bk-card flex-1 p-3">
+        <div className="flex items-center gap-1.5">
+          <IconGift size={14} className="text-[var(--bk-text-secondary)]" />
           <p className="text-[10px] uppercase tracking-wider text-[var(--bk-text-dim)]">
             Доп. услуги
           </p>
-          <p className="text-base font-bold tabular-nums text-[var(--bk-text)]">
-            {analytics.total_extras_mtd}
-          </p>
         </div>
+        <p className="mt-0.5 text-base font-bold tabular-nums text-[var(--bk-text)]">
+          {analytics.total_extras_today}
+          <span className="ml-1 text-xs font-normal text-[var(--bk-text-dim)]">сегодня</span>
+        </p>
+        <p className="text-[10px] text-[var(--bk-text-dim)]">
+          За месяц: {analytics.total_extras_mtd}
+        </p>
       </div>
       {analytics.avg_review_score !== null && (
-        <div className="bk-card flex flex-1 items-center gap-2 p-3">
-          <IconStar size={16} className="text-[var(--bk-gold)]" />
-          <div>
+        <div className="bk-card flex-1 p-3">
+          <div className="flex items-center gap-1.5">
+            <IconStar size={14} className="text-[var(--bk-gold)]" />
             <p className="text-[10px] uppercase tracking-wider text-[var(--bk-text-dim)]">
               Отзывы
             </p>
-            <p className="text-base font-bold tabular-nums text-[var(--bk-text)]">
-              {analytics.avg_review_score.toFixed(1)}
-            </p>
           </div>
+          <p className="mt-0.5 text-base font-bold tabular-nums text-[var(--bk-text)]">
+            {analytics.avg_review_score.toFixed(1)}
+            <span className="ml-1 text-xs font-normal text-[var(--bk-text-dim)]">ср.</span>
+          </p>
+          <p className="text-[10px] text-[var(--bk-text-dim)]">За месяц</p>
         </div>
       )}
     </div>

@@ -196,6 +196,8 @@ class BranchAnalytics(BaseModel):
     visits_mtd: int
     # Clients
     clients_today: int
+    new_clients_today: int = 0
+    returning_clients_today: int = 0
     new_clients_mtd: int
     returning_clients_mtd: int
     total_clients_mtd: int
@@ -205,7 +207,9 @@ class BranchAnalytics(BaseModel):
     # Top barbers (monthly)
     top_barbers: list[TopBarber]
     # Aggregates
+    total_products_today: int = 0
     total_products_mtd: int
+    total_extras_today: int = 0
     total_extras_mtd: int
     avg_review_score: float | None
 
