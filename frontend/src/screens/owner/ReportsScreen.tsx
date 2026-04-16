@@ -10,10 +10,32 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
-import { IconArrowLeft, IconChevronRight } from '../../components/Icons'
+import { IconArrowLeft, IconArrowRight, IconChevronRight } from '../../components/Icons'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useOwnerStore } from '../../stores/ownerStore'
 import type { BranchRevenue, BranchClients } from '../../types'
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function shiftIso(iso: string, deltaDays: number): string {
+  const d = new Date(iso + 'T00:00:00')
+  d.setDate(d.getDate() + deltaDays)
+  return d.toISOString().slice(0, 10)
+}
+
+function formatHumanDate(iso: string): string {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+function monthStartIso(iso: string): string {
+  return iso.slice(0, 7) + '-01'
+}
 
 function formatMoney(kopecks: number): string {
   const rubles = Math.round(kopecks / 100)
@@ -37,7 +59,7 @@ function formatMoneyAxis(kopecks: number): string {
 type ReportType = 'revenue' | 'day-to-day' | 'clients'
 
 const REPORT_CARDS: { key: ReportType; label: string; desc: string }[] = [
-  { key: 'revenue', label: 'Выручка по филиалам', desc: 'Дневная выручка, месяц и план' },
+  { key: 'revenue', label: 'Выручка по филиалам', desc: 'За любой день — архив с начала работы' },
   { key: 'day-to-day', label: 'День за днём', desc: 'Сравнение с предыдущими месяцами' },
   { key: 'clients', label: 'Клиенты', desc: 'Удержание, средний чек, новые vs повторные' },
 ]
@@ -70,27 +92,118 @@ function StatCard({
   )
 }
 
-/* ---------- Revenue report ---------- */
+/* ---------- Revenue report (historical, per-date) ---------- */
 
-function RevenueReport({ branches, networkToday, networkMtd }: {
-  branches: BranchRevenue[]
-  networkToday: number
-  networkMtd: number
+function DatePickerBar({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string
+  onChange: (iso: string) => void
+  disabled: boolean
 }) {
-  const networkPlanTarget = branches.reduce((s, b) => s + b.plan_target, 0)
-  const networkPlanPct = networkPlanTarget > 0
-    ? ((networkMtd / networkPlanTarget) * 100).toFixed(0)
-    : '0'
+  const today = todayIso()
+  const isToday = value === today
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <button
+        type="button"
+        className="rounded-lg bg-[var(--bk-bg-elevated)] p-2 text-[var(--bk-gold)] disabled:opacity-30"
+        disabled={disabled}
+        onClick={() => onChange(shiftIso(value, -1))}
+        aria-label="Предыдущий день"
+      >
+        <IconArrowLeft size={16} />
+      </button>
+      <input
+        type="date"
+        className="flex-1 rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]"
+        value={value}
+        max={today}
+        onChange={(e) => e.target.value && onChange(e.target.value)}
+      />
+      <button
+        type="button"
+        className="rounded-lg bg-[var(--bk-bg-elevated)] p-2 text-[var(--bk-gold)] disabled:opacity-30"
+        disabled={disabled || isToday}
+        onClick={() => onChange(shiftIso(value, 1))}
+        aria-label="Следующий день"
+      >
+        <IconArrowRight size={16} />
+      </button>
+      {!isToday && (
+        <button
+          type="button"
+          className="rounded-lg bg-[var(--bk-gold)] px-2.5 py-1.5 text-xs font-semibold text-[var(--bk-bg-primary)] disabled:opacity-50"
+          disabled={disabled}
+          onClick={() => onChange(today)}
+        >
+          Сегодня
+        </button>
+      )}
+    </div>
+  )
+}
+
+function RevenueReport() {
+  const { revenueByDate, revenueByDateLoading, fetchRevenueByDate } = useOwnerStore()
+  const [dateIso, setDateIso] = useState<string>(todayIso())
+
+  useEffect(() => {
+    fetchRevenueByDate(dateIso)
+  }, [dateIso, fetchRevenueByDate])
+
+  const isToday = dateIso === todayIso()
+  const monthStart = monthStartIso(dateIso)
+  const monthLabel = new Date(monthStart + 'T00:00:00').toLocaleDateString('ru-RU', {
+    month: 'long',
+  })
 
   return (
     <div>
-      {/* Network summary */}
+      <DatePickerBar value={dateIso} onChange={setDateIso} disabled={revenueByDateLoading} />
+
+      {revenueByDateLoading && !revenueByDate && <LoadingSkeleton lines={6} />}
+
+      {revenueByDate && (
+        <RevenueForDate
+          report={revenueByDate}
+          dateIso={dateIso}
+          isToday={isToday}
+          monthLabel={monthLabel}
+        />
+      )}
+    </div>
+  )
+}
+
+function RevenueForDate({
+  report,
+  dateIso,
+  isToday,
+  monthLabel,
+}: {
+  report: { branches: BranchRevenue[]; network_total_today: number; network_total_mtd: number }
+  dateIso: string
+  isToday: boolean
+  monthLabel: string
+}) {
+  const { branches, network_total_today: networkDay, network_total_mtd: networkMtd } = report
+  const networkPlanTarget = branches.reduce((s, b) => s + b.plan_target, 0)
+  const networkPlanPct =
+    networkPlanTarget > 0 ? ((networkMtd / networkPlanTarget) * 100).toFixed(0) : '0'
+
+  const dayLabel = isToday ? 'Сегодня' : formatHumanDate(dateIso)
+  const mtdLabel = isToday ? `Месяц (${monthLabel})` : `С начала ${monthLabel} по ${formatHumanDate(dateIso)}`
+
+  return (
+    <>
       <div className="mb-4 flex gap-3">
-        <StatCard label="Сегодня (сеть)" value={formatMoney(networkToday)} />
-        <StatCard label="Месяц (сеть)" value={formatMoney(networkMtd)} sub={`${networkPlanPct}% плана`} />
+        <StatCard label={dayLabel} value={formatMoney(networkDay)} />
+        <StatCard label={mtdLabel} value={formatMoney(networkMtd)} sub={`${networkPlanPct}% плана`} />
       </div>
 
-      {/* Per-branch cards */}
       <div className="space-y-2">
         {branches.map((b) => (
           <div key={b.branch_id} className="bk-card p-3">
@@ -105,10 +218,11 @@ function RevenueReport({ branches, networkToday, networkMtd }: {
               <span className="text-lg font-bold tabular-nums text-[var(--bk-text)]">
                 {formatMoney(b.revenue_today)}
               </span>
-              <span className="text-xs text-[var(--bk-text-secondary)]">сегодня</span>
+              <span className="text-xs text-[var(--bk-text-secondary)]">
+                {isToday ? 'сегодня' : 'за день'}
+              </span>
             </div>
 
-            {/* Progress bar */}
             <div className="mt-2">
               <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bk-bg-elevated)]">
                 <div
@@ -118,7 +232,8 @@ function RevenueReport({ branches, networkToday, networkMtd }: {
               </div>
               <div className="mt-1 flex items-baseline justify-between text-xs">
                 <span className="text-[var(--bk-text-dim)]">
-                  {formatMoney(b.revenue_mtd)} / {b.plan_target > 0 ? formatMoney(b.plan_target) : 'нет плана'}
+                  {formatMoney(b.revenue_mtd)} /{' '}
+                  {b.plan_target > 0 ? formatMoney(b.plan_target) : 'нет плана'}
                 </span>
                 <span className="font-bold tabular-nums text-[var(--bk-gold)]">
                   {b.plan_percentage.toFixed(0)}%
@@ -127,8 +242,13 @@ function RevenueReport({ branches, networkToday, networkMtd }: {
             </div>
           </div>
         ))}
+        {branches.length === 0 && (
+          <p className="py-4 text-center text-sm text-[var(--bk-text-secondary)]">
+            Нет данных за эту дату
+          </p>
+        )}
       </div>
-    </div>
+    </>
   )
 }
 
@@ -367,11 +487,6 @@ function BranchClientCard({ branch: b }: { branch: BranchClients }) {
 
 export default function ReportsScreen() {
   const [activeReport, setActiveReport] = useState<ReportType | null>(null)
-  const { revenue, fetchDashboard } = useOwnerStore()
-
-  useEffect(() => {
-    if (!revenue) fetchDashboard()
-  }, [revenue, fetchDashboard])
 
   if (!activeReport) {
     return (
@@ -415,16 +530,7 @@ export default function ReportsScreen() {
       </div>
 
       <div className="mx-4 mt-4">
-        {activeReport === 'revenue' &&
-          (revenue ? (
-            <RevenueReport
-              branches={revenue.branches}
-              networkToday={revenue.network_total_today}
-              networkMtd={revenue.network_total_mtd}
-            />
-          ) : (
-            <LoadingSkeleton lines={6} />
-          ))}
+        {activeReport === 'revenue' && <RevenueReport />}
 
         {activeReport === 'day-to-day' && <DayToDayChart />}
 

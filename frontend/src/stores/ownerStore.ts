@@ -33,6 +33,8 @@ interface DashboardState {
 interface ReportsState {
   dayToDay: DayToDayReport | null
   clients: ClientsReport | null
+  revenueByDate: DailyRevenueReport | null
+  revenueByDateLoading: boolean
   reportsLoading: boolean
   reportsError: string | null
 }
@@ -61,6 +63,7 @@ type OwnerState = DashboardState &
     // Reports actions
     fetchDayToDay: (branchId?: string, date?: string) => Promise<void>
     fetchClients: (date?: string) => Promise<void>
+    fetchRevenueByDate: (date: string) => Promise<void>
 
     // Settings actions
     fetchRatingWeights: () => Promise<void>
@@ -96,6 +99,8 @@ export const useOwnerStore = create<OwnerState>((set) => ({
   // Reports
   dayToDay: null,
   clients: null,
+  revenueByDate: null,
+  revenueByDateLoading: false,
   reportsLoading: false,
   reportsError: null,
 
@@ -155,6 +160,21 @@ export const useOwnerStore = create<OwnerState>((set) => ({
       set({ clients: data, reportsLoading: false })
     } catch {
       set({ reportsError: 'Не удалось загрузить отчёт', reportsLoading: false })
+    }
+  },
+
+  fetchRevenueByDate: async (date: string) => {
+    set({ revenueByDateLoading: true, reportsError: null })
+    try {
+      const { data } = await api.get<DailyRevenueReport>('/reports/revenue', {
+        params: { target_date: date },
+      })
+      set({ revenueByDate: data, revenueByDateLoading: false })
+    } catch {
+      set({
+        reportsError: 'Не удалось загрузить отчёт за выбранную дату',
+        revenueByDateLoading: false,
+      })
     }
   },
 
