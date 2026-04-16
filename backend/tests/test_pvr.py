@@ -212,6 +212,19 @@ class TestFormatters:
         assert out["remaining_to_next"] == 8
         assert out["cumulative_revenue"] == 350_000_00
 
+    def test_is_stale_detects_migrated_zero_score_records(self):
+        """Records left over from the 0004 migration: cumulative_revenue from
+        the old pipeline, monthly_rating_score=0 because the column was added
+        with default 0 and the polling cycle only recalculates current month.
+        """
+        stale = MagicMock(monthly_rating_score=0, cumulative_revenue=350_000_00)
+        fresh_zero = MagicMock(monthly_rating_score=0, cumulative_revenue=0)
+        fresh_scored = MagicMock(monthly_rating_score=42, cumulative_revenue=350_000_00)
+
+        assert PVRService._is_stale(stale) is True
+        assert PVRService._is_stale(fresh_zero) is False
+        assert PVRService._is_stale(fresh_scored) is False
+
     def test_empty_breakdown_when_no_monthly(self):
         svc = PVRService(db=AsyncMock(), redis=AsyncMock())
         barber = make_barber()

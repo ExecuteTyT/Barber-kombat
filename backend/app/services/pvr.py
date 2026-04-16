@@ -129,7 +129,12 @@ class PVRService:
         thresholds = self._get_thresholds(config)
         barber = await self._get_barber(barber_id)
 
-        if record is None and barber is not None and barber.branch_id is not None:
+        needs_live = (
+            (record is None or self._is_stale(record))
+            and barber is not None
+            and barber.branch_id is not None
+        )
+        if needs_live:
             engine = RatingEngine(db=self.db, redis=self.redis)
             monthly_scores = await engine.calculate_monthly(
                 barber.branch_id, organization_id, month_start
@@ -177,7 +182,7 @@ class PVRService:
         out: list[dict] = []
         for barber in barbers:
             record = await self._get_record(barber.id, month_start)
-            if record is None:
+            if record is None or self._is_stale(record):
                 cumulative = await self._calc_display_revenue(barber.id, month_start, config)
                 out.append(
                     self._format_live(
@@ -363,6 +368,15 @@ class PVRService:
         if not normalized:
             normalized = list(_DEFAULT_THRESHOLDS)
         return sorted(normalized, key=lambda t: t["score"], reverse=True)
+
+    @staticmethod
+    def _is_stale(record: PVRRecord) -> bool:
+        """A pre-rating-migration record: has revenue from the old pipeline but
+        monthly_rating_score=0 because migration 0004 added the column with
+        default 0 and historical months are never recalculated by the polling
+        cycle. Treat as cache-miss so the live path recomputes it.
+        """
+        return record.monthly_rating_score == 0 and record.cumulative_revenue > 0
 
     @staticmethod
     def _find_threshold(
