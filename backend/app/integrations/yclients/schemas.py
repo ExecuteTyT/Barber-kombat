@@ -44,7 +44,8 @@ class YClientRecord(BaseModel):
     goods_transactions: list[YClientGoodsTransaction] = []
     cost: float = 0  # total cost
     paid_full: int = 0  # 1 = card, 2 = cash, etc.
-    visit_attendance: int = 0  # 1=completed, 2=cancelled, -1=no_show
+    # YClients attendance codes: -1=no-show, 0=waiting, 1=came, 2=confirmed.
+    visit_attendance: int = 0
     attendance: int = 0  # alternative attendance field
 
     model_config = {"populate_by_name": True}

@@ -164,16 +164,17 @@ class TestMapVisitStatus:
         ("attendance", "expected"),
         [
             (1, "completed"),
-            (2, "cancelled"),
+            (2, "scheduled"),
             (-1, "no_show"),
-            (0, "completed"),
+            (0, "scheduled"),
         ],
     )
     def test_known_statuses(self, attendance, expected):
         assert map_visit_status(attendance) == expected
 
-    def test_unknown_defaults_to_completed(self):
-        assert map_visit_status(99) == "completed"
+    def test_unknown_defaults_to_scheduled(self):
+        """Unknown attendance codes must never silently count as revenue."""
+        assert map_visit_status(99) == "scheduled"
 
 
 # --- Tests: count_extras ---
@@ -364,7 +365,8 @@ class TestMapRecordToVisitDict:
         assert prod["cost"] == 800.0
         assert prod["amount"] == 1
 
-    def test_cancelled_visit(self, org_id, branch_id, barber_id):
+    def test_confirmed_visit_is_scheduled(self, org_id, branch_id, barber_id):
+        """YClients attendance=2 ("confirmed booking") is not yet delivered."""
         record = YClientRecord(
             id=2000,
             staff_id=10,
@@ -381,7 +383,7 @@ class TestMapRecordToVisitDict:
             extra_services_list=[],
         )
 
-        assert result["status"] == "cancelled"
+        assert result["status"] == "scheduled"
 
     def test_no_show_visit(self, org_id, branch_id, barber_id):
         record = YClientRecord(

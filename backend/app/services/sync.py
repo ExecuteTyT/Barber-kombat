@@ -5,7 +5,7 @@ import uuid
 from datetime import date
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,11 +30,20 @@ PAYMENT_TYPE_MAP: dict[int, str] = {
     6: "qr",
 }
 
+# YClients visit_attendance field (per official API):
+#   -1 — client did not come
+#    0 — waiting / not yet confirmed (appointment in the future)
+#    1 — client came (service delivered)
+#    2 — client confirmed the booking (but has not come yet)
+#
+# Anything other than "completed" must NOT count toward revenue, ratings, or
+# PVR. The default is intentionally "scheduled" so that unknown attendance
+# values never silently inflate today's revenue.
 ATTENDANCE_STATUS_MAP: dict[int, str] = {
-    1: "completed",
-    2: "cancelled",
     -1: "no_show",
-    0: "completed",  # default
+    0: "scheduled",
+    1: "completed",
+    2: "scheduled",
 }
 
 
@@ -48,7 +57,7 @@ def map_payment_type(paid_full: int) -> str:
 
 
 def map_visit_status(visit_attendance: int) -> str:
-    return ATTENDANCE_STATUS_MAP.get(visit_attendance, "completed")
+    return ATTENDANCE_STATUS_MAP.get(visit_attendance, "scheduled")
 
 
 def count_extras(services: list[dict], extra_services_list: list[str]) -> int:
@@ -199,13 +208,22 @@ class SyncService:
         return result.scalar_one()
 
     async def _upsert_visit(self, visit_data: dict) -> None:
-        """UPSERT a visit record by yclients_record_id + organization_id."""
+        """UPSERT a visit record by yclients_record_id + organization_id.
+
+        Preserves admin-set status="confirmed": when an admin manually verifies
+        a check (admin.py), we must not let the next polling cycle downgrade
+        that visit back to "scheduled" if YClients still reports attendance=0.
+        """
         stmt = pg_insert(Visit).values(id=uuid.uuid4(), **visit_data)
         update_cols = {
             k: getattr(stmt.excluded, k)
             for k in visit_data
-            if k not in ("organization_id", "yclients_record_id")
+            if k not in ("organization_id", "yclients_record_id", "status")
         }
+        update_cols["status"] = case(
+            (Visit.status == "confirmed", Visit.status),
+            else_=stmt.excluded.status,
+        )
         stmt = stmt.on_conflict_do_update(
             index_elements=["yclients_record_id", "organization_id"],
             set_=update_cols,
