@@ -26,6 +26,46 @@ const SEGMENT_LABELS = ['Выручка', 'Ср. чек', 'Товары', 'До�
 
 type Tab = 'kombat' | 'pvr'
 
+function BreakdownRow({
+  idx,
+  label,
+  score,
+  rawLabel,
+  weight,
+}: {
+  idx: number
+  label: string
+  score: number
+  rawLabel?: string
+  weight?: number
+}) {
+  const pct = Math.max(0, Math.min(100, score))
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <span
+        className={`h-2 w-2 flex-shrink-0 rounded-full ${SEGMENT_COLORS[idx]}`}
+      />
+      <span className="w-20 text-[var(--bk-text-secondary)]">{label}</span>
+      <div className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--bk-bg-primary)]">
+        <div className={`h-full ${SEGMENT_COLORS[idx]}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="w-10 text-right tabular-nums font-semibold text-[var(--bk-text)]">
+        {score.toFixed(0)}
+      </span>
+      {rawLabel && (
+        <span className="w-20 text-right tabular-nums text-[var(--bk-text-dim)]">
+          {rawLabel}
+        </span>
+      )}
+      {weight !== undefined && (
+        <span className="w-10 text-right tabular-nums text-[var(--bk-text-dim)]">
+          {weight}%
+        </span>
+      )}
+    </div>
+  )
+}
+
 function getCurrentMonth(): string {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -45,6 +85,7 @@ function formatMonthLabel(month: string): string {
 }
 
 function RatingRow({ entry, weights }: { entry: RatingEntry; weights: RatingWeights }) {
+  const [expanded, setExpanded] = useState(false)
   const segments = [
     { weight: weights.revenue, score: entry.revenue_score },
     { weight: weights.cs, score: entry.cs_score },
@@ -54,42 +95,104 @@ function RatingRow({ entry, weights }: { entry: RatingEntry; weights: RatingWeig
   ]
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2.5">
-      <MedalBadge rank={entry.rank} size={24} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between">
-          <span className="truncate text-sm font-medium text-[var(--bk-text)]">{entry.name}</span>
-          <div className="ml-1 flex items-baseline gap-2">
-            <span className="text-xs tabular-nums text-[var(--bk-text-secondary)]">
-              {formatMoney(entry.revenue)}
+    <div className="px-3 py-2.5">
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 text-left"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <MedalBadge rank={entry.rank} size={24} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between">
+            <span className="truncate text-sm font-medium text-[var(--bk-text)]">
+              {entry.name}
             </span>
-            <span className="font-bold tabular-nums text-[var(--bk-text)]">
-              {entry.total_score.toFixed(1)}
-            </span>
+            <div className="ml-1 flex items-baseline gap-2">
+              <span className="text-xs tabular-nums text-[var(--bk-text-secondary)]">
+                {formatMoney(entry.revenue)}
+              </span>
+              <span className="font-bold tabular-nums text-[var(--bk-text)]">
+                {entry.total_score.toFixed(1)}
+              </span>
+            </div>
+          </div>
+          <div className="mt-0.5 flex h-1 gap-px overflow-hidden rounded-full">
+            {segments.map((s, i) => (
+              <div
+                key={i}
+                className={SEGMENT_COLORS[i]}
+                style={{ width: `${s.weight}%`, opacity: s.score > 0 ? 1 : 0.15 }}
+              />
+            ))}
           </div>
         </div>
-        <div className="mt-0.5 flex h-1 gap-px overflow-hidden rounded-full">
-          {segments.map((s, i) => (
-            <div
-              key={i}
-              className={SEGMENT_COLORS[i]}
-              style={{ width: `${s.weight}%`, opacity: s.score > 0 ? 1 : 0.15 }}
-            />
-          ))}
+      </button>
+
+      {expanded && (
+        <div className="mt-2 space-y-1.5 rounded-lg bg-[var(--bk-bg-elevated)] p-2">
+          <BreakdownRow
+            idx={0}
+            label="Выручка"
+            score={entry.revenue_score}
+            rawLabel={formatMoney(entry.revenue)}
+            weight={weights.revenue}
+          />
+          <BreakdownRow
+            idx={1}
+            label="Ср. чек"
+            score={entry.cs_score}
+            rawLabel={`\u00D7${entry.cs_value.toFixed(2)}`}
+            weight={weights.cs}
+          />
+          <BreakdownRow
+            idx={2}
+            label="Товары"
+            score={entry.products_score}
+            rawLabel={`${entry.products_count} шт`}
+            weight={weights.products}
+          />
+          <BreakdownRow
+            idx={3}
+            label="Доп. услуги"
+            score={entry.extras_score}
+            rawLabel={`${entry.extras_count} шт`}
+            weight={weights.extras}
+          />
+          <BreakdownRow
+            idx={4}
+            label="Отзывы"
+            score={entry.reviews_score}
+            rawLabel={
+              entry.reviews_avg !== null ? `${entry.reviews_avg.toFixed(1)}\u2605` : '—'
+            }
+            weight={weights.reviews}
+          />
         </div>
-      </div>
+      )}
     </div>
   )
 }
 
-function PVRRow({ barber }: { barber: BarberPVRResponse }) {
+function PVRRow({
+  barber,
+  weights,
+}: {
+  barber: BarberPVRResponse
+  weights: RatingWeights | null
+}) {
+  const [expanded, setExpanded] = useState(false)
   const blocked =
     barber.min_visits_required > 0 && barber.working_days < barber.min_visits_required
   const lastReached = barber.thresholds_reached[barber.thresholds_reached.length - 1]
+  const b = barber.metric_breakdown
 
   return (
     <div className="px-3 py-2.5">
-      <div className="flex items-center justify-between">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between text-left"
+        onClick={() => setExpanded((v) => !v)}
+      >
         <span className="text-sm font-medium text-[var(--bk-text)]">{barber.name}</span>
         <div className="text-right">
           <span className="text-sm font-bold tabular-nums text-[var(--bk-text)]">
@@ -97,7 +200,8 @@ function PVRRow({ barber }: { barber: BarberPVRResponse }) {
           </span>
           <span className="text-xs text-[var(--bk-text-dim)]"> / 100</span>
         </div>
-      </div>
+      </button>
+
       {barber.bonus_amount > 0 && (
         <div className="mt-1 flex items-center justify-between">
           <span className="text-xs text-[var(--bk-text-dim)]">
@@ -110,7 +214,8 @@ function PVRRow({ barber }: { barber: BarberPVRResponse }) {
           </span>
         </div>
       )}
-      {barber.bonus_amount === 0 && !blocked &&
+      {barber.bonus_amount === 0 &&
+        !blocked &&
         barber.next_threshold !== null &&
         barber.remaining_to_next !== null && (
           <div className="mt-1">
@@ -127,8 +232,48 @@ function PVRRow({ barber }: { barber: BarberPVRResponse }) {
         </div>
       )}
       <p className="mt-1 text-[10px] text-[var(--bk-text-dim)]">
-        Выручка: {formatMoney(barber.cumulative_revenue)}
+        Выручка месяца: {formatMoney(barber.cumulative_revenue)} · Рабочих дней:{' '}
+        {barber.working_days}
       </p>
+
+      {expanded && (
+        <div className="mt-2 space-y-1.5 rounded-lg bg-[var(--bk-bg-elevated)] p-2">
+          <BreakdownRow
+            idx={0}
+            label="Выручка"
+            score={b.revenue_score}
+            weight={weights?.revenue}
+          />
+          <BreakdownRow
+            idx={1}
+            label="Ср. чек"
+            score={b.cs_score}
+            weight={weights?.cs}
+          />
+          <BreakdownRow
+            idx={2}
+            label="Товары"
+            score={b.products_score}
+            weight={weights?.products}
+          />
+          <BreakdownRow
+            idx={3}
+            label="Доп. услуги"
+            score={b.extras_score}
+            weight={weights?.extras}
+          />
+          <BreakdownRow
+            idx={4}
+            label="Отзывы"
+            score={b.reviews_score}
+            weight={weights?.reviews}
+          />
+          <p className="mt-1 text-[10px] text-[var(--bk-text-dim)]">
+            Каждая метрика нормализована 0–100 относительно филиала, умножается на
+            вес, сумма = итог.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -317,9 +462,13 @@ export default function CompetitionsScreen() {
               </div>
               <div className="divide-y divide-[var(--bk-border)]">
                 {[...branchPvr.barbers]
-                  .sort((a, b) => b.cumulative_revenue - a.cumulative_revenue)
+                  .sort((a, b) => b.monthly_rating_score - a.monthly_rating_score)
                   .map((b) => (
-                    <PVRRow key={b.barber_id} barber={b} />
+                    <PVRRow
+                      key={b.barber_id}
+                      barber={b}
+                      weights={todayRating?.weights ?? null}
+                    />
                   ))}
               </div>
               {branchPvr.barbers.length === 0 && (
