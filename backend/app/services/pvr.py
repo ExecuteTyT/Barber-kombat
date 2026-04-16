@@ -33,10 +33,11 @@ from app.services.rating import RatingEngine, _BarberMonthlyScore
 logger = structlog.stdlib.get_logger()
 
 # Default score thresholds (0-100 scale). Bonus amounts are in kopecks.
+# 100_000 kopecks = 1_000 rubles.
 _DEFAULT_THRESHOLDS: list[dict[str, int]] = [
-    {"score": 90, "bonus": 500_000_000},
-    {"score": 75, "bonus": 200_000_000},
-    {"score": 60, "bonus": 100_000_000},
+    {"score": 90, "bonus": 500_000},   # 5 000 ₽
+    {"score": 75, "bonus": 250_000},   # 2 500 ₽
+    {"score": 60, "bonus": 100_000},   # 1 000 ₽
 ]
 
 

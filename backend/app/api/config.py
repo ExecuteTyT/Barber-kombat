@@ -56,9 +56,9 @@ _DEFAULT_RATING_WEIGHTS = {
 
 _DEFAULT_PVR_THRESHOLDS = {
     "thresholds": [
-        {"score": 60, "bonus": 100_000_000},
-        {"score": 75, "bonus": 200_000_000},
-        {"score": 90, "bonus": 500_000_000},
+        {"score": 60, "bonus": 100_000},   # 1 000 ₽
+        {"score": 75, "bonus": 250_000},   # 2 500 ₽
+        {"score": 90, "bonus": 500_000},   # 5 000 ₽
     ],
     "count_products": False,
     "count_certificates": False,
