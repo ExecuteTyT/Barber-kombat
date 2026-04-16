@@ -33,10 +33,6 @@ function formatHumanDate(iso: string): string {
   })
 }
 
-function monthStartIso(iso: string): string {
-  return iso.slice(0, 7) + '-01'
-}
-
 const RU_MONTHS_NOM = [
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
