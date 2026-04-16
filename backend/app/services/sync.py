@@ -60,16 +60,28 @@ def map_visit_status(visit_attendance: int) -> str:
     return ATTENDANCE_STATUS_MAP.get(visit_attendance, "scheduled")
 
 
+def _normalize_extras_keywords(extra_services_list: list[str]) -> list[str]:
+    return [k.lower().strip() for k in extra_services_list if k and k.strip()]
+
+
 def count_extras(services: list[dict], extra_services_list: list[str]) -> int:
-    """Count how many services are extras based on the config list."""
-    if not extra_services_list:
+    """Count how many extras are present across a visit's services list.
+
+    YClients stores services as combo strings (e.g. "Мужская стрижка +
+    Оформление бороды + Камуфляж бороды"), so exact-string equality would
+    miss every combo. We instead do case-insensitive substring matching and
+    count each keyword hit inside the title — so a combo that contains both
+    "оформление бороды" and "камуфляж бороды" contributes +2.
+    """
+    keywords = _normalize_extras_keywords(extra_services_list)
+    if not keywords:
         return 0
-    normalized = {name.lower().strip() for name in extra_services_list}
     count = 0
     for svc in services:
-        title = svc.get("title", "").lower().strip()
-        if title in normalized:
-            count += 1
+        title = (svc.get("title") or "").lower()
+        for kw in keywords:
+            if kw in title:
+                count += 1
     return count
 
 
@@ -109,14 +121,15 @@ def map_record_to_visit_dict(
     if record_cost == 0:
         record_cost = services_revenue + products_revenue
 
-    # Mark extras in services list
+    # Mark extras in services list (substring matching, multi-hit per combo).
     extras = 0
-    if extra_services_list:
-        normalized = {name.lower().strip() for name in extra_services_list}
-        for svc in services_list:
-            if svc["title"].lower().strip() in normalized:
-                svc["is_extra"] = True
-                extras += 1
+    keywords = _normalize_extras_keywords(extra_services_list)
+    for svc in services_list:
+        title = (svc.get("title") or "").lower()
+        hits = sum(1 for kw in keywords if kw in title)
+        if hits > 0:
+            svc["is_extra"] = True
+            extras += hits
 
     return {
         "organization_id": organization_id,

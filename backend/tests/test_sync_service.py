@@ -212,6 +212,29 @@ class TestCountExtras:
     def test_empty_services(self):
         assert count_extras([], ["Воск"]) == 0
 
+    def test_combo_service_substring_matches(self):
+        """YClients stores combos as one title — each extras keyword hit = +1."""
+        services = [
+            {"title": "Мужская стрижка + Оформление бороды + Камуфляж бороды"}
+        ]
+        assert (
+            count_extras(services, ["оформление бороды", "камуфляж бороды"]) == 2
+        )
+
+    def test_combo_plus_standalone_extra(self):
+        services = [
+            {"title": "Мужская стрижка + Оформление бороды"},
+            {"title": "Удаление волос"},
+        ]
+        assert (
+            count_extras(services, ["оформление бороды", "удаление волос"]) == 2
+        )
+
+    def test_does_not_match_partial_unrelated_word(self):
+        """Keywords are phrases, not single words — "бороды" alone is unsafe."""
+        services = [{"title": "Мужская стрижка"}]
+        assert count_extras(services, ["оформление бороды"]) == 0
+
 
 # --- Tests: count_products ---
 
