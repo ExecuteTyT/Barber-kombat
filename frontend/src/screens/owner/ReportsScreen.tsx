@@ -62,7 +62,7 @@ type ReportType = 'revenue' | 'day-to-day' | 'clients'
 const REPORT_CARDS: { key: ReportType; label: string; desc: string }[] = [
   { key: 'revenue', label: 'Выручка по филиалам', desc: 'За любой день — архив с начала работы' },
   { key: 'day-to-day', label: 'День за днём', desc: 'Сравнение с предыдущими месяцами' },
-  { key: 'clients', label: 'Клиенты', desc: 'Удержание, средний чек, новые vs повторные' },
+  { key: 'clients', label: 'Клиенты', desc: 'Доля повторных, средний чек, новые vs повторные' },
 ]
 
 /* ---------- Stat card helper ---------- */
@@ -399,8 +399,9 @@ function ClientsReport() {
       {/* Network summary: 4 key metrics */}
       <div className="mb-3 grid grid-cols-2 gap-2">
         <StatCard
-          label="Удержание (сеть)"
+          label="Повторные % (сеть)"
           value={`${clients.network_retention_rate}%`}
+          sub="доля тех, кто уже бывал раньше"
           accent
         />
         <StatCard
@@ -438,7 +439,7 @@ function BranchClientCard({ branch: b }: { branch: BranchClients }) {
       <div className="flex items-center justify-between">
         <span className="font-medium text-[var(--bk-text)]">{b.name}</span>
         <span className="rounded-full bg-[var(--bk-bg-elevated)] px-2 py-0.5 text-xs font-bold text-[var(--bk-gold)]">
-          {b.retention_rate}% удерж.
+          {b.retention_rate}% повт.
         </span>
       </div>
 
