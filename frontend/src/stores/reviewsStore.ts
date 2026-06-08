@@ -15,9 +15,11 @@ interface ReviewsState {
   perPage: number
   filters: ReviewFilters
   isLoading: boolean
+  isLoadingMore: boolean
   error: string | null
 
   fetchReviews: (branchId: string) => Promise<void>
+  loadMore: (branchId: string) => Promise<void>
   setPage: (page: number) => void
   setFilters: (filters: ReviewFilters) => void
   processReview: (
@@ -36,27 +38,40 @@ export const useReviewsStore = create<ReviewsState>((set, get) => ({
   perPage: 20,
   filters: {},
   isLoading: false,
+  isLoadingMore: false,
   error: null,
 
   fetchReviews: async (branchId: string) => {
-    const { page, perPage, filters } = get()
-    set({ isLoading: true, error: null })
+    const { perPage, filters } = get()
+    set({ isLoading: true, error: null, page: 1 })
     try {
-      const params: Record<string, string | number> = {
-        page,
-        per_page: perPage,
-      }
+      const params: Record<string, string | number> = { page: 1, per_page: perPage }
       if (filters.status) params.status = filters.status
       if (filters.ratingMax) params.rating_max = filters.ratingMax
 
       const { data } = await api.get<ReviewListResponse>(`/reviews/${branchId}`, { params })
-      set({
-        reviews: data.reviews,
-        total: data.total,
-        isLoading: false,
-      })
+      set({ reviews: data.reviews, total: data.total, isLoading: false })
     } catch {
       set({ error: 'Не удалось загрузить отзывы', isLoading: false })
+    }
+  },
+
+  loadMore: async (branchId: string) => {
+    const { page, perPage, filters, reviews, isLoadingMore } = get()
+    if (isLoadingMore) return
+    const next = page + 1
+    set({ isLoadingMore: true })
+    try {
+      const params: Record<string, string | number> = { page: next, per_page: perPage }
+      if (filters.status) params.status = filters.status
+      if (filters.ratingMax) params.rating_max = filters.ratingMax
+
+      const { data } = await api.get<ReviewListResponse>(`/reviews/${branchId}`, { params })
+      const seen = new Set(reviews.map((r) => r.id))
+      const merged = [...reviews, ...data.reviews.filter((r) => !seen.has(r.id))]
+      set({ reviews: merged, total: data.total, page: next, isLoadingMore: false })
+    } catch {
+      set({ isLoadingMore: false })
     }
   },
 
@@ -102,6 +117,7 @@ export const useReviewsStore = create<ReviewsState>((set, get) => ({
       page: 1,
       filters: {},
       isLoading: false,
+      isLoadingMore: false,
       error: null,
     })
   },

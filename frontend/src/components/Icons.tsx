@@ -371,15 +371,43 @@ export function MedalBadge({ rank, size = 28 }: { rank: number; size?: number })
 
 export function StarRating({ rating, max = 5 }: { rating: number; max?: number }) {
   return (
-    <span className="inline-flex gap-0.5">
+    <span className="inline-flex gap-0.5" role="img" aria-label={`Оценка ${rating} из ${max}`}>
       {Array.from({ length: max }, (_, i) => (
         <span
           key={i}
+          aria-hidden="true"
           className={i < rating ? 'text-[var(--bk-gold)]' : 'text-[var(--bk-text-dim)]'}
         >
           <IconStar size={14} />
         </span>
       ))}
     </span>
+  )
+}
+
+// --- Contact / composer icons ---
+
+export function IconPhone(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z" />
+    </Icon>
+  )
+}
+
+export function IconMessageCircle(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" />
+    </Icon>
+  )
+}
+
+export function IconCopy(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect width="13" height="13" x="9" y="9" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </Icon>
   )
 }

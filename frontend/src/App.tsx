@@ -23,11 +23,13 @@ import AdminLayout from './screens/admin/AdminLayout'
 import MetricsScreen from './screens/admin/MetricsScreen'
 import TasksScreen from './screens/admin/TasksScreen'
 import AdminHistoryScreen from './screens/admin/AdminHistoryScreen'
+import ReviewsScreen from './screens/admin/ReviewsScreen'
+import ToastHost from './components/ToastHost'
 
 const DEFAULT_ROUTES: Record<string, string> = {
   barber: '/barber/kombat',
   owner: '/owner/dashboard',
-  admin: '/admin/metrics',
+  admin: '/admin/reviews',
 }
 
 /** Which roles are allowed to access each route section */
@@ -106,6 +108,7 @@ function AuthenticatedApp() {
   return (
     <>
       {isDevMode && <DevToolbar />}
+      <ToastHost />
       <div className={isDevMode ? 'pt-8' : ''}>
         <Routes>
           <Route
@@ -146,10 +149,11 @@ function AuthenticatedApp() {
               </RoleGuard>
             }
           >
+            <Route path="reviews" element={<ReviewsScreen />} />
             <Route path="metrics" element={<MetricsScreen />} />
             <Route path="tasks" element={<TasksScreen />} />
             <Route path="history" element={<AdminHistoryScreen />} />
-            <Route index element={<Navigate to="metrics" replace />} />
+            <Route index element={<Navigate to="reviews" replace />} />
           </Route>
 
           <Route path="*" element={<Navigate to={defaultRoute} replace />} />

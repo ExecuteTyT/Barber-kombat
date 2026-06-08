@@ -2,9 +2,6 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 
 import {
-  StarRating,
-  IconCheckCircle,
-  IconRefresh,
   IconArrowLeft,
   IconShoppingBag,
   IconGift,
@@ -19,7 +16,8 @@ import { useKombatStore } from '../../stores/kombatStore'
 import { usePvrStore } from '../../stores/pvrStore'
 import { useReviewsStore } from '../../stores/reviewsStore'
 import { useChefAnalyticsStore } from '../../stores/chefAnalyticsStore'
-import ReviewProcessModal from './ReviewProcessModal'
+import ReviewProcessModal from '../../components/ReviewProcessModal'
+import ReviewsList, { type ReviewFilterTab } from '../../components/ReviewsList'
 import type {
   BarberPVRResponse,
   BranchAnalytics,
@@ -86,12 +84,8 @@ function KPIGrid({ analytics }: { analytics: BranchAnalytics }) {
           >
             {k.value}
           </p>
-          {k.sub && (
-            <p className="mt-0.5 text-[10px] text-[var(--bk-text-dim)]">{k.sub}</p>
-          )}
-          {k.hint && (
-            <p className="mt-0.5 text-[9px] italic text-[var(--bk-text-dim)]">{k.hint}</p>
-          )}
+          {k.sub && <p className="mt-0.5 text-[10px] text-[var(--bk-text-dim)]">{k.sub}</p>}
+          {k.hint && <p className="mt-0.5 text-[9px] italic text-[var(--bk-text-dim)]">{k.hint}</p>}
         </div>
       ))}
     </div>
@@ -137,9 +131,7 @@ function MonthlyMetrics({ analytics }: { analytics: BranchAnalytics }) {
       <div className="bk-card flex-1 p-3">
         <div className="flex items-center gap-1.5">
           <IconShoppingBag size={14} className="text-[var(--bk-text-secondary)]" />
-          <p className="text-[10px] uppercase tracking-wider text-[var(--bk-text-dim)]">
-            Товары
-          </p>
+          <p className="text-[10px] uppercase tracking-wider text-[var(--bk-text-dim)]">Товары</p>
         </div>
         <p className="mt-0.5 text-base font-bold tabular-nums text-[var(--bk-text)]">
           {analytics.total_products_today}
@@ -168,9 +160,7 @@ function MonthlyMetrics({ analytics }: { analytics: BranchAnalytics }) {
         <div className="bk-card flex-1 p-3">
           <div className="flex items-center gap-1.5">
             <IconStar size={14} className="text-[var(--bk-gold)]" />
-            <p className="text-[10px] uppercase tracking-wider text-[var(--bk-text-dim)]">
-              Отзывы
-            </p>
+            <p className="text-[10px] uppercase tracking-wider text-[var(--bk-text-dim)]">Отзывы</p>
           </div>
           <p className="mt-0.5 text-base font-bold tabular-nums text-[var(--bk-text)]">
             {analytics.avg_review_score.toFixed(1)}
@@ -239,9 +229,7 @@ function TodayRatingTable({ ratings }: { ratings: RatingEntry[] }) {
 // --- Premium bonuses (rating-based) ---
 
 function BingoTable({ barbers }: { barbers: BarberPVRResponse[] }) {
-  const sorted = [...barbers].sort(
-    (a, b) => b.monthly_rating_score - a.monthly_rating_score,
-  )
+  const sorted = [...barbers].sort((a, b) => b.monthly_rating_score - a.monthly_rating_score)
 
   return (
     <div className="mx-4 mt-4">
@@ -249,8 +237,7 @@ function BingoTable({ barbers }: { barbers: BarberPVRResponse[] }) {
       <div className="mt-2 space-y-2">
         {sorted.map((b, i) => {
           const pct = Math.max(0, Math.min(100, b.monthly_rating_score))
-          const blocked =
-            b.min_visits_required > 0 && b.working_days < b.min_visits_required
+          const blocked = b.min_visits_required > 0 && b.working_days < b.min_visits_required
 
           return (
             <div key={b.barber_id} className="bk-card p-3">
@@ -275,16 +262,15 @@ function BingoTable({ barbers }: { barbers: BarberPVRResponse[] }) {
                 />
               </div>
               <div className="mt-1 flex items-center justify-between text-xs text-[var(--bk-text-dim)]">
-                <span>
-                  Премия:{' '}
-                  {b.bonus_amount > 0 ? formatMoney(b.bonus_amount) : '—'}
-                </span>
+                <span>Премия: {b.bonus_amount > 0 ? formatMoney(b.bonus_amount) : '—'}</span>
                 {blocked ? (
                   <span className="text-[var(--bk-red)]">
                     Нужно ещё {b.min_visits_required - b.working_days} раб. дн.
                   </span>
                 ) : b.next_threshold !== null && b.remaining_to_next !== null ? (
-                  <span>До {b.next_threshold} баллов: +{b.remaining_to_next}</span>
+                  <span>
+                    До {b.next_threshold} баллов: +{b.remaining_to_next}
+                  </span>
                 ) : null}
               </div>
               <p className="mt-1 text-[10px] text-[var(--bk-text-dim)]">
@@ -295,139 +281,6 @@ function BingoTable({ barbers }: { barbers: BarberPVRResponse[] }) {
         })}
         {sorted.length === 0 && (
           <p className="py-4 text-center text-sm text-[var(--bk-text-secondary)]">Нет данных</p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// --- Reviews ---
-
-function ReviewCard({
-  review,
-  onProcess,
-}: {
-  review: ReviewResponse
-  onProcess: (review: ReviewResponse) => void
-}) {
-  const createdAt = new Date(review.created_at)
-  const timeStr = createdAt.toLocaleTimeString('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-  const dateStr = createdAt.toLocaleDateString('ru-RU', {
-    day: 'numeric',
-    month: 'short',
-  })
-
-  return (
-    <div className="bk-card p-3">
-      <div className="flex items-start justify-between">
-        <div>
-          <StarRating rating={review.rating} />
-          <p className="mt-1 text-sm font-medium text-[var(--bk-text)]">{review.barber_name}</p>
-        </div>
-        <span className="text-xs text-[var(--bk-text-dim)]">
-          {dateStr}, {timeStr}
-        </span>
-      </div>
-      {review.client_name && (
-        <p className="mt-1 text-xs text-[var(--bk-text-secondary)]">{review.client_name}</p>
-      )}
-      {review.comment && <p className="mt-2 text-sm text-[var(--bk-text)]">{review.comment}</p>}
-
-      <div className="mt-3 flex items-center justify-between">
-        {review.status === 'processed' ? (
-          <span className="flex items-center gap-1 text-xs text-[var(--bk-green)]">
-            <IconCheckCircle size={14} /> Обработан
-          </span>
-        ) : review.status === 'in_progress' ? (
-          <span className="flex items-center gap-1 text-xs text-[var(--bk-gold)]">
-            <IconRefresh size={14} /> В работе
-          </span>
-        ) : (
-          <span className="text-xs font-medium text-[var(--bk-red)]">Новый</span>
-        )}
-        {review.status !== 'processed' && (
-          <button
-            type="button"
-            className="rounded-lg bg-[var(--bk-gold)] px-3 py-1.5 text-xs font-semibold text-[var(--bk-bg-primary)]"
-            onClick={() => onProcess(review)}
-          >
-            Обработать
-          </button>
-        )}
-      </div>
-
-      {review.processed_comment && (
-        <div className="mt-2 rounded-lg bg-[var(--bk-bg-elevated)] p-2">
-          <p className="text-xs text-[var(--bk-text-secondary)]">{review.processed_comment}</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-type FilterTab = 'all' | 'negative' | 'unprocessed'
-
-function ReviewsFeed({
-  reviews,
-  total,
-  activeTab,
-  onTabChange,
-  onProcess,
-  unprocessedCount,
-}: {
-  reviews: ReviewResponse[]
-  total: number
-  activeTab: FilterTab
-  onTabChange: (tab: FilterTab) => void
-  onProcess: (review: ReviewResponse) => void
-  unprocessedCount: number
-}) {
-  const tabs: { key: FilterTab; label: string; badge?: number }[] = [
-    { key: 'all', label: 'Все' },
-    { key: 'negative', label: 'Негативные' },
-    { key: 'unprocessed', label: 'Необработанные', badge: unprocessedCount },
-  ]
-
-  return (
-    <div className="mx-4 mt-4">
-      <h3 className="bk-heading text-base">Отзывы</h3>
-
-      <div className="mt-2 flex gap-2">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            className={`relative rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-              activeTab === t.key
-                ? 'bg-[var(--bk-gold)] text-[var(--bk-bg-primary)]'
-                : 'bg-[var(--bk-bg-elevated)] text-[var(--bk-text-secondary)]'
-            }`}
-            onClick={() => onTabChange(t.key)}
-          >
-            {t.label}
-            {t.badge !== undefined && t.badge > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--bk-red)] px-1 text-[10px] font-bold text-white">
-                {t.badge}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-3 space-y-2">
-        {reviews.map((r) => (
-          <ReviewCard key={r.id} review={r} onProcess={onProcess} />
-        ))}
-        {reviews.length === 0 && (
-          <p className="py-4 text-center text-sm text-[var(--bk-text-secondary)]">Отзывов нет</p>
-        )}
-        {reviews.length > 0 && reviews.length < total && (
-          <p className="py-2 text-center text-xs text-[var(--bk-text-dim)]">
-            Показано {reviews.length} из {total}
-          </p>
         )}
       </div>
     </div>
@@ -453,13 +306,15 @@ export default function BranchScreen() {
     total,
     filters,
     isLoading: reviewsLoading,
+    isLoadingMore,
     fetchReviews,
+    loadMore,
     setFilters,
     processReview,
     addReview,
   } = useReviewsStore()
 
-  const [activeTab, setActiveTab] = useState<FilterTab>('all')
+  const [activeTab, setActiveTab] = useState<ReviewFilterTab>('all')
   const [processingReview, setProcessingReview] = useState<ReviewResponse | null>(null)
   const unprocessedCount = useMemo(
     () => reviews.filter((r) => r.status === 'new' || r.status === 'in_progress').length,
@@ -482,7 +337,7 @@ export default function BranchScreen() {
   }, [branchId, filters, fetchReviews])
 
   const handleTabChange = useCallback(
-    (tab: FilterTab) => {
+    (tab: ReviewFilterTab) => {
       setActiveTab(tab)
       switch (tab) {
         case 'all':
@@ -567,14 +422,21 @@ export default function BranchScreen() {
           <LoadingSkeleton lines={4} />
         </div>
       ) : (
-        <ReviewsFeed
-          reviews={reviews}
-          total={total}
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          onProcess={setProcessingReview}
-          unprocessedCount={unprocessedCount}
-        />
+        <div className="mx-4 mt-4">
+          <h3 className="bk-heading text-base">Отзывы</h3>
+          <div className="mt-2">
+            <ReviewsList
+              reviews={reviews}
+              total={total}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              onProcess={setProcessingReview}
+              unprocessedCount={unprocessedCount}
+              onLoadMore={() => loadMore(branchId)}
+              isLoadingMore={isLoadingMore}
+            />
+          </div>
+        </div>
       )}
 
       {processingReview && (
