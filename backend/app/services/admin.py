@@ -5,8 +5,10 @@ from datetime import date, timedelta
 
 from sqlalchemy import func as sa_func
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.admin_call_log import AdminCallLog
 from app.models.branch import Branch
 from app.models.client import Client
 from app.models.user import User
@@ -35,10 +37,10 @@ class AdminService:
         # Products sold today
         products_sold = await self._sum_products(branch_id, target_date)
 
-        # Tomorrow's bookings
+        # Tomorrow's bookings (confirmed = the YClients confirmation flag)
         tomorrow = target_date + timedelta(days=1)
         total_tomorrow = await self._count_visits(branch_id, tomorrow, include_pending=True)
-        confirmed_tomorrow = await self._count_visits(branch_id, tomorrow, status="confirmed")
+        confirmed_tomorrow = await self._count_visits(branch_id, tomorrow, confirmed=True)
 
         # Birthday fill rate
         filled_birthdays = 0
@@ -105,6 +107,117 @@ class AdminService:
             visit.status = "confirmed"
         await self.db.commit()
         return len(visits)
+
+    async def get_call_list(
+        self,
+        branch_id: uuid.UUID,
+        target_date: date,
+    ) -> dict:
+        """Upcoming appointments to confirm + confirmation/call-progress stats.
+
+        ``to_call`` = upcoming scheduled visits that YClients hasn't marked
+        confirmed; each is annotated with whether an admin already logged a call
+        today. Also returns the objective confirmation rate of upcoming visits.
+        """
+        stmt = (
+            select(Visit, User.name.label("barber_name"))
+            .join(User, Visit.barber_id == User.id)
+            .where(
+                Visit.branch_id == branch_id,
+                Visit.date >= target_date,
+                Visit.status == "scheduled",
+            )
+            .order_by(Visit.date, Visit.created_at)
+        )
+        rows = (await self.db.execute(stmt)).all()
+
+        total_upcoming = len(rows)
+        confirmed_upcoming = sum(1 for v, _ in rows if v.confirmed)
+
+        unconfirmed_record_ids = [v.yclients_record_id for v, _ in rows if not v.confirmed]
+        called_map: dict[int, str] = {}
+        if unconfirmed_record_ids:
+            cres = await self.db.execute(
+                select(AdminCallLog.yclients_record_id, AdminCallLog.result).where(
+                    AdminCallLog.branch_id == branch_id,
+                    AdminCallLog.call_date == target_date,
+                    AdminCallLog.yclients_record_id.in_(unconfirmed_record_ids),
+                )
+            )
+            called_map = {r.yclients_record_id: r.result for r in cres.all()}
+
+        to_call = []
+        for visit, barber_name in rows:
+            if visit.confirmed:
+                continue
+            client_name, phone = "Без имени", None
+            if visit.client_id:
+                c = (
+                    await self.db.execute(
+                        select(Client.name, Client.phone).where(Client.id == visit.client_id)
+                    )
+                ).first()
+                if c:
+                    client_name = c.name or "Без имени"
+                    phone = c.phone or None
+            to_call.append(
+                {
+                    "record_id": str(visit.id),
+                    "yclients_record_id": visit.yclients_record_id,
+                    "client_name": client_name,
+                    "phone": phone,
+                    "date": str(visit.date),
+                    "datetime": str(visit.created_at),
+                    "barber_name": barber_name,
+                    "called": visit.yclients_record_id in called_map,
+                    "result": called_map.get(visit.yclients_record_id),
+                }
+            )
+
+        to_call_count = len(to_call)
+        called_count = sum(1 for x in to_call if x["called"])
+        confirmation_rate = (
+            round(confirmed_upcoming / total_upcoming * 100) if total_upcoming else 100
+        )
+        call_progress = round(called_count / to_call_count * 100) if to_call_count else 100
+
+        return {
+            "branch_id": str(branch_id),
+            "date": str(target_date),
+            "to_call": to_call,
+            "total_upcoming": total_upcoming,
+            "confirmed_upcoming": confirmed_upcoming,
+            "confirmation_rate": confirmation_rate,
+            "to_call_count": to_call_count,
+            "called_count": called_count,
+            "call_progress": call_progress,
+        }
+
+    async def mark_call(
+        self,
+        organization_id: uuid.UUID,
+        branch_id: uuid.UUID,
+        admin_id: uuid.UUID,
+        yclients_record_id: int,
+        result: str,
+        call_date: date,
+    ) -> None:
+        """Log (or update) an admin's call about an upcoming appointment."""
+        stmt = pg_insert(AdminCallLog).values(
+            id=uuid.uuid4(),
+            organization_id=organization_id,
+            branch_id=branch_id,
+            admin_id=admin_id,
+            yclients_record_id=yclients_record_id,
+            call_date=call_date,
+            result=result,
+        )
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_admin_call_branch_record_date",
+            set_={"result": result, "admin_id": admin_id},
+        )
+        await self.db.execute(stmt)
+        await self.db.commit()
 
     async def get_history(
         self,
@@ -191,12 +304,15 @@ class AdminService:
         target_date: date,
         include_pending: bool = False,
         status: str | None = None,
+        confirmed: bool | None = None,
     ) -> int:
         stmt = select(sa_func.count()).select_from(Visit).where(
             Visit.branch_id == branch_id,
             Visit.date == target_date,
         )
-        if status:
+        if confirmed is not None:
+            stmt = stmt.where(Visit.confirmed.is_(confirmed))
+        elif status:
             stmt = stmt.where(Visit.status == status)
         elif not include_pending:
             stmt = stmt.where(Visit.status == "completed")

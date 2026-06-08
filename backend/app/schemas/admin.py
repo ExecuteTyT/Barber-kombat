@@ -62,6 +62,40 @@ class ConfirmRequest(BaseModel):
     record_ids: list[str]
 
 
+# --- Calls ---
+
+
+class CallTask(BaseModel):
+    record_id: str
+    yclients_record_id: int
+    client_name: str
+    phone: str | None
+    date: str
+    datetime: str
+    barber_name: str
+    called: bool
+    result: str | None
+
+
+class CallListResponse(BaseModel):
+    """Upcoming appointments to confirm + confirmation/call-progress stats."""
+
+    branch_id: str
+    date: str
+    to_call: list[CallTask]
+    total_upcoming: int
+    confirmed_upcoming: int
+    confirmation_rate: int
+    to_call_count: int
+    called_count: int
+    call_progress: int
+
+
+class MarkCallRequest(BaseModel):
+    yclients_record_id: int
+    result: str = "confirmed"
+
+
 # --- History ---
 
 

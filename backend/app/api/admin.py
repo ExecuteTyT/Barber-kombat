@@ -19,7 +19,9 @@ from app.schemas.admin import (
     AdminHistoryResponse,
     AdminMetricsResponse,
     AdminTasksResponse,
+    CallListResponse,
     ConfirmRequest,
+    MarkCallRequest,
 )
 from app.services.admin import AdminService
 
@@ -72,6 +74,46 @@ async def confirm_records(
     service = AdminService(db=db)
     count = await service.confirm_records(branch_id, body.record_ids)
     return {"confirmed": count}
+
+
+@router.get("/calls/{branch_id}", response_model=CallListResponse)
+async def get_admin_calls(
+    branch_id: uuid.UUID,
+    current_user: Annotated[
+        User,
+        Depends(require_branch_access(UserRole.ADMIN, UserRole.OWNER)),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    target_date: Annotated[
+        date | None, Query(description="Working date (defaults to today)")
+    ] = None,
+):
+    """Upcoming appointments to confirm + confirmation/call stats for a branch."""
+    service = AdminService(db=db)
+    return await service.get_call_list(branch_id, target_date or date.today())
+
+
+@router.post("/calls/{branch_id}/mark")
+async def mark_admin_call(
+    branch_id: uuid.UUID,
+    body: MarkCallRequest,
+    current_user: Annotated[
+        User,
+        Depends(require_branch_access(UserRole.ADMIN, UserRole.OWNER)),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Log that the admin called about an upcoming appointment."""
+    service = AdminService(db=db)
+    await service.mark_call(
+        organization_id=current_user.organization_id,
+        branch_id=branch_id,
+        admin_id=current_user.id,
+        yclients_record_id=body.yclients_record_id,
+        result=body.result,
+        call_date=date.today(),
+    )
+    return {"ok": True}
 
 
 @router.get("/history/{branch_id}", response_model=AdminHistoryResponse)

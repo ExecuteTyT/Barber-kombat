@@ -1,3 +1,4 @@
+from app.models.admin_call_log import AdminCallLog
 from app.models.base import Base
 from app.models.branch import Branch
 from app.models.client import Client
@@ -15,6 +16,7 @@ from app.models.user import User, UserRole
 from app.models.visit import Visit
 
 __all__ = [
+    "AdminCallLog",
     "Base",
     "Branch",
     "Client",
