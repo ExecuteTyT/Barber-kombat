@@ -5,15 +5,25 @@ import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useAdminStore } from '../../stores/adminStore'
 import { useAuthStore } from '../../stores/authStore'
 
+function KpiChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-[var(--bk-bg-primary)] px-2.5 py-1.5">
+      <p className="text-[var(--bk-text-dim)]">{label}</p>
+      <p className="font-semibold tabular-nums text-[var(--bk-text)]">{value}</p>
+    </div>
+  )
+}
+
 export default function MetricsScreen() {
   const { user } = useAuthStore()
-  const { metrics, loading, error, fetchMetrics } = useAdminStore()
+  const { metrics, branchKpi, loading, error, fetchMetrics, fetchBranchKpi } = useAdminStore()
 
   useEffect(() => {
     if (user?.branch_id) {
       fetchMetrics(user.branch_id)
+      fetchBranchKpi(user.branch_id)
     }
-  }, [user?.branch_id, fetchMetrics])
+  }, [user?.branch_id, fetchMetrics, fetchBranchKpi])
 
   if (loading && !metrics) {
     return (
@@ -72,8 +82,49 @@ export default function MetricsScreen() {
     <div className="pb-4 pt-4">
       <h1 className="bk-heading px-4 text-xl">Показатели</h1>
       <p className="mt-1 px-4 text-xs text-[var(--bk-text-secondary)]">
-        {metrics.branch_name} \u{2022} {metrics.date}
+        {metrics.branch_name} {'•'} {metrics.date}
       </p>
+
+      {/* Admin KPI hero (survey + confirmation composite) */}
+      {branchKpi && (
+        <div className="mx-4 mt-4 rounded-2xl border border-[var(--bk-border-gold)] bg-[var(--bk-bg-elevated)] p-4">
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-xs text-[var(--bk-text-secondary)]">KPI администратора</p>
+              <p
+                className="text-4xl font-bold tabular-nums text-[var(--bk-gold)]"
+                style={{ fontFamily: 'var(--bk-font-heading)' }}
+              >
+                {branchKpi.composite_score ?? '—'}
+                <span className="text-lg text-[var(--bk-text-dim)]">/100</span>
+              </p>
+            </div>
+            <p className="text-xs text-[var(--bk-text-dim)]">
+              {branchKpi.survey_count} опросов за месяц
+            </p>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+            <KpiChip
+              label="Оценка админа"
+              value={branchKpi.admin_avg != null ? `${branchKpi.admin_avg}` : '—'}
+            />
+            <KpiChip label="Подтверждения" value={`${branchKpi.confirmation_rate}%`} />
+            <KpiChip
+              label="Рекоменд. (NPS)"
+              value={branchKpi.nps != null ? `${branchKpi.nps}%` : '—'}
+            />
+            <KpiChip
+              label="Средн. звёзды"
+              value={branchKpi.stars_avg != null ? `${branchKpi.stars_avg}` : '—'}
+            />
+          </div>
+          {branchKpi.negatives > 0 && (
+            <p className="mt-2 text-xs text-[var(--bk-red)]">
+              Негативных отзывов за месяц: {branchKpi.negatives}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="mx-4 mt-4 space-y-3">
         {cards.map((card, i) => (

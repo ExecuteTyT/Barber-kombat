@@ -436,6 +436,54 @@ export interface AdminHistoryResponse {
   days: AdminDayResult[]
 }
 
+// --- Admin calls (Stage A) ---
+
+export interface CallTask {
+  record_id: string
+  yclients_record_id: number
+  client_name: string
+  phone: string | null
+  date: string
+  datetime: string
+  barber_name: string
+  called: boolean
+  result: string | null
+}
+
+export interface CallListResponse {
+  branch_id: string
+  date: string
+  to_call: CallTask[]
+  total_upcoming: number
+  confirmed_upcoming: number
+  confirmation_rate: number
+  to_call_count: number
+  called_count: number
+  call_progress: number
+}
+
+// --- Admin KPI (Stage C) ---
+
+export interface BranchAdminKpi {
+  branch_id: string
+  branch_name: string | null
+  month: string
+  survey_count: number
+  admin_avg: number | null
+  master_avg: number | null
+  stars_avg: number | null
+  nps: number | null
+  negatives: number
+  confirmation_rate: number
+  composite_score: number | null
+  rank: number | null
+}
+
+export interface NetworkAdminKpiResponse {
+  month: string
+  branches: BranchAdminKpi[]
+}
+
 // --- Branch Analytics types ---
 
 export interface TopBarber {

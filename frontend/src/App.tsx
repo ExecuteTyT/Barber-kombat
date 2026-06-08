@@ -19,11 +19,13 @@ import DashboardScreen from './screens/owner/DashboardScreen'
 import ReportsScreen from './screens/owner/ReportsScreen'
 import CompetitionsScreen from './screens/owner/CompetitionsScreen'
 import SettingsScreen from './screens/owner/SettingsScreen'
+import AdminKpiScreen from './screens/owner/AdminKpiScreen'
 import AdminLayout from './screens/admin/AdminLayout'
 import MetricsScreen from './screens/admin/MetricsScreen'
 import TasksScreen from './screens/admin/TasksScreen'
 import AdminHistoryScreen from './screens/admin/AdminHistoryScreen'
 import ReviewsScreen from './screens/admin/ReviewsScreen'
+import CallsScreen from './screens/admin/CallsScreen'
 import ToastHost from './components/ToastHost'
 
 const DEFAULT_ROUTES: Record<string, string> = {
@@ -137,6 +139,7 @@ function AuthenticatedApp() {
             <Route path="branch/:branchId" element={<BranchScreen />} />
             <Route path="reports" element={<ReportsScreen />} />
             <Route path="competitions" element={<CompetitionsScreen />} />
+            <Route path="admin-kpi" element={<AdminKpiScreen />} />
             <Route path="settings" element={<SettingsScreen />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
@@ -151,6 +154,7 @@ function AuthenticatedApp() {
           >
             <Route path="reviews" element={<ReviewsScreen />} />
             <Route path="metrics" element={<MetricsScreen />} />
+            <Route path="calls" element={<CallsScreen />} />
             <Route path="tasks" element={<TasksScreen />} />
             <Route path="history" element={<AdminHistoryScreen />} />
             <Route index element={<Navigate to="reviews" replace />} />
