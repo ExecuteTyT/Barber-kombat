@@ -61,12 +61,16 @@ Celery tasks → WhatsApp/Telegram (notifications)
 - **`app/integrations/yclients/client.py`** — HTTP-клиент для YClients API
 - **`app/integrations/whatsapp/client.py`** — GreenAPI клиент для WhatsApp
 - **`app/integrations/telegram/bot.py`** — Telegram-бот + форматирование сообщений
+- **`app/tasks/`** — Celery: `celery_app.py` (конфиг), `sync_tasks` (синхронизация YClients), `notification_tasks` (WhatsApp/Telegram), `report_tasks`, `review_tasks`, `monthly_reset_tasks`, `webhook_tasks`
+- **`app/api/yclients_helper.py`** — публичный помощник: владелец вводит логин/пароль YClients и получает свой `user_token` + список салонов (`company_id`). Использует серверный `partner_token` (визитёру не передаётся), роутер под `/api/v1/yclients-helper` + HTML-форма без префикса
 
 ### Frontend: экраны по ролям
-- **`screens/barber/`** — KombatScreen (рейтинг), ProgressScreen (ПВР), HistoryScreen (история)
-- **`screens/chef/`** — BranchScreen (филиал), ChefKombatScreen, ChefPVRScreen, ChefAnalyticsScreen
-- **`screens/owner/`** — DashboardScreen, ReportsScreen, CompetitionsScreen, SettingsScreen
-- **`stores/`** — Zustand: barberStore, chefStore, ownerStore, pvrStore
+- **`screens/barber/`** — KombatScreen (рейтинг), ProgressScreen (ПВР), HistoryScreen (история), BarberLayout
+- **`screens/chef/`** — BranchScreen (филиал), ReviewProcessModal
+- **`screens/owner/`** — DashboardScreen, ReportsScreen, CompetitionsScreen, SettingsScreen, OwnerLayout
+- **`screens/admin/`** — AdminHistoryScreen, MetricsScreen, TasksScreen, AdminLayout
+- **`screens/public/`** — ReviewPublicScreen (публичная страница отзыва, без авторизации)
+- **`stores/`** — Zustand: authStore, kombatStore, pvrStore, ownerStore, chefAnalyticsStore, adminStore, reviewsStore
 
 ### Ключевые бизнес-концепции
 - **CS (средний чек)** — коэффициент `services_revenue / haircut_price`, отображается как ×2.56
@@ -102,6 +106,7 @@ Celery tasks → WhatsApp/Telegram (notifications)
 - **StrEnum + SQLAlchemy на Python 3.14**: нужен явный `values_callable` в `Enum()`, иначе записывается `.name` вместо `.value`
 - **YClients client.id**: у некоторых клиентов нет `id` — поле `YClientRecordClient.id` имеет дефолт `0`
 - **YClients Staff API**: НЕ возвращает цены стрижек. Цены — через Services API
+- **`vercel-yclients-helper/`**: отдельное Vercel serverless-приложение (без БД/Redis) — автономная версия помощника по получению `user_token`/`company_id`. Дублирует логику `app/api/yclients_helper.py`; `partner_token` живёт только в env Vercel. Своя инструкция в `vercel-yclients-helper/README.md`
 - **Деплой**: фронт на Vercel (auto-deploy из main), бэкенд на отдельном сервере
 
 ## Документация
