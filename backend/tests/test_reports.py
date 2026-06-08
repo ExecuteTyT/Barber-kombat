@@ -272,41 +272,29 @@ class TestGenerateDailyRevenue:
 class TestGenerateDayToDay:
     @pytest.mark.asyncio
     async def test_generates_comparison(self):
-        """Produces 3-month comparison with cumulative data."""
+        """Produces 3-month comparison with cumulative data.
+
+        Patches ``_daily_cumulative`` (one call per month) so the test covers
+        the comparison/percentage logic without depending on the per-day
+        ``_sum_revenue`` execute sequence — note prev months are now iterated
+        in full, not just up to ``day_num``.
+        """
         mock_db = AsyncMock()
+        mock_db.commit = AsyncMock()
         service = ReportService(db=mock_db)
 
-        branch = make_branch()
+        target = date(2026, 2, 5)  # day_num = 5
 
-        # _get_active_branches
-        branches_result = MagicMock()
-        branches_result.scalars.return_value.all.return_value = [branch]
+        # Current month: 5 days up to today -> day 5 = 50M
+        current = [{"day": i, "amount": 10_000_000 * i} for i in range(1, 6)]
+        # Prev month (Jan, full 31 days), 9M/day -> day 5 = 45M
+        prev = [{"day": i, "amount": 9_000_000 * i} for i in range(1, 32)]
+        # Prev-prev month (Dec, full 31 days), 11M/day -> day 5 = 55M
+        prev_prev = [{"day": i, "amount": 11_000_000 * i} for i in range(1, 32)]
 
-        # For each of 3 months x day_num days of _sum_revenue calls
-        # On Feb 5 (day 5), that's 5 days x 3 months = 15 calls
-        # Plus branches query, plus save
-        target = date(2026, 2, 5)
-        day_revenues = []
-        # Current month: 5 days
-        for _ in range(5):
-            r = MagicMock()
-            r.scalar_one.return_value = 10_000_000
-            day_revenues.append(r)
-        # Prev month: 5 days
-        for _ in range(5):
-            r = MagicMock()
-            r.scalar_one.return_value = 9_000_000
-            day_revenues.append(r)
-        # Prev prev month: 5 days
-        for _ in range(5):
-            r = MagicMock()
-            r.scalar_one.return_value = 11_000_000
-            day_revenues.append(r)
-
-        save_result = MagicMock()
-
-        mock_db.execute = AsyncMock(side_effect=[branches_result, *day_revenues, save_result])
-        mock_db.commit = AsyncMock()
+        service._get_active_branches = AsyncMock(return_value=[make_branch()])
+        service._daily_cumulative = AsyncMock(side_effect=[current, prev, prev_prev])
+        service._save_report = AsyncMock()
 
         data = await service.generate_day_to_day(ORG_ID, target, branch_id=None)
 
@@ -316,7 +304,7 @@ class TestGenerateDayToDay:
         assert data["current_month"]["daily_cumulative"][4]["amount"] == 50_000_000
         assert data["prev_month"]["daily_cumulative"][4]["amount"] == 45_000_000
         assert data["prev_prev_month"]["daily_cumulative"][4]["amount"] == 55_000_000
-        # 50M vs 45M = +11.1%
+        # 50M vs 45M (same day_num=5) = +11.1%
         assert data["comparison"]["vs_prev"] == "+11.1%"
         # 50M vs 55M = -9.1%
         assert data["comparison"]["vs_prev_prev"] == "-9.1%"
@@ -328,41 +316,28 @@ class TestGenerateDayToDay:
 class TestGenerateClientsReport:
     @pytest.mark.asyncio
     async def test_generates_client_stats(self):
-        """Produces new vs returning client counts."""
+        """Produces new vs returning counts, retention, and avg check per type.
+
+        Patches the leaf query helpers so the test exercises the real
+        aggregation logic (returning = total - new, retention %, avg check,
+        network totals) without depending on the exact SQL execute sequence.
+        """
         mock_db = AsyncMock()
+        mock_db.commit = AsyncMock()
         service = ReportService(db=mock_db)
 
         branch = make_branch()
 
-        branches_result = MagicMock()
-        branches_result.scalars.return_value.all.return_value = [branch]
-
-        # _count_new_clients (today)
-        new_today = MagicMock()
-        new_today.scalar_one.return_value = 8
-        # _count_unique_clients (today)
-        total_today = MagicMock()
-        total_today.scalar_one.return_value = 33
-        # _count_new_clients (mtd)
-        new_mtd = MagicMock()
-        new_mtd.scalar_one.return_value = 105
-        # _count_unique_clients (mtd)
-        total_mtd = MagicMock()
-        total_mtd.scalar_one.return_value = 811
-
-        save_result = MagicMock()
-
-        mock_db.execute = AsyncMock(
-            side_effect=[
-                branches_result,
-                new_today,
-                total_today,
-                new_mtd,
-                total_mtd,
-                save_result,
-            ]
+        service._get_active_branches = AsyncMock(return_value=[branch])
+        # Called twice per branch: (today, mtd)
+        service._count_new_clients = AsyncMock(side_effect=[8, 105])
+        service._count_unique_clients = AsyncMock(side_effect=[33, 811])
+        # Called twice per branch: new_only=True then False -> (revenue, visits)
+        service._revenue_by_client_type = AsyncMock(
+            side_effect=[(120_000_000, 100), (155_000_000, 100)]
         )
-        mock_db.commit = AsyncMock()
+        service._count_visits = AsyncMock(return_value=950)
+        service._save_report = AsyncMock()
 
         data = await service.generate_clients_report(ORG_ID, date(2026, 2, 22))
 
@@ -374,9 +349,16 @@ class TestGenerateClientsReport:
         assert b["new_clients_mtd"] == 105
         assert b["returning_clients_mtd"] == 706  # 811 - 105
         assert b["total_mtd"] == 811
+        assert b["retention_rate"] == 87.1  # round(706 / 811 * 100, 1)
+        assert b["avg_check_new"] == 1_200_000  # 120_000_000 // 100
+        assert b["avg_check_returning"] == 1_550_000  # 155_000_000 // 100
+        assert b["visits_mtd"] == 950
         assert data["network_new_mtd"] == 105
         assert data["network_returning_mtd"] == 706
         assert data["network_total_mtd"] == 811
+        assert data["network_retention_rate"] == 87.1
+        assert data["network_avg_check_new"] == 1_200_000
+        assert data["network_avg_check_returning"] == 1_550_000
 
 
 # --- Tests: generate_kombat_daily ---

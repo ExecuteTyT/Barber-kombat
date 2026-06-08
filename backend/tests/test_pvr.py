@@ -1,14 +1,12 @@
 """Tests for the rating-based PVR service."""
 
 import uuid
-from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.services.pvr import _DEFAULT_THRESHOLDS, PVRService
 from app.services.rating import _BarberMonthlyScore
-
 
 ORG_ID = uuid.uuid4()
 BRANCH_ID = uuid.uuid4()
@@ -79,16 +77,22 @@ class TestFindThreshold:
     def test_exact_first_threshold(self):
         threshold, bonus = PVRService._find_threshold(60, _DEFAULT_THRESHOLDS)
         assert threshold == 60
-        assert bonus == 100_000_000
+        assert bonus == 100_000  # 1 000 ₽ in kopecks
 
     def test_between_thresholds(self):
-        threshold, bonus = PVRService._find_threshold(70, _DEFAULT_THRESHOLDS)
+        threshold, _bonus = PVRService._find_threshold(70, _DEFAULT_THRESHOLDS)
         assert threshold == 60
 
     def test_highest_threshold(self):
         threshold, bonus = PVRService._find_threshold(92, _DEFAULT_THRESHOLDS)
         assert threshold == 90
-        assert bonus == 500_000_000
+        assert bonus == 500_000  # 5 000 ₽ in kopecks
+
+    def test_score_exactly_at_highest_threshold(self):
+        """Boundary: a score equal to the top threshold (90) qualifies for it."""
+        threshold, bonus = PVRService._find_threshold(90, _DEFAULT_THRESHOLDS)
+        assert threshold == 90
+        assert bonus == 500_000  # 5 000 ₽ in kopecks
 
     def test_empty_list(self):
         threshold, bonus = PVRService._find_threshold(80, [])

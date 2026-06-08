@@ -250,7 +250,7 @@ class TestGetClientsReport:
     @pytest.mark.asyncio
     async def test_returns_clients_report(self):
         """Returns a stored clients report."""
-        user = make_user(role="manager")
+        user = make_user(role="owner")
 
         report_data = {
             "date": "2026-02-22",
@@ -264,11 +264,18 @@ class TestGetClientsReport:
                     "new_clients_mtd": 105,
                     "returning_clients_mtd": 706,
                     "total_mtd": 811,
+                    "retention_rate": 87.1,
+                    "avg_check_new": 1_200_000,
+                    "avg_check_returning": 1_550_000,
+                    "visits_mtd": 950,
                 }
             ],
             "network_new_mtd": 105,
             "network_returning_mtd": 706,
             "network_total_mtd": 811,
+            "network_retention_rate": 87.1,
+            "network_avg_check_new": 1_200_000,
+            "network_avg_check_returning": 1_550_000,
         }
         report = make_report_obj(report_type="clients", data=report_data)
 
@@ -297,9 +304,9 @@ class TestGetClientsReport:
 
 class TestGetBingoReport:
     @pytest.mark.asyncio
-    async def test_chef_can_view_bingo(self):
-        """Chef can access Kombat daily standings."""
-        user = make_user(role="chef")
+    async def test_owner_can_view_bingo(self):
+        """Owner can access Kombat daily standings."""
+        user = make_user(role="owner")
 
         report_data = {
             "date": "2026-02-22",

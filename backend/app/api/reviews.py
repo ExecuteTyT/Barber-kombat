@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import require_role
+from app.auth.dependencies import require_branch_access, require_role
 from app.database import get_db
 from app.models.branch import Branch
 from app.models.user import User, UserRole
@@ -154,7 +154,7 @@ async def submit_review(
 async def get_branch_reviews(
     branch_id: uuid.UUID,
     current_user: Annotated[
-        User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))
+        User, Depends(require_branch_access(UserRole.OWNER, UserRole.ADMIN))
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
@@ -197,6 +197,10 @@ async def process_review(
     redis: Annotated[aioredis.Redis, Depends(get_redis)],
 ):
     """Process a review (change status, add comment). Owner/admin only."""
+    # Branch-scoped admins may only process reviews from their own branch.
+    restrict_branch_id = (
+        None if current_user.role == UserRole.OWNER else current_user.branch_id
+    )
     review_service = ReviewService(db=db, redis=redis)
     review = await review_service.process_review(
         review_id=review_id,
@@ -204,6 +208,7 @@ async def process_review(
         processed_by=current_user.id,
         status=body.status,
         comment=body.comment,
+        restrict_branch_id=restrict_branch_id,
     )
 
     if review is None:
@@ -226,9 +231,9 @@ async def get_alarum(
 ):
     """Get alarum feed: unprocessed negative reviews.
 
-    Owner/admin sees all branches.
+    Owner sees all branches in the org; an admin sees only their own branch.
     """
-    branch_id = None
+    branch_id = None if current_user.role == UserRole.OWNER else current_user.branch_id
 
     review_service = ReviewService(db=db, redis=redis)
     reviews, total = await review_service.get_alarum(

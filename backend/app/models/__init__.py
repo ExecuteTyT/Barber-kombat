@@ -10,6 +10,7 @@ from app.models.pvr_record import PVRRecord
 from app.models.rating_config import RatingConfig
 from app.models.report import Report
 from app.models.review import Review, ReviewStatus
+from app.models.survey_response import SurveyResponse
 from app.models.user import User, UserRole
 from app.models.visit import Visit
 
@@ -27,6 +28,7 @@ __all__ = [
     "Report",
     "Review",
     "ReviewStatus",
+    "SurveyResponse",
     "User",
     "UserRole",
     "Visit",

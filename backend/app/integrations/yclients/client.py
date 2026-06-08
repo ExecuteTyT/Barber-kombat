@@ -9,6 +9,7 @@ import structlog
 from app.config import settings
 from app.integrations.yclients.schemas import (
     YClientClient,
+    YClientComment,
     YClientRecord,
     YClientServiceItem,
     YClientStaff,
@@ -180,3 +181,10 @@ class YClientsClient:
         """Get a single client by ID."""
         data = await self._request("GET", f"/client/{company_id}/{client_id}")
         return YClientClient.model_validate(data)
+
+    async def get_comments(self, company_id: int) -> list[YClientComment]:
+        """Get reviews/comments (отзывы) left about a company."""
+        data = await self._request("GET", f"/comments/{company_id}")
+        if not isinstance(data, list):
+            return []
+        return [YClientComment.model_validate(item) for item in data]

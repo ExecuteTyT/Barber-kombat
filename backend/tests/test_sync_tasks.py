@@ -7,7 +7,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.tasks.sync_tasks import _full_sync_all_branches, _poll_all_branches
+from app.tasks.sync_tasks import (
+    UPCOMING_SYNC_DAYS,
+    _full_sync_all_branches,
+    _poll_all_branches,
+)
 
 # --- Helpers ---
 
@@ -218,7 +222,7 @@ class TestPollAllBranches:
     @patch(PATCH_YCLIENTS)
     @patch(PATCH_TASK_SESSIONMAKER)
     @patch(PATCH_SYNC)
-    async def test_uses_today_as_date_range(
+    async def test_syncs_today_through_upcoming_window(
         self,
         mock_sync_cls,
         mock_task_sessionmaker,
@@ -240,9 +244,11 @@ class TestPollAllBranches:
 
         await _poll_all_branches()
 
+        # Polling now also pulls upcoming bookings (for confirmation calls /
+        # tomorrow-metrics), so the range is today .. today + UPCOMING_SYNC_DAYS.
         call_args = mock_sync.sync_records.call_args
         assert call_args[0][1] == date.today()  # date_from
-        assert call_args[0][2] == date.today()  # date_to
+        assert call_args[0][2] == date.today() + timedelta(days=UPCOMING_SYNC_DAYS)  # date_to
 
 
 # --- Tests: _full_sync_all_branches ---

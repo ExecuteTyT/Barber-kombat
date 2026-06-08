@@ -158,6 +158,17 @@ class TestComputeCS:
         # 320000 / 160000 = 2.0
         assert cs == 2.0
 
+    def test_zero_services_revenue_visit(self):
+        """A visit with no services revenue contributes 0 to the CS average."""
+        barber_id = uuid.uuid4()
+        visits = [
+            make_visit(barber_id, services_revenue=0),
+            make_visit(barber_id, services_revenue=320_000),
+        ]
+        cs = RatingEngine._compute_cs(visits, 160_000)
+        # (0/160000 + 320000/160000) / 2 = (0 + 2.0) / 2 = 1.0
+        assert cs == 1.0
+
 
 # --- Tests: _compute_weighted_score ---
 

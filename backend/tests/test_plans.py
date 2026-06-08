@@ -257,6 +257,43 @@ class TestUpdateProgress:
         mock_redis.publish.assert_called()
 
     @pytest.mark.asyncio
+    async def test_forecast_on_first_day_of_month(self, monkeypatch):
+        """Forecast on day 1 extrapolates the single day over the whole month.
+
+        days_passed = 1, so forecast = current_amount * days_in_month. Guards
+        the days_passed>0 path and the first-day boundary (no div-by-zero).
+        """
+        import app.services.plans as plans_mod
+
+        class FakeDate(date):
+            @classmethod
+            def today(cls):
+                return date(2026, 2, 1)  # day 1, February has 28 days
+
+        monkeypatch.setattr(plans_mod, "date", FakeDate)
+
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+        mock_redis.publish = AsyncMock()
+
+        plan = make_plan(target_amount=280_000_000, current_amount=0, month=date(2026, 2, 1))
+        plan_result = MagicMock()
+        plan_result.scalar_one_or_none.return_value = plan
+        revenue_result = MagicMock()
+        revenue_result.scalar_one.return_value = 10_000_000  # one day's revenue
+        branch_result = MagicMock()
+        branch_result.scalar_one_or_none.return_value = make_branch()
+
+        mock_db.execute = AsyncMock(side_effect=[plan_result, revenue_result, branch_result])
+        mock_db.commit = AsyncMock()
+
+        service = PlanService(db=mock_db, redis=mock_redis)
+        await service.update_progress(BRANCH_ID)
+
+        # daily_avg = 10M / 1 day; forecast = int(10M * 28) = 280M
+        assert plan.forecast_amount == 280_000_000
+
+    @pytest.mark.asyncio
     async def test_deviation_warning_published(self):
         """Publishes plan_warning when behind by more than threshold."""
         mock_db = AsyncMock()
@@ -402,14 +439,15 @@ class TestGetNetworkPlans:
             forecast_amount=210_000_000,
         )
 
-        rows = [
-            (plan1, "8 марта"),
-            (plan2, "Ленина"),
-        ]
-
-        result_mock = MagicMock()
-        result_mock.all.return_value = rows
-        mock_db.execute = AsyncMock(return_value=result_mock)
+        # get_network_plans runs two queries: active branches, then plans for
+        # the month (joined in Python so branches without a plan still appear).
+        branch1 = make_branch(branch_id=BRANCH_ID, name="8 марта")
+        branch2 = make_branch(branch_id=BRANCH_ID_2, name="Ленина")
+        branches_result = MagicMock()
+        branches_result.scalars.return_value.all.return_value = [branch1, branch2]
+        plans_result = MagicMock()
+        plans_result.scalars.return_value.all.return_value = [plan1, plan2]
+        mock_db.execute = AsyncMock(side_effect=[branches_result, plans_result])
 
         service = PlanService(db=mock_db, redis=mock_redis)
         data = await service.get_network_plans(ORG_ID)

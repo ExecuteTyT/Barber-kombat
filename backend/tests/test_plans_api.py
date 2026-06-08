@@ -69,59 +69,21 @@ def _cleanup_overrides():
 
 class TestGetBranchPlan:
     @pytest.mark.asyncio
-    async def test_chef_can_view_plan(self):
-        """Chef can view the plan for their branch."""
+    async def test_chef_cannot_view_plan(self):
+        """Chef cannot view plans — endpoint is owner/admin only (refactor cc9b109)."""
         user = make_user(role="chef")
-        branch = make_branch()
-
-        plan_data = {
-            "id": PLAN_ID,
-            "branch_id": BRANCH_ID,
-            "branch_name": "8 марта",
-            "month": "2026-02",
-            "target_amount": 240_000_000,
-            "current_amount": 185_000_000,
-            "percentage": 77.1,
-            "forecast_amount": 235_000_000,
-            "required_daily": 3_670_000,
-            "days_passed": 15,
-            "days_in_month": 28,
-            "days_left": 13,
-            "is_behind": False,
-        }
 
         mock_db = AsyncMock()
         mock_redis = AsyncMock()
-
-        # _validate_branch
-        branch_result = MagicMock()
-        branch_result.scalar_one_or_none.return_value = branch
-        mock_db.execute = AsyncMock(return_value=branch_result)
 
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides[get_redis] = lambda: mock_redis
 
-        with patch(
-            "app.api.plans.PlanService.get_plan_with_details",
-            new_callable=AsyncMock,
-            return_value=plan_data,
-        ):
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
-                response = await client.get(f"/api/v1/plans/{BRANCH_ID}")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(f"/api/v1/plans/{BRANCH_ID}")
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["branch_id"] == str(BRANCH_ID)
-        assert data["branch_name"] == "8 марта"
-        assert data["target_amount"] == 240_000_000
-        assert data["current_amount"] == 185_000_000
-        assert data["percentage"] == 77.1
-        assert data["forecast_amount"] == 235_000_000
-        assert data["required_daily"] == 3_670_000
-        assert data["is_behind"] is False
+        assert response.status_code == 403
 
     @pytest.mark.asyncio
     async def test_owner_can_view_plan(self):
@@ -188,7 +150,7 @@ class TestGetBranchPlan:
     @pytest.mark.asyncio
     async def test_plan_not_found_404(self):
         """Returns 404 when no plan exists for the branch/month."""
-        user = make_user(role="chef")
+        user = make_user(role="owner")
         branch = make_branch()
 
         mock_db = AsyncMock()
@@ -217,7 +179,7 @@ class TestGetBranchPlan:
     @pytest.mark.asyncio
     async def test_branch_not_found_404(self):
         """Returns 404 when branch doesn't exist."""
-        user = make_user(role="chef")
+        user = make_user(role="owner")
 
         mock_db = AsyncMock()
         mock_redis = AsyncMock()

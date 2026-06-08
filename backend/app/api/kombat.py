@@ -12,7 +12,7 @@ from sqlalchemy import Integer, case, select
 from sqlalchemy import func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user, require_role
+from app.auth.dependencies import get_current_user, require_branch_access
 from app.database import get_db
 from app.models.branch import Branch
 from app.models.daily_rating import DailyRating
@@ -280,7 +280,9 @@ async def get_standings(
 @router.get("/history/{branch_id}", response_model=HistoryResponse)
 async def get_history(
     branch_id: uuid.UUID,
-    current_user: Annotated[User, Depends(require_role(UserRole.OWNER, UserRole.ADMIN))],
+    current_user: Annotated[
+        User, Depends(require_branch_access(UserRole.OWNER, UserRole.ADMIN))
+    ],
     db: Annotated[AsyncSession, Depends(get_db)],
     date_from: Annotated[date, Query(description="Start date (YYYY-MM-DD)")],
     date_to: Annotated[date, Query(description="End date (YYYY-MM-DD)")],

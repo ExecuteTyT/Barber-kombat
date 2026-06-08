@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     yclients_company_id: str = ""
     yclients_webhook_secret: str = ""
 
+    # Yandex Forms (guest survey) webhook — shared secret sent by the form.
+    yandex_forms_secret: str = ""
+
     # WhatsApp (optional — GreenAPI)
     whatsapp_api_url: str = ""
     whatsapp_api_token: str = ""
@@ -32,6 +35,12 @@ class Settings(BaseSettings):
     # Review request
     review_form_url: str = ""
     review_request_delay_minutes: int = 30
+    # When False, MAKON does not send its own WhatsApp review requests. The
+    # customer collects reviews through DataHeroes (connected to the same
+    # YClients), so this defaults off to avoid double-messaging clients.
+    # See docs/integrations/dataheroes.md. Set REVIEW_REQUESTS_ENABLED=true
+    # only if MAKON owns the review channel.
+    review_requests_enabled: bool = False
 
     # JWT
     jwt_secret: str = "change-this-to-a-random-secret-at-least-32-chars"

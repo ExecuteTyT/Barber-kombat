@@ -2,7 +2,7 @@
 
 import contextlib
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime, timedelta, timezone
 
 import structlog
 from sqlalchemy import case, select
@@ -14,6 +14,7 @@ from app.integrations.yclients.schemas import YClientRecord, YClientStaff
 from app.models.branch import Branch
 from app.models.client import Client
 from app.models.rating_config import RatingConfig
+from app.models.review import Review, ReviewStatus
 from app.models.user import User, UserRole
 from app.models.visit import Visit
 
@@ -147,7 +148,34 @@ def map_record_to_visit_dict(
         "products_count": count_products(products_list),
         "payment_type": map_payment_type(record.paid_full),
         "status": map_visit_status(record.visit_attendance),
+        "confirmed": bool(record.confirmed),
     }
+
+
+# Reviews with rating <= this are negative (kept in sync with ReviewService).
+_NEGATIVE_RATING = 3
+
+# Only alert for negative reviews newer than this. Guards against the first
+# backfill flooding the Telegram chat with historical negatives.
+_FRESH_ALERT_HOURS = 48
+
+# YClients comment dates are salon-local (Moscow time, UTC+3).
+_MSK = timezone(timedelta(hours=3))
+
+
+def parse_comment_date(value: str) -> datetime | None:
+    """Parse a YClients comment date ('YYYY-MM-DD HH:MM:SS', salon-local MSK).
+
+    Returns a timezone-aware datetime (MSK), or None if it can't be parsed —
+    in which case the caller lets the DB default (now()) apply.
+    """
+    if not value:
+        return None
+    try:
+        naive = datetime.strptime(value[:19], "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+    return naive.replace(tzinfo=_MSK)
 
 
 class SyncService:
@@ -330,6 +358,141 @@ class SyncService:
             skipped=skipped,
         )
         return synced
+
+    async def sync_reviews(self, branch_id: uuid.UUID) -> int:
+        """Sync YClients reviews (отзывы) for a branch into the reviews table.
+
+        Maps salon_id -> this branch, master_id -> barber, and record_id -> the
+        visit (taking its client). Idempotent via reviews.yclients_comment_id —
+        already-synced comments are skipped. Negative reviews (rating <= 3) are
+        stored as NEW so the admin alarum surfaces them; positives as PROCESSED.
+        Reviews whose master can't be resolved are skipped (barber is required).
+
+        For freshly-appeared negative reviews (created within the last
+        ``_FRESH_ALERT_HOURS``) a Telegram alert is queued after commit; older
+        backfilled negatives are stored silently. Returns the number inserted.
+        """
+        result = await self.db.execute(select(Branch).where(Branch.id == branch_id))
+        branch = result.scalar_one_or_none()
+        if branch is None or branch.yclients_company_id is None:
+            await logger.awarning(
+                "Branch not found or missing yclients_company_id", branch_id=str(branch_id)
+            )
+            return 0
+
+        organization_id = branch.organization_id
+        comments = await self.yclients.get_comments(branch.yclients_company_id)
+
+        inserted = 0
+        skipped = 0
+        pending_alerts: list[dict] = []
+        alert_cutoff = datetime.now(UTC) - timedelta(hours=_FRESH_ALERT_HOURS)
+        for comment in comments:
+            # Only star reviews (1-5); ignore non-rating comments.
+            if comment.rating < 1 or comment.rating > 5:
+                continue
+
+            try:
+                async with self.db.begin_nested():
+                    # Idempotency: skip comments we've already synced.
+                    existing = await self.db.execute(
+                        select(Review.id).where(
+                            Review.organization_id == organization_id,
+                            Review.yclients_comment_id == comment.id,
+                        )
+                    )
+                    if existing.scalar_one_or_none() is not None:
+                        continue
+
+                    barber = await self._resolve_barber(comment.master_id, organization_id)
+                    if barber is None:
+                        skipped += 1
+                        continue
+
+                    # Resolve visit (and its client) from the linked record.
+                    visit_id: uuid.UUID | None = None
+                    client_id: uuid.UUID | None = None
+                    if comment.record_id:
+                        vres = await self.db.execute(
+                            select(Visit.id, Visit.client_id).where(
+                                Visit.yclients_record_id == comment.record_id,
+                                Visit.organization_id == organization_id,
+                            )
+                        )
+                        row = vres.first()
+                        if row is not None:
+                            visit_id, client_id = row
+
+                    is_negative = comment.rating <= _NEGATIVE_RATING
+                    review = Review(
+                        id=uuid.uuid4(),
+                        organization_id=organization_id,
+                        branch_id=branch_id,
+                        barber_id=barber.id,
+                        visit_id=visit_id,
+                        client_id=client_id,
+                        rating=comment.rating,
+                        comment=comment.text or None,
+                        source="yclients",
+                        status=ReviewStatus.NEW if is_negative else ReviewStatus.PROCESSED,
+                        yclients_comment_id=comment.id,
+                    )
+                    # Use the YClients timestamp when present; otherwise leave it
+                    # unset so the column's server_default (now()) applies.
+                    created_at = parse_comment_date(comment.date)
+                    if created_at is not None:
+                        review.created_at = created_at
+                    self.db.add(review)
+                    inserted += 1
+
+                    # Queue an alert only for genuinely fresh negatives.
+                    if is_negative and created_at is not None and created_at >= alert_cutoff:
+                        client_name = None
+                        if client_id:
+                            cres = await self.db.execute(
+                                select(Client.name).where(Client.id == client_id)
+                            )
+                            client_name = cres.scalar_one_or_none()
+                        pending_alerts.append(
+                            {
+                                "organization_id": str(organization_id),
+                                "branch_name": branch.name,
+                                "barber_name": barber.name,
+                                "client_name": client_name,
+                                "rating": comment.rating,
+                                "comment": comment.text or None,
+                                "created_at": created_at.isoformat(),
+                                "review_id": str(review.id),
+                                "branch_id": str(branch_id),
+                            }
+                        )
+            except Exception:
+                await logger.aexception("Error syncing review", comment_id=comment.id)
+
+        await self.db.commit()
+
+        # Dispatch Telegram alerts for committed fresh negatives (fire-and-forget).
+        if pending_alerts:
+            from app.tasks.notification_tasks import send_negative_review_alert
+
+            for payload in pending_alerts:
+                try:
+                    send_negative_review_alert.delay(**payload)
+                except Exception:
+                    await logger.aexception(
+                        "Failed to queue negative review alert",
+                        review_id=payload["review_id"],
+                    )
+
+        await logger.ainfo(
+            "Reviews synced",
+            branch_id=str(branch_id),
+            total=len(comments),
+            inserted=inserted,
+            skipped=skipped,
+            alerts_queued=len(pending_alerts),
+        )
+        return inserted
 
     async def sync_staff(self, branch_id: uuid.UUID) -> int:
         """Sync staff members for a branch from YClients.

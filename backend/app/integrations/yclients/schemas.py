@@ -47,6 +47,7 @@ class YClientRecord(BaseModel):
     # YClients attendance codes: -1=no-show, 0=waiting, 1=came, 2=confirmed.
     visit_attendance: int = 0
     attendance: int = 0  # alternative attendance field
+    confirmed: int = 0  # YClients confirmation flag (1 = client confirmed booking)
 
     model_config = {"populate_by_name": True}
 
@@ -78,3 +79,23 @@ class YClientClient(BaseModel):
     phone: str = ""
     birth_date: str = ""  # "YYYY-MM-DD" or ""
     visits_count: int = 0
+
+
+class YClientComment(BaseModel):
+    """A review/comment about the company from YClients API (отзыв).
+
+    Returned by GET /comments/{company_id}. ``rating`` is 1-5; ``text`` may be
+    empty for rating-only reviews. ``master_id`` / ``record_id`` link to the
+    staff member and visit (0 when absent). ``date`` is salon-local.
+    """
+
+    id: int
+    salon_id: int = 0
+    type: int = 0
+    master_id: int = 0
+    record_id: int = 0
+    rating: int = 0
+    text: str = ""
+    date: str = ""  # "YYYY-MM-DD HH:MM:SS" (salon-local)
+    user_name: str = ""
+    user_phone: str = ""

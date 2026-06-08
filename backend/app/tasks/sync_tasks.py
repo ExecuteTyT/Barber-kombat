@@ -10,6 +10,10 @@ from app.tasks.celery_app import celery_app
 
 logger = structlog.stdlib.get_logger()
 
+# How many days of upcoming bookings to keep in sync (for confirmation calls
+# and tomorrow-metrics in the admin module).
+UPCOMING_SYNC_DAYS = 14
+
 
 async def _poll_all_branches() -> dict:
     """Poll YClients for recent records across all active branches.
@@ -29,6 +33,10 @@ async def _poll_all_branches() -> dict:
     from app.services.sync import SyncService
 
     today = date.today()
+    # Also pull upcoming bookings so the admin module has appointments to work
+    # with (confirmation calls) and tomorrow-metrics are populated. Past data
+    # is reconciled by the daily full sync.
+    upcoming_to = today + timedelta(days=UPCOMING_SYNC_DAYS)
     total_synced = 0
     branches_processed = 0
     errors = 0
@@ -54,7 +62,7 @@ async def _poll_all_branches() -> dict:
                     try:
                         sync_service = SyncService(db=db, yclients=yclients)
                         synced = await sync_service.sync_records(
-                            branch.id, today, today
+                            branch.id, today, upcoming_to
                         )
                         total_synced += synced
                         branches_processed += 1
@@ -169,6 +177,10 @@ async def _full_sync_all_branches() -> dict:
                             branch.id, yesterday, yesterday
                         )
                         total_synced += r_count
+
+                        # Sync reviews (отзывы) from YClients into our reviews table
+                        await sync_service.sync_reviews(branch.id)
+
                         branches_processed += 1
 
                         await logger.ainfo(

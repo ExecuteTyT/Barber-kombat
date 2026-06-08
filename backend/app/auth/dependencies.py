@@ -57,6 +57,34 @@ def require_role(*roles: UserRole) -> Callable:
     return check_role
 
 
+def require_branch_access(*roles: UserRole) -> Callable:
+    """Dependency factory for endpoints with a ``branch_id`` path parameter.
+
+    Checks role membership AND branch ownership: an OWNER may access any branch
+    in their organization, but an ADMIN (or other branch-scoped role) may only
+    access their own ``branch_id``. Use on routes shaped ``/.../{branch_id}``.
+    """
+
+    async def check_access(
+        branch_id: uuid.UUID,
+        current_user: Annotated[User, Depends(get_current_user)],
+    ) -> User:
+        if current_user.role not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions",
+            )
+        # Owner sees any branch in the org; everyone else is pinned to their own.
+        if current_user.role != UserRole.OWNER and current_user.branch_id != branch_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No access to this branch",
+            )
+        return current_user
+
+    return check_access
+
+
 def get_org_id(current_user: Annotated[User, Depends(get_current_user)]) -> uuid.UUID:
     """Extract organization_id from the current user for query filtering."""
     return current_user.organization_id

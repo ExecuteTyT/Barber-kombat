@@ -385,5 +385,9 @@ class TestHeaders:
             user_token="",
             base_url="https://test.com",
         )
+        # The constructor falls back to settings.yclients_user_token when the
+        # passed user_token is falsy (``user_token or settings...``). Force it
+        # empty here to test _get_headers' partner-only branch in isolation.
+        c.user_token = ""
         headers = c._get_headers()
         assert headers["Authorization"] == "Bearer partner_only"

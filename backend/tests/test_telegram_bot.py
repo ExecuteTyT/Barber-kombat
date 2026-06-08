@@ -431,7 +431,7 @@ class TestTelegramBotHighLevelSend:
         # send_message is called with positional args: (chat_id, text, keyboard)
         args = bot.send_message.call_args.args
         assert args[0] == -100123
-        assert "BARBER KOMBAT" in args[1]
+        assert "MAKON" in args[1]
         assert args[2] is not None  # reply_markup
 
     @pytest.mark.asyncio

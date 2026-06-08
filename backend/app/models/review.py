@@ -2,7 +2,17 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import (
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -20,6 +30,11 @@ class Review(Base):
         Index("ix_reviews_branch_created", "branch_id", "created_at"),
         Index("ix_reviews_barber_created", "barber_id", "created_at"),
         Index("ix_reviews_status", "status"),
+        # Idempotent sync of YClients reviews: one row per (org, comment).
+        # NULLs (form/internal reviews) are distinct, so they are unaffected.
+        UniqueConstraint(
+            "organization_id", "yclients_comment_id", name="uq_reviews_yclients_comment_org"
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -33,6 +48,8 @@ class Review(Base):
     rating: Mapped[int] = mapped_column(Integer, nullable=False)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     source: Mapped[str] = mapped_column(String(20), nullable=False, default="internal")
+    # YClients comment id when source="yclients" (for idempotent sync); NULL otherwise.
+    yclients_comment_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[ReviewStatus] = mapped_column(
         Enum(
             ReviewStatus,

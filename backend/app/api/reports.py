@@ -9,10 +9,10 @@ from datetime import date
 from typing import Annotated
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import require_role
+from app.auth.dependencies import require_branch_access, require_role
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.schemas.reports import (
@@ -199,7 +199,7 @@ async def get_branch_analytics(
     branch_id: uuid.UUID,
     current_user: Annotated[
         User,
-        Depends(require_role(UserRole.OWNER, UserRole.ADMIN)),
+        Depends(require_branch_access(UserRole.OWNER, UserRole.ADMIN)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     target_date: Annotated[

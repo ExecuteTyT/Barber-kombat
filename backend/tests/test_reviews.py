@@ -3,7 +3,7 @@
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -92,6 +92,7 @@ class TestCreateReview:
         mock_redis.publish = AsyncMock()
 
         service = ReviewService(db=mock_db, redis=mock_redis)
+        service._dispatch_negative_alert = AsyncMock()
 
         await service.create_review(
             organization_id=ORG_ID,
@@ -111,6 +112,7 @@ class TestCreateReview:
 
         # No notification for positive review
         mock_redis.publish.assert_not_called()
+        service._dispatch_negative_alert.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_negative_review_saved_as_new(self):
@@ -121,6 +123,7 @@ class TestCreateReview:
         mock_redis.publish = AsyncMock()
 
         service = ReviewService(db=mock_db, redis=mock_redis)
+        service._dispatch_negative_alert = AsyncMock()
 
         # Mock the helper methods called by _publish_new_review
         barber = make_barber()
@@ -144,13 +147,14 @@ class TestCreateReview:
         assert added_review.status == ReviewStatus.NEW
         assert added_review.rating == 2
 
-        # Notification sent for negative review
+        # Notification sent for negative review (in-app feed + Telegram alert)
         mock_redis.publish.assert_called_once()
         channel = mock_redis.publish.call_args[0][0]
         payload = json.loads(mock_redis.publish.call_args[0][1])
         assert channel == f"ws:org:{ORG_ID}"
         assert payload["type"] == "new_review"
         assert payload["review"]["rating"] == 2
+        service._dispatch_negative_alert.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_threshold_boundary_rating_3(self):
@@ -161,6 +165,7 @@ class TestCreateReview:
         mock_redis.publish = AsyncMock()
 
         service = ReviewService(db=mock_db, redis=mock_redis)
+        service._dispatch_negative_alert = AsyncMock()
 
         barber_result = MagicMock()
         barber_result.scalar_one_or_none.return_value = make_barber()
@@ -178,6 +183,7 @@ class TestCreateReview:
         added_review = mock_db.add.call_args[0][0]
         assert added_review.status == ReviewStatus.NEW
         mock_redis.publish.assert_called_once()
+        service._dispatch_negative_alert.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_threshold_boundary_rating_4(self):
@@ -188,6 +194,7 @@ class TestCreateReview:
         mock_redis.publish = AsyncMock()
 
         service = ReviewService(db=mock_db, redis=mock_redis)
+        service._dispatch_negative_alert = AsyncMock()
 
         await service.create_review(
             organization_id=ORG_ID,
@@ -199,6 +206,27 @@ class TestCreateReview:
         added_review = mock_db.add.call_args[0][0]
         assert added_review.status == ReviewStatus.PROCESSED
         mock_redis.publish.assert_not_called()
+        service._dispatch_negative_alert.assert_not_awaited()
+
+
+class TestDispatchNegativeAlert:
+    @pytest.mark.asyncio
+    async def test_queues_celery_task_with_details(self):
+        """_dispatch_negative_alert enqueues the Telegram task with review data."""
+        service = ReviewService(db=AsyncMock(), redis=AsyncMock())
+        service._get_user = AsyncMock(return_value=make_barber())
+        service._get_branch = AsyncMock(return_value=make_branch())
+        review = make_review(rating=2, comment="bad", client_id=None, created_at=None)
+
+        with patch("app.tasks.notification_tasks.send_negative_review_alert") as mock_task:
+            await service._dispatch_negative_alert(review)
+
+        mock_task.delay.assert_called_once()
+        kwargs = mock_task.delay.call_args.kwargs
+        assert kwargs["rating"] == 2
+        assert kwargs["review_id"] == str(review.id)
+        assert kwargs["branch_id"] == str(review.branch_id)
+        assert kwargs["organization_id"] == str(review.organization_id)
 
 
 # --- Tests: process_review ---

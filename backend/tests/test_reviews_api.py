@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -235,9 +235,9 @@ class TestSubmitReview:
 
 class TestGetBranchReviews:
     @pytest.mark.asyncio
-    async def test_chef_can_view_reviews(self):
-        """Chef can view reviews for their branch."""
-        user = make_user(role="chef")
+    async def test_owner_can_view_reviews(self):
+        """Owner can view reviews for a branch."""
+        user = make_user(role="owner")
         branch = make_branch()
 
         mock_db = AsyncMock()
@@ -309,7 +309,7 @@ class TestGetBranchReviews:
     @pytest.mark.asyncio
     async def test_branch_not_found_404(self):
         """Returns 404 when branch doesn't belong to user's org."""
-        user = make_user(role="chef")
+        user = make_user(role="owner")
 
         mock_db = AsyncMock()
         mock_redis = AsyncMock()
@@ -341,9 +341,9 @@ class TestGetBranchReviews:
 
 class TestProcessReview:
     @pytest.mark.asyncio
-    async def test_chef_can_process_review(self):
-        """Chef can process a review."""
-        user = make_user(role="chef")
+    async def test_owner_can_process_review(self):
+        """Owner can process a review."""
+        user = make_user(role="owner")
 
         mock_db = AsyncMock()
         mock_redis = AsyncMock()
@@ -445,7 +445,7 @@ class TestProcessReview:
     @pytest.mark.asyncio
     async def test_invalid_status_422(self):
         """Returns 422 for invalid status value."""
-        user = make_user(role="chef")
+        user = make_user(role="owner")
 
         mock_db = AsyncMock()
         mock_redis = AsyncMock()
@@ -537,7 +537,7 @@ class TestGetAlarum:
     @pytest.mark.asyncio
     async def test_empty_alarum(self):
         """Returns empty alarum when no unprocessed reviews."""
-        user = make_user(role="chef")
+        user = make_user(role="owner")
 
         mock_db = AsyncMock()
         mock_redis = AsyncMock()
@@ -569,3 +569,111 @@ class TestGetAlarum:
             response = await client.get("/api/v1/reviews/alarum/feed")
 
         assert response.status_code in (401, 403)
+
+
+# --- Tests: branch-scoped access (admin = own branch only, owner = any) ---
+
+OTHER_BRANCH_ID = uuid.uuid4()
+
+
+class TestBranchScopedAccess:
+    @pytest.mark.asyncio
+    async def test_admin_other_branch_reviews_forbidden(self):
+        """An admin pinned to another branch cannot list this branch's reviews."""
+        user = make_user(role="admin", branch_id=OTHER_BRANCH_ID)
+
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+        app.dependency_overrides[get_current_user] = lambda: user
+        app.dependency_overrides[get_db] = lambda: mock_db
+        app.dependency_overrides[get_redis] = lambda: mock_redis
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(f"/api/v1/reviews/{BRANCH_ID}")
+
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_owner_other_branch_reviews_allowed(self):
+        """An owner may list any branch in the org (no branch pin)."""
+        user = make_user(role="owner", branch_id=None)
+        branch = make_branch()
+
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+        branch_result = MagicMock()
+        branch_result.scalar_one_or_none.return_value = branch
+        count_result = MagicMock()
+        count_result.scalar_one.return_value = 0
+        reviews_result = MagicMock()
+        reviews_result.scalars.return_value.all.return_value = []
+        mock_db.execute = AsyncMock(
+            side_effect=[branch_result, count_result, reviews_result]
+        )
+        app.dependency_overrides[get_current_user] = lambda: user
+        app.dependency_overrides[get_db] = lambda: mock_db
+        app.dependency_overrides[get_redis] = lambda: mock_redis
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(f"/api/v1/reviews/{BRANCH_ID}")
+
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_admin_cannot_process_other_branch_review(self):
+        """A review belonging to another branch is 'not found' for a pinned admin."""
+        user = make_user(role="admin", branch_id=OTHER_BRANCH_ID)
+
+        review_mock = MagicMock()
+        review_mock.id = REVIEW_ID
+        review_mock.organization_id = ORG_ID
+        review_mock.branch_id = BRANCH_ID  # different from the admin's branch
+
+        review_result = MagicMock()
+        review_result.scalar_one_or_none.return_value = review_mock
+
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(side_effect=[review_result])
+        mock_db.commit = AsyncMock()
+        mock_redis = AsyncMock()
+
+        app.dependency_overrides[get_current_user] = lambda: user
+        app.dependency_overrides[get_db] = lambda: mock_db
+        app.dependency_overrides[get_redis] = lambda: mock_redis
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.put(
+                f"/api/v1/reviews/{REVIEW_ID}/process",
+                json={"status": "processed", "comment": "x"},
+            )
+
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_admin_alarum_scoped_to_own_branch(self):
+        """Admin's alarum feed is scoped to their branch; owner sees all."""
+        admin = make_user(role="admin", branch_id=OTHER_BRANCH_ID)
+        owner = make_user(role="owner", branch_id=None)
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+        app.dependency_overrides[get_db] = lambda: mock_db
+        app.dependency_overrides[get_redis] = lambda: mock_redis
+
+        with patch(
+            "app.api.reviews.ReviewService.get_alarum",
+            new_callable=AsyncMock,
+            return_value=([], 0),
+        ) as mock_alarum:
+            app.dependency_overrides[get_current_user] = lambda: admin
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                await client.get("/api/v1/reviews/alarum/feed")
+            assert mock_alarum.call_args.kwargs["branch_id"] == OTHER_BRANCH_ID
+
+            app.dependency_overrides[get_current_user] = lambda: owner
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                await client.get("/api/v1/reviews/alarum/feed")
+            assert mock_alarum.call_args.kwargs["branch_id"] is None

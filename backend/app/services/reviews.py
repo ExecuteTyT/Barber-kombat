@@ -69,9 +69,10 @@ class ReviewService:
         await self.db.commit()
         await self.db.refresh(review)
 
-        # Route negative reviews
+        # Route negative reviews: in-app feed + Telegram alert
         if rating <= _NEGATIVE_THRESHOLD:
             await self._publish_new_review(review)
+            await self._dispatch_negative_alert(review)
 
         await logger.ainfo(
             "Review created",
@@ -93,13 +94,20 @@ class ReviewService:
         processed_by: uuid.UUID,
         status: str,
         comment: str,
+        restrict_branch_id: uuid.UUID | None = None,
     ) -> Review | None:
         """Update a review's processing status.
 
         Transitions: new -> in_progress -> processed
+
+        ``restrict_branch_id`` pins the review to a branch (used for
+        branch-scoped admins): if set and the review belongs to a different
+        branch, the call is treated as "not found" (returns None).
         """
         review = await self._get_review(review_id, organization_id)
         if review is None:
+            return None
+        if restrict_branch_id is not None and review.branch_id != restrict_branch_id:
             return None
 
         review.status = ReviewStatus(status)
@@ -305,6 +313,39 @@ class ReviewService:
     async def _get_client(self, client_id: uuid.UUID) -> Client | None:
         result = await self.db.execute(select(Client).where(Client.id == client_id))
         return result.scalar_one_or_none()
+
+    async def _dispatch_negative_alert(self, review: Review) -> None:
+        """Queue the Telegram alert task for a freshly created negative review.
+
+        Sends to the chats configured in NotificationConfig (type
+        ``negative_review``) for the review's branch / org. Fire-and-forget via
+        Celery; failures here must not block review creation.
+        """
+        from app.tasks.notification_tasks import send_negative_review_alert
+
+        barber = await self._get_user(review.barber_id)
+        branch = await self._get_branch(review.branch_id)
+        client_name = None
+        if review.client_id:
+            client = await self._get_client(review.client_id)
+            client_name = client.name if client else None
+
+        try:
+            send_negative_review_alert.delay(
+                organization_id=str(review.organization_id),
+                branch_name=branch.name if branch else "Unknown",
+                barber_name=barber.name if barber else "Unknown",
+                client_name=client_name,
+                rating=review.rating,
+                comment=review.comment,
+                created_at=review.created_at.isoformat() if review.created_at else "",
+                review_id=str(review.id),
+                branch_id=str(review.branch_id),
+            )
+        except Exception:
+            await logger.aexception(
+                "Failed to queue negative review alert", review_id=str(review.id)
+            )
 
     async def _publish_new_review(self, review: Review) -> None:
         """Publish new_review event via Redis Pub/Sub for alarum."""

@@ -1,17 +1,19 @@
 """Tests for SyncService mapping helpers and logic."""
 
 import uuid
-from datetime import date
-from unittest.mock import AsyncMock, MagicMock
+from datetime import UTC, date, datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.integrations.yclients.schemas import (
+    YClientComment,
     YClientGoodsTransaction,
     YClientRecord,
     YClientRecordClient,
     YClientService,
 )
+from app.models.review import ReviewStatus
 from app.services.sync import (
     SyncService,
     count_extras,
@@ -19,6 +21,7 @@ from app.services.sync import (
     map_payment_type,
     map_record_to_visit_dict,
     map_visit_status,
+    parse_comment_date,
     rubles_to_kopecks,
 )
 
@@ -284,6 +287,148 @@ class TestMapRecordToVisitDict:
         assert result["products_revenue"] == 80000  # 800 * 1 * 100
         assert result["payment_type"] == "card"
         assert result["status"] == "completed"
+
+    def test_confirmed_flag_mapped(self, org_id, branch_id, barber_id, client_id):
+        """YClients `confirmed` flag (upcoming bookings) maps to Visit.confirmed."""
+        record = YClientRecord(
+            id=3001,
+            company_id=555,
+            staff_id=10,
+            date="2026-06-10 12:00:00",
+            services=[YClientService(id=1, title="Стрижка", cost=1500.0)],
+            goods_transactions=[],
+            cost=1500.0,
+            paid_full=1,
+            visit_attendance=0,  # upcoming booking (waiting)
+            confirmed=1,
+        )
+        result = map_record_to_visit_dict(
+            record=record,
+            organization_id=org_id,
+            branch_id=branch_id,
+            barber_id=barber_id,
+            client_id=client_id,
+            extra_services_list=[],
+        )
+        assert result["confirmed"] is True
+        assert result["status"] == "scheduled"  # visit_attendance 0 -> upcoming
+
+    def test_unconfirmed_defaults_false(self, org_id, branch_id, barber_id, client_id):
+        """Missing/zero confirmed flag maps to False."""
+        record = YClientRecord(
+            id=3002,
+            company_id=555,
+            staff_id=10,
+            date="2026-06-10 12:00:00",
+            services=[YClientService(id=1, title="Стрижка", cost=1500.0)],
+            goods_transactions=[],
+            cost=1500.0,
+            paid_full=1,
+            visit_attendance=0,
+        )
+        result = map_record_to_visit_dict(
+            record=record,
+            organization_id=org_id,
+            branch_id=branch_id,
+            barber_id=barber_id,
+            client_id=client_id,
+            extra_services_list=[],
+        )
+        assert result["confirmed"] is False
+
+    def test_date_with_time_component_uses_local_date(
+        self, org_id, branch_id, barber_id, client_id
+    ):
+        """A YClients datetime string is bucketed by its local date.
+
+        Guards against timezone drift: a visit late on the 31st (salon-local
+        time) must land on the 31st, not roll into the next day/month via a
+        UTC conversion. ``map_record_to_visit_dict`` takes ``record.date[:10]``
+        as-is, so the local date is preserved.
+        """
+        record = YClientRecord(
+            id=2001,
+            company_id=555,
+            staff_id=10,
+            date="2026-01-31 23:30:00",
+            services=[YClientService(id=1, title="Стрижка", cost=1500.0)],
+            goods_transactions=[],
+            cost=1500.0,
+            paid_full=1,
+            visit_attendance=1,
+        )
+        result = map_record_to_visit_dict(
+            record=record,
+            organization_id=org_id,
+            branch_id=branch_id,
+            barber_id=barber_id,
+            client_id=client_id,
+            extra_services_list=[],
+        )
+        assert result["date"] == date(2026, 1, 31)
+
+    def test_record_cost_zero_falls_back_to_services_plus_products(
+        self, org_id, branch_id, barber_id, client_id
+    ):
+        """When YClients reports cost=0 (unsettled), revenue = services + products."""
+        record = YClientRecord(
+            id=2002,
+            company_id=555,
+            staff_id=10,
+            date="2026-01-15",
+            services=[YClientService(id=1, title="Стрижка", cost=1500.0)],
+            goods_transactions=[
+                YClientGoodsTransaction(id=50, title="Гель", cost=400.0, amount=2, good_id=1)
+            ],
+            cost=0.0,
+            paid_full=1,
+            visit_attendance=1,
+        )
+        result = map_record_to_visit_dict(
+            record=record,
+            organization_id=org_id,
+            branch_id=branch_id,
+            barber_id=barber_id,
+            client_id=client_id,
+            extra_services_list=[],
+        )
+        # services 1500*100 + products 400*2*100 = 150000 + 80000
+        assert result["services_revenue"] == 150000
+        assert result["products_revenue"] == 80000
+        assert result["revenue"] == 230000
+
+    def test_services_revenue_sums_then_rounds_once(
+        self, org_id, branch_id, barber_id, client_id
+    ):
+        """Service costs are summed in rubles, then converted to kopecks once.
+
+        Two 0.005₽ services sum to 0.01₽ = 1 kopeck. Rounding each item
+        independently (banker's round of 0.5 kopeck -> 0) would yield 0, so
+        this proves a single rounding of the summed total.
+        """
+        record = YClientRecord(
+            id=2003,
+            company_id=555,
+            staff_id=10,
+            date="2026-01-15",
+            services=[
+                YClientService(id=1, title="A", cost=0.005),
+                YClientService(id=2, title="B", cost=0.005),
+            ],
+            goods_transactions=[],
+            cost=0.01,
+            paid_full=1,
+            visit_attendance=1,
+        )
+        result = map_record_to_visit_dict(
+            record=record,
+            organization_id=org_id,
+            branch_id=branch_id,
+            barber_id=barber_id,
+            client_id=client_id,
+            extra_services_list=[],
+        )
+        assert result["services_revenue"] == 1
 
     def test_extras_counted(self, sample_record, org_id, branch_id, barber_id, client_id):
         result = map_record_to_visit_dict(
@@ -679,3 +824,206 @@ class TestSyncRecordsSavepointIsolation:
         assert svc._upsert_visit.call_count == 2
         # Commit succeeds — skipped record did not leave the transaction dirty
         db.commit.assert_awaited_once()
+
+
+# --- Tests: parse_comment_date ---
+
+
+class TestParseCommentDate:
+    def test_valid_datetime_is_msk_aware(self):
+        dt = parse_comment_date("2026-05-31 14:33:48")
+        assert dt is not None
+        assert (dt.year, dt.month, dt.day, dt.hour) == (2026, 5, 31, 14)
+        assert dt.utcoffset() == timedelta(hours=3)  # Moscow time
+
+    def test_empty_returns_none(self):
+        assert parse_comment_date("") is None
+
+    def test_malformed_returns_none(self):
+        assert parse_comment_date("not-a-date") is None
+
+
+# --- Tests: sync_reviews ---
+
+
+def _make_review_db(branch_mock, after_branch_results):
+    """Mocked AsyncSession for sync_reviews: answers the branch lookup, then the
+    given per-comment query results, and supports savepoints via begin_nested.
+    """
+    branch_result = MagicMock()
+    branch_result.scalar_one_or_none.return_value = branch_mock
+
+    db = AsyncMock()
+    db.execute = AsyncMock(side_effect=[branch_result, *after_branch_results])
+    db.commit = AsyncMock()
+    db.add = MagicMock()
+    db.begin_nested = MagicMock(side_effect=_make_savepoint_mock)
+    return db
+
+
+def _exists_result(found):
+    r = MagicMock()
+    r.scalar_one_or_none.return_value = found
+    return r
+
+
+def _visit_row_result(row):
+    r = MagicMock()
+    r.first.return_value = row
+    return r
+
+
+class TestSyncReviews:
+    @pytest.mark.asyncio
+    async def test_maps_and_routes_reviews(self):
+        org_uuid = uuid.uuid4()
+        branch_uuid = uuid.uuid4()
+
+        branch_mock = MagicMock()
+        branch_mock.id = branch_uuid
+        branch_mock.organization_id = org_uuid
+        branch_mock.yclients_company_id = 555
+
+        comments = [
+            YClientComment(id=901, salon_id=555, master_id=10, record_id=0, rating=2, text="плохо"),
+            YClientComment(id=902, salon_id=555, master_id=10, record_id=0, rating=5, text=""),
+            YClientComment(id=903, salon_id=555, master_id=10, record_id=0, rating=0),  # not a star
+            YClientComment(id=904, salon_id=555, master_id=999, record_id=0, rating=4),  # no barber
+        ]
+
+        # execute order after branch: existence checks for 901, 902, 904
+        # (903 is filtered out before any query; no visit lookups since record_id=0)
+        db = _make_review_db(
+            branch_mock,
+            [_exists_result(None), _exists_result(None), _exists_result(None)],
+        )
+
+        yclients = MagicMock()
+        yclients.get_comments = AsyncMock(return_value=comments)
+
+        svc = SyncService(db=db, yclients=yclients)
+        barber = MagicMock()
+        barber.id = uuid.uuid4()
+        svc._resolve_barber = AsyncMock(
+            side_effect=lambda master_id, _org: barber if master_id == 10 else None
+        )
+
+        inserted = await svc.sync_reviews(branch_uuid)
+
+        assert inserted == 2  # 901 (negative) and 902 (positive); 903/904 skipped
+        added = [c.args[0] for c in db.add.call_args_list]
+        assert len(added) == 2
+        negative, positive = added
+        assert negative.rating == 2
+        assert negative.status == ReviewStatus.NEW
+        assert negative.source == "yclients"
+        assert negative.yclients_comment_id == 901
+        assert negative.comment == "плохо"
+        assert positive.rating == 5
+        assert positive.status == ReviewStatus.PROCESSED
+        assert positive.comment is None  # empty text -> None
+        db.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_idempotent_skips_already_synced(self):
+        org_uuid = uuid.uuid4()
+        branch_uuid = uuid.uuid4()
+        branch_mock = MagicMock()
+        branch_mock.id = branch_uuid
+        branch_mock.organization_id = org_uuid
+        branch_mock.yclients_company_id = 555
+
+        comments = [YClientComment(id=901, salon_id=555, master_id=10, record_id=0, rating=2)]
+        # existence check returns an existing review id -> skip
+        db = _make_review_db(branch_mock, [_exists_result(uuid.uuid4())])
+
+        yclients = MagicMock()
+        yclients.get_comments = AsyncMock(return_value=comments)
+
+        svc = SyncService(db=db, yclients=yclients)
+        svc._resolve_barber = AsyncMock(return_value=MagicMock(id=uuid.uuid4()))
+
+        inserted = await svc.sync_reviews(branch_uuid)
+
+        assert inserted == 0
+        db.add.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_links_visit_and_client_from_record(self):
+        org_uuid = uuid.uuid4()
+        branch_uuid = uuid.uuid4()
+        visit_uuid = uuid.uuid4()
+        client_uuid = uuid.uuid4()
+        branch_mock = MagicMock()
+        branch_mock.id = branch_uuid
+        branch_mock.organization_id = org_uuid
+        branch_mock.yclients_company_id = 555
+
+        comments = [
+            YClientComment(id=901, salon_id=555, master_id=10, record_id=777, rating=3)
+        ]
+        # after branch: existence check (None), then visit lookup -> (visit, client)
+        db = _make_review_db(
+            branch_mock,
+            [_exists_result(None), _visit_row_result((visit_uuid, client_uuid))],
+        )
+
+        yclients = MagicMock()
+        yclients.get_comments = AsyncMock(return_value=comments)
+
+        svc = SyncService(db=db, yclients=yclients)
+        svc._resolve_barber = AsyncMock(return_value=MagicMock(id=uuid.uuid4()))
+
+        inserted = await svc.sync_reviews(branch_uuid)
+
+        assert inserted == 1
+        review = db.add.call_args_list[0].args[0]
+        assert review.visit_id == visit_uuid
+        assert review.client_id == client_uuid
+        assert review.status == ReviewStatus.NEW  # rating 3 is negative
+
+    @staticmethod
+    def _msk_date_str(hours_ago: int) -> str:
+        """A YClients-style salon-local (MSK) date string N hours before now."""
+        msk = timezone(timedelta(hours=3))
+        dt = datetime.now(UTC).astimezone(msk) - timedelta(hours=hours_ago)
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    def _negative_branch(self):
+        branch = MagicMock()
+        branch.id = uuid.uuid4()
+        branch.organization_id = uuid.uuid4()
+        branch.yclients_company_id = 555
+        branch.name = "Test Branch"
+        return branch
+
+    async def _run_sync_one_negative(self, date_str):
+        branch = self._negative_branch()
+        comments = [
+            YClientComment(
+                id=950, salon_id=555, master_id=10, record_id=0, rating=2,
+                text="bad", date=date_str,
+            )
+        ]
+        db = _make_review_db(branch, [_exists_result(None)])
+        yclients = MagicMock()
+        yclients.get_comments = AsyncMock(return_value=comments)
+        svc = SyncService(db=db, yclients=yclients)
+        svc._resolve_barber = AsyncMock(return_value=MagicMock(id=uuid.uuid4(), name="Pavel"))
+        with patch("app.tasks.notification_tasks.send_negative_review_alert") as mock_task:
+            inserted = await svc.sync_reviews(branch.id)
+        return inserted, mock_task
+
+    @pytest.mark.asyncio
+    async def test_alerts_for_fresh_negative(self):
+        """A negative review created within 48h queues a Telegram alert."""
+        inserted, mock_task = await self._run_sync_one_negative(self._msk_date_str(1))
+        assert inserted == 1
+        mock_task.delay.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_no_alert_for_old_negative(self):
+        """An old (backfilled) negative is stored but does NOT alert."""
+        inserted, mock_task = await self._run_sync_one_negative(self._msk_date_str(100))
+        assert inserted == 1
+        mock_task.delay.assert_not_called()

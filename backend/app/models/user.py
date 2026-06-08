@@ -21,6 +21,9 @@ from app.models.base import Base
 
 class UserRole(enum.StrEnum):
     OWNER = "owner"
+    # MANAGER and CHEF are deprecated (removed from all API role checks in
+    # cc9b109; the frontend no longer exposes them). Kept in the enum so any
+    # legacy rows still load; do not assign them to new users.
     MANAGER = "manager"
     CHEF = "chef"
     BARBER = "barber"

@@ -60,12 +60,18 @@ async def _process_record(company_id: int, record_id: int, event_status: str) ->
                             barber_id=str(visit.barber_id),
                         )
 
-                        # Schedule review request if visit is completed
+                        # Schedule review request if MAKON owns the review
+                        # channel and the visit is completed. Off by default —
+                        # DataHeroes runs review collection via the same YClients,
+                        # so leaving this on would double-message clients.
+                        # See docs/integrations/dataheroes.md.
+                        from app.config import settings
+
                         if (
-                            visit.status == "completed"
+                            settings.review_requests_enabled
+                            and visit.status == "completed"
                             and not visit.review_request_sent
                         ):
-                            from app.config import settings
                             from app.tasks.review_tasks import send_review_request
 
                             delay_seconds = settings.review_request_delay_minutes * 60

@@ -494,7 +494,7 @@ class TestHistory:
     @pytest.mark.asyncio
     async def test_returns_history_with_winners(self):
         """Returns daily history grouped by date with winners."""
-        user = make_user(role="chef")
+        user = make_user(role="owner")
 
         today = date.today()
         dr1 = make_daily_rating(BARBER_ID_1, rank=1, target_date=today)
@@ -570,7 +570,7 @@ class TestHistory:
     @pytest.mark.asyncio
     async def test_requires_date_params(self):
         """Returns 422 when date params are missing."""
-        user = make_user(role="chef")
+        user = make_user(role="owner")
 
         app.dependency_overrides[get_current_user] = lambda: user
 

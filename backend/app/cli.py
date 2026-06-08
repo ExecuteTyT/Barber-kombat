@@ -486,11 +486,15 @@ async def _seed_demo():
                     )
                     db.add(dr)
 
-                    # Create 2-4 visits per barber per day
+                    # Create 2-4 visits per barber per day. Split the daily
+                    # revenue exactly so sum(visits) == dr.revenue (the leftover
+                    # kopecks from the floor division go to the first visit).
                     num_visits = random.randint(2, 4)
                     visit_revenue_each = revenue // num_visits
+                    remainder = revenue - visit_revenue_each * num_visits
                     for _v_idx in range(num_visits):
                         client = random.choice(clients)
+                        visit_revenue = visit_revenue_each + (remainder if _v_idx == 0 else 0)
                         v = Visit(
                             organization_id=org_id,
                             branch_id=branch.id,
@@ -498,9 +502,9 @@ async def _seed_demo():
                             client_id=client.id,
                             yclients_record_id=yclients_record_seq,
                             date=d,
-                            revenue=visit_revenue_each,
-                            services_revenue=int(visit_revenue_each * 0.85),
-                            products_revenue=int(visit_revenue_each * 0.15),
+                            revenue=visit_revenue,
+                            services_revenue=int(visit_revenue * 0.85),
+                            products_revenue=int(visit_revenue * 0.15),
                             extras_count=random.randint(0, 2),
                             products_count=random.randint(0, 1),
                             payment_type=random.choice(["card", "cash", "card"]),

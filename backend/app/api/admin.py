@@ -12,7 +12,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import require_role
+from app.auth.dependencies import require_branch_access
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.schemas.admin import (
@@ -31,7 +31,7 @@ async def get_admin_metrics(
     branch_id: uuid.UUID,
     current_user: Annotated[
         User,
-        Depends(require_role(UserRole.ADMIN, UserRole.OWNER)),
+        Depends(require_branch_access(UserRole.ADMIN, UserRole.OWNER)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     target_date: Annotated[
@@ -49,7 +49,7 @@ async def get_admin_tasks(
     branch_id: uuid.UUID,
     current_user: Annotated[
         User,
-        Depends(require_role(UserRole.ADMIN, UserRole.OWNER)),
+        Depends(require_branch_access(UserRole.ADMIN, UserRole.OWNER)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -64,7 +64,7 @@ async def confirm_records(
     body: ConfirmRequest,
     current_user: Annotated[
         User,
-        Depends(require_role(UserRole.ADMIN, UserRole.OWNER)),
+        Depends(require_branch_access(UserRole.ADMIN, UserRole.OWNER)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -79,7 +79,7 @@ async def get_admin_history(
     branch_id: uuid.UUID,
     current_user: Annotated[
         User,
-        Depends(require_role(UserRole.ADMIN, UserRole.OWNER)),
+        Depends(require_branch_access(UserRole.ADMIN, UserRole.OWNER)),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
     month: Annotated[
