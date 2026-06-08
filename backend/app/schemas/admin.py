@@ -96,6 +96,29 @@ class MarkCallRequest(BaseModel):
     result: str = "confirmed"
 
 
+# --- KPI ---
+
+
+class BranchAdminKpi(BaseModel):
+    branch_id: str
+    branch_name: str | None = None
+    month: str
+    survey_count: int
+    admin_avg: int | None
+    master_avg: int | None
+    stars_avg: float | None
+    nps: int | None
+    negatives: int
+    confirmation_rate: int
+    composite_score: int | None
+    rank: int | None = None
+
+
+class NetworkAdminKpiResponse(BaseModel):
+    month: str
+    branches: list[BranchAdminKpi]
+
+
 # --- History ---
 
 
