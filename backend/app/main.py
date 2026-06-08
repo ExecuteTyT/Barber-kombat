@@ -20,6 +20,8 @@ from app.api.pvr import router as pvr_router
 from app.api.reports import router as reports_router
 from app.api.reviews import router as reviews_router
 from app.api.webhooks import router as webhooks_router
+from app.api.yclients_helper import html_router as yclients_helper_html_router
+from app.api.yclients_helper import router as yclients_helper_router
 from app.auth.jwt import decode_access_token
 from app.config import settings
 from app.database import engine
@@ -106,6 +108,8 @@ app.include_router(pvr_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
 app.include_router(reviews_router, prefix="/api/v1")
 app.include_router(webhooks_router, prefix="/api/v1")
+app.include_router(yclients_helper_router, prefix="/api/v1")
+app.include_router(yclients_helper_html_router)
 
 
 # --- WebSocket endpoint ---
