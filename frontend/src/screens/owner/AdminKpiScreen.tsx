@@ -7,7 +7,7 @@ import { useAdminStore } from '../../stores/adminStore'
 const KPI_TIP =
   'Балл филиала = 60% средняя оценка админа из гостевых опросов + 40% доля подтверждённых записей. ' +
   'Админ — оценка работы админа (0–100); Подтв. — % подтверждённых записей; ' +
-  'NPS — доля готовых порекомендовать; Негатив — число негативных опросов.'
+  'Реком. — доля гостей, готовых порекомендовать (в маркетинге — NPS); Негатив — число негативных опросов.'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
@@ -74,7 +74,7 @@ export default function AdminKpiScreen() {
               <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
                 <Stat label="Админ" value={b.admin_avg != null ? `${b.admin_avg}` : '—'} />
                 <Stat label="Подтв." value={`${b.confirmation_rate}%`} />
-                <Stat label="NPS" value={b.nps != null ? `${b.nps}%` : '—'} />
+                <Stat label="Реком." value={b.nps != null ? `${b.nps}%` : '—'} />
                 <Stat label="Негатив" value={`${b.negatives}`} danger={b.negatives > 0} />
               </div>
             </div>
