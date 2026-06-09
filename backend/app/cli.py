@@ -659,6 +659,144 @@ async def _seed_demo():
         click.echo("=" * 60)
 
 
+@cli.command("seed-demo-admin")
+def seed_demo_admin():
+    """Augment the existing demo org with admin-feature data for UI testing.
+
+    Adds upcoming bookings (mixed YClients confirmation) so the Calls screen and
+    confirmation metric populate, plus guest survey responses (varied scores,
+    some negative) so the admin KPI and owner leaderboard fill in.
+    Re-runnable: clears prior demo scheduled visits + surveys first.
+    """
+    _run_async(_seed_demo_admin())
+
+
+async def _seed_demo_admin():
+    """Async implementation of seed-demo-admin."""
+    from sqlalchemy import delete, func, select
+
+    from app.database import async_session
+    from app.models.branch import Branch
+    from app.models.client import Client
+    from app.models.organization import Organization
+    from app.models.survey_response import SurveyResponse
+    from app.models.user import User, UserRole
+    from app.models.visit import Visit
+
+    today = date.today()
+
+    async with async_session() as db:
+        org = (
+            await db.execute(select(Organization).where(Organization.slug == "demo"))
+        ).scalar_one_or_none()
+        if org is None:
+            click.echo("Demo org not found. Run 'seed-demo' first.")
+            raise SystemExit(1)
+
+        branches = (
+            await db.execute(select(Branch).where(Branch.organization_id == org.id))
+        ).scalars().all()
+        clients = (
+            await db.execute(select(Client).where(Client.organization_id == org.id))
+        ).scalars().all()
+
+        # Idempotent: clear prior demo scheduled visits + surveys.
+        await db.execute(
+            delete(Visit).where(Visit.organization_id == org.id, Visit.status == "scheduled")
+        )
+        await db.execute(
+            delete(SurveyResponse).where(SurveyResponse.organization_id == org.id)
+        )
+        await db.flush()
+
+        # Start record IDs above the org's current max to avoid collisions.
+        max_rec = (
+            await db.execute(
+                select(func.max(Visit.yclients_record_id)).where(
+                    Visit.organization_id == org.id
+                )
+            )
+        ).scalar() or 0
+
+        # admin_score, master_score, stars, recommend, is_negative
+        survey_specs = [
+            (100, 100, 5, True, False),
+            (66, 85, 4, True, False),
+            (100, 70, 4, True, False),
+            (33, 50, 2, False, True),
+            (66, 100, 5, True, False),
+            (0, 25, 1, False, True),
+        ]
+        rec_seq = max(900_000, max_rec + 1)
+        total_visits = 0
+        total_surveys = 0
+
+        for b_idx, branch in enumerate(branches):
+            barbers = (
+                await db.execute(
+                    select(User).where(
+                        User.branch_id == branch.id, User.role == UserRole.BARBER
+                    )
+                )
+            ).scalars().all()
+            if not barbers:
+                continue
+
+            # Upcoming bookings: next 3 days, ~75% confirmed.
+            for i in range(8):
+                d = today + timedelta(days=1 + (i % 3))
+                barber = barbers[i % len(barbers)]
+                client = clients[i % len(clients)] if clients else None
+                db.add(
+                    Visit(
+                        organization_id=org.id,
+                        branch_id=branch.id,
+                        barber_id=barber.id,
+                        client_id=client.id if client else None,
+                        yclients_record_id=rec_seq,
+                        date=d,
+                        revenue=0,
+                        services_revenue=0,
+                        products_revenue=0,
+                        extras_count=0,
+                        products_count=0,
+                        status="scheduled",
+                        confirmed=(i % 4 != 0),  # ~3/4 confirmed
+                    )
+                )
+                rec_seq += 1
+                total_visits += 1
+
+            # Surveys this month (second branch slightly weaker, to vary ranking).
+            specs = survey_specs if b_idx == 0 else survey_specs[1:]
+            for j, (a, m, st, rec, neg) in enumerate(specs):
+                client = clients[j % len(clients)] if clients else None
+                db.add(
+                    SurveyResponse(
+                        id=uuid.uuid4(),
+                        organization_id=org.id,
+                        branch_id=branch.id,
+                        client_id=client.id if client else None,
+                        barber_id=None,
+                        phone=client.phone if client else "",
+                        recommend=rec,
+                        stars=st,
+                        comment=None,
+                        admin_score=a,
+                        master_score=m,
+                        is_negative=neg,
+                        raw={"demo": True},
+                    )
+                )
+                total_surveys += 1
+
+        await db.commit()
+        click.echo(
+            f"[OK] Demo admin data: {total_visits} upcoming bookings, "
+            f"{total_surveys} surveys across {len(branches)} branches."
+        )
+
+
 @cli.command("seed-real")
 def seed_real():
     """Create MAKON organization with real YClients branches.

@@ -34,7 +34,9 @@ const TEMPLATES: { label: string; text: string }[] = [
 ]
 
 export default function ReviewProcessModal({ review, onClose, onSubmit }: ReviewProcessModalProps) {
-  const [comment, setComment] = useState('')
+  // Pre-fill with the existing resolution note so re-opening an in-progress
+  // review keeps what was written instead of wiping it.
+  const [comment, setComment] = useState(review.processed_comment ?? '')
   const [message, setMessage] = useState('')
   const [status, setStatus] = useState<'in_progress' | 'processed'>(
     review.status === 'new' ? 'in_progress' : 'processed',
@@ -104,11 +106,28 @@ export default function ReviewProcessModal({ review, onClose, onSubmit }: Review
 
   const copyPhone = async () => {
     if (!review.client_phone) return
+    const text = review.client_phone
     try {
-      await navigator.clipboard.writeText(review.client_phone)
+      if (!navigator.clipboard?.writeText) throw new Error('no clipboard api')
+      await navigator.clipboard.writeText(text)
       showToast('Телефон скопирован', 'success')
+      return
     } catch {
-      showToast('Не удалось скопировать', 'error')
+      // Fallback for non-secure contexts / older browsers
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.focus()
+        ta.select()
+        const ok = document.execCommand('copy')
+        document.body.removeChild(ta)
+        showToast(ok ? 'Телефон скопирован' : 'Не удалось скопировать', ok ? 'success' : 'error')
+      } catch {
+        showToast('Не удалось скопировать', 'error')
+      }
     }
   }
 

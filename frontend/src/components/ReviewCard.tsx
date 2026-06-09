@@ -13,8 +13,26 @@ export default function ReviewCard({
   const timeStr = createdAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
   const dateStr = createdAt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
 
+  // The whole card opens the process modal for new / in-progress reviews.
+  const clickable = review.status !== 'processed'
+
   return (
-    <div className="bk-card p-3">
+    <div
+      className={`bk-card p-3${clickable ? ' cursor-pointer' : ''}`}
+      onClick={clickable ? () => onProcess(review) : undefined}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onProcess(review)
+              }
+            }
+          : undefined
+      }
+    >
       <div className="flex items-start justify-between">
         <div>
           <StarRating rating={review.rating} />
@@ -45,7 +63,10 @@ export default function ReviewCard({
           <button
             type="button"
             className="min-h-[44px] rounded-lg bg-[var(--bk-gold)] px-4 py-2 text-sm font-semibold text-[var(--bk-bg-primary)]"
-            onClick={() => onProcess(review)}
+            onClick={(e) => {
+              e.stopPropagation()
+              onProcess(review)
+            }}
           >
             Обработать
           </button>
