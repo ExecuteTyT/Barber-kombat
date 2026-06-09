@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
-  LineChart,
+  Area,
+  ComposedChart,
   Line,
   XAxis,
   YAxis,
@@ -11,6 +12,7 @@ import {
 } from 'recharts'
 
 import { IconArrowLeft, IconArrowRight, IconChevronRight } from '../../components/Icons'
+import InfoTip from '../../components/InfoTip'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useOwnerStore } from '../../stores/ownerStore'
 import type { BranchRevenue, BranchClients } from '../../types'
@@ -278,45 +280,83 @@ function DayToDayChart() {
 
   if (!dayToDay) return null
 
-  // Build chart from all available days across all 3 months
+  const cur = dayToDay.current_month
+  const prev = dayToDay.prev_month
+  const prevPrev = dayToDay.prev_prev_month
+
+  // Build chart from all available days across all 3 months.
   const allDays = new Set<number>()
-  dayToDay.current_month.daily_cumulative.forEach((d) => allDays.add(d.day))
-  dayToDay.prev_month.daily_cumulative.forEach((d) => allDays.add(d.day))
-  dayToDay.prev_prev_month.daily_cumulative.forEach((d) => allDays.add(d.day))
+  cur.daily_cumulative.forEach((d) => allDays.add(d.day))
+  prev.daily_cumulative.forEach((d) => allDays.add(d.day))
+  prevPrev.daily_cumulative.forEach((d) => allDays.add(d.day))
   const sortedDays = Array.from(allDays).sort((a, b) => a - b)
 
-  const chartData = sortedDays.map((day) => {
-    const cur = dayToDay.current_month.daily_cumulative.find((d) => d.day === day)
-    const prev = dayToDay.prev_month.daily_cumulative.find((d) => d.day === day)
-    const prevPrev = dayToDay.prev_prev_month.daily_cumulative.find((d) => d.day === day)
-    return {
-      day,
-      [dayToDay.current_month.name]: cur?.amount ?? null,
-      [dayToDay.prev_month.name]: prev?.amount ?? null,
-      [dayToDay.prev_prev_month.name]: prevPrev?.amount ?? null,
-    }
-  })
+  const chartData = sortedDays.map((day) => ({
+    day,
+    [cur.name]: cur.daily_cumulative.find((d) => d.day === day)?.amount ?? null,
+    [prev.name]: prev.daily_cumulative.find((d) => d.day === day)?.amount ?? null,
+    [prevPrev.name]: prevPrev.daily_cumulative.find((d) => d.day === day)?.amount ?? null,
+  }))
+
+  // Same-period totals: cumulative up to the current month's last filled day.
+  const curMaxDay = cur.daily_cumulative.reduce((m, d) => Math.max(m, d.day), 0)
+  const cumAt = (arr: { day: number; amount: number }[]) =>
+    arr.filter((d) => d.day <= curMaxDay).reduce((v, d) => Math.max(v, d.amount), 0)
+  const curTotal = cumAt(cur.daily_cumulative)
+  const prevTotal = cumAt(prev.daily_cumulative)
+  const prevPrevTotal = cumAt(prevPrev.daily_cumulative)
 
   const isPrevPositive = dayToDay.comparison.vs_prev.startsWith('+')
   const isPrevPrevPositive = dayToDay.comparison.vs_prev_prev.startsWith('+')
 
   return (
     <div>
-      <ResponsiveContainer width="100%" height={240}>
-        <LineChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bk-border)" />
+      {/* Headline: current pace + same-period deltas */}
+      <div className="bk-card mb-3 p-3">
+        <p className="flex items-center text-[11px] text-[var(--bk-text-secondary)]">
+          {cur.name} — выручка за 1–{curMaxDay}
+          <InfoTip text="Накопленная выручка с 1-го числа месяца. Сравниваем темп за одинаковый период (одинаковое число дней) с прошлыми месяцами." />
+        </p>
+        <p
+          className="text-2xl font-bold tabular-nums text-[var(--bk-gold)]"
+          style={{ fontFamily: 'var(--bk-font-heading)' }}
+        >
+          {formatMoney(curTotal)}
+        </p>
+        <div className="mt-1 flex gap-3 text-xs">
+          <span className={isPrevPositive ? 'text-[var(--bk-green)]' : 'text-[var(--bk-red)]'}>
+            {isPrevPositive ? '▲' : '▼'} {dayToDay.comparison.vs_prev} к {prev.name}
+          </span>
+          <span className={isPrevPrevPositive ? 'text-[var(--bk-green)]' : 'text-[var(--bk-red)]'}>
+            {isPrevPrevPositive ? '▲' : '▼'} {dayToDay.comparison.vs_prev_prev} к {prevPrev.name}
+          </span>
+        </div>
+      </div>
+
+      <ResponsiveContainer width="100%" height={300}>
+        <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
+          <defs>
+            <linearGradient id="curFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--bk-gold)" stopOpacity={0.3} />
+              <stop offset="100%" stopColor="var(--bk-gold)" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--bk-border)" vertical={false} />
           <XAxis
             dataKey="day"
             tick={{ fontSize: 11, fill: 'var(--bk-text-dim)' }}
             stroke="var(--bk-border)"
+            interval="preserveStartEnd"
+            minTickGap={18}
           />
           <YAxis
             tickFormatter={formatMoneyAxis}
             tick={{ fontSize: 11, fill: 'var(--bk-text-dim)' }}
-            width={50}
+            width={42}
             stroke="var(--bk-border)"
           />
           <Tooltip
+            labelFormatter={(d) => `День ${d}`}
             formatter={(value) => formatMoney(value as number)}
             contentStyle={{
               backgroundColor: 'var(--bk-bg-card)',
@@ -327,18 +367,19 @@ function DayToDayChart() {
             }}
           />
           <Legend wrapperStyle={{ fontSize: 11, color: 'var(--bk-text-secondary)' }} />
-          <Line
+          <Area
             type="monotone"
-            dataKey={dayToDay.current_month.name}
+            dataKey={cur.name}
             stroke="var(--bk-gold)"
-            strokeWidth={2.5}
-            dot={{ r: 2, fill: 'var(--bk-gold)' }}
+            strokeWidth={3}
+            fill="url(#curFill)"
+            dot={false}
             activeDot={{ r: 5 }}
             connectNulls={false}
           />
           <Line
             type="monotone"
-            dataKey={dayToDay.prev_month.name}
+            dataKey={prev.name}
             stroke="#3b82f6"
             strokeWidth={2}
             strokeDasharray="6 3"
@@ -347,33 +388,24 @@ function DayToDayChart() {
           />
           <Line
             type="monotone"
-            dataKey={dayToDay.prev_prev_month.name}
+            dataKey={prevPrev.name}
             stroke="#a78bfa"
             strokeWidth={1.5}
             strokeDasharray="3 3"
             dot={false}
             activeDot={{ r: 4 }}
           />
-        </LineChart>
+        </ComposedChart>
       </ResponsiveContainer>
 
-      <div className="mt-3 flex gap-3">
-        <div className="bk-card flex-1 p-3 text-center">
-          <p className="text-[10px] text-[var(--bk-text-secondary)]">
-            vs {dayToDay.prev_month.name}
-          </p>
-          <p className={`text-base font-bold ${isPrevPositive ? 'text-[var(--bk-green)]' : 'text-[var(--bk-red)]'}`}>
-            {dayToDay.comparison.vs_prev}
-          </p>
-        </div>
-        <div className="bk-card flex-1 p-3 text-center">
-          <p className="text-[10px] text-[var(--bk-text-secondary)]">
-            vs {dayToDay.prev_prev_month.name}
-          </p>
-          <p className={`text-base font-bold ${isPrevPrevPositive ? 'text-[var(--bk-green)]' : 'text-[var(--bk-red)]'}`}>
-            {dayToDay.comparison.vs_prev_prev}
-          </p>
-        </div>
+      {/* Same-period totals fill the space with concrete numbers */}
+      <p className="mb-2 mt-3 px-1 text-[10px] text-[var(--bk-text-dim)]">
+        Итого за одинаковый период (1–{curMaxDay}):
+      </p>
+      <div className="flex gap-2">
+        <StatCard label={cur.name} value={formatMoneyShort(curTotal)} accent />
+        <StatCard label={prev.name} value={formatMoneyShort(prevTotal)} />
+        <StatCard label={prevPrev.name} value={formatMoneyShort(prevPrevTotal)} />
       </div>
     </div>
   )

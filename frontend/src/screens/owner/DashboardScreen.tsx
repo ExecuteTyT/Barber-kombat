@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { IconUsers, IconChevronRight } from '../../components/Icons'
+import { IconUsers, IconChevronRight, IconStar } from '../../components/Icons'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useOwnerStore } from '../../stores/ownerStore'
 import type { BranchRevenue } from '../../types'
@@ -143,12 +143,18 @@ export default function DashboardScreen() {
           </div>
         </div>
 
-        {alarumTotal > 0 && (
-          <div className="mt-3 flex items-center gap-2 text-sm text-[var(--bk-red)]">
+        {alarumTotal > 0 && revenue.branches.length > 0 && (
+          <button
+            type="button"
+            onClick={() => navigate(`/owner/branch/${revenue.branches[0].branch_id}`)}
+            className="mt-3 flex w-full items-center gap-2 rounded-lg bg-[color-mix(in_srgb,var(--bk-red)_12%,transparent)] px-3 py-2 text-sm text-[var(--bk-red)] active:opacity-70"
+          >
             <span className="bk-live-pulse inline-block h-2.5 w-2.5 rounded-full bg-[var(--bk-red)]" />
+            <IconStar size={15} />
             {alarumTotal} необработанн{alarumTotal === 1 ? 'ый' : 'ых'} отзыв
             {alarumTotal === 1 ? '' : alarumTotal < 5 ? 'а' : 'ов'}
-          </div>
+            <IconChevronRight size={15} className="ml-auto" />
+          </button>
         )}
       </div>
 
