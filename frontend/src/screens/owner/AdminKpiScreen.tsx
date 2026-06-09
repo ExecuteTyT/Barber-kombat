@@ -1,7 +1,13 @@
 import { useEffect } from 'react'
 
+import InfoTip from '../../components/InfoTip'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useAdminStore } from '../../stores/adminStore'
+
+const KPI_TIP =
+  'Балл филиала = 60% средняя оценка админа из гостевых опросов + 40% доля подтверждённых записей. ' +
+  'Админ — оценка работы админа (0–100); Подтв. — % подтверждённых записей; ' +
+  'NPS — доля готовых порекомендовать; Негатив — число негативных опросов.'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
@@ -37,8 +43,9 @@ export default function AdminKpiScreen() {
   return (
     <div className="px-4 pb-4 pt-4">
       <h1 className="bk-heading text-xl">KPI администраторов</h1>
-      <p className="mt-0.5 text-xs text-[var(--bk-text-secondary)]">
+      <p className="mt-0.5 flex items-center text-xs text-[var(--bk-text-secondary)]">
         Рейтинг филиалов {'•'} {networkKpi.month}
+        <InfoTip text={KPI_TIP} />
       </p>
 
       {networkKpi.branches.length === 0 ? (

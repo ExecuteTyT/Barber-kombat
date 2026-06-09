@@ -1,14 +1,18 @@
 import { useEffect } from 'react'
 
 import { IconClipboard, IconShoppingBag, IconCheckCircle, IconGift } from '../../components/Icons'
+import InfoTip from '../../components/InfoTip'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useAdminStore } from '../../stores/adminStore'
 import { useAuthStore } from '../../stores/authStore'
 
-function KpiChip({ label, value }: { label: string; value: string }) {
+function KpiChip({ label, value, tip }: { label: string; value: string; tip?: string }) {
   return (
     <div className="rounded-lg bg-[var(--bk-bg-primary)] px-2.5 py-1.5">
-      <p className="text-[var(--bk-text-dim)]">{label}</p>
+      <p className="flex items-center text-[var(--bk-text-dim)]">
+        {label}
+        {tip && <InfoTip text={tip} />}
+      </p>
       <p className="font-semibold tabular-nums text-[var(--bk-text)]">{value}</p>
     </div>
   )
@@ -90,7 +94,10 @@ export default function MetricsScreen() {
         <div className="mx-4 mt-4 rounded-2xl border border-[var(--bk-border-gold)] bg-[var(--bk-bg-elevated)] p-4">
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-xs text-[var(--bk-text-secondary)]">KPI администратора</p>
+              <p className="flex items-center text-xs text-[var(--bk-text-secondary)]">
+                KPI администратора
+                <InfoTip text="Итоговый балл админа: 60% — средняя оценка гостей из опроса, 40% — доля подтверждённых записей. Чем выше, тем лучше работает админ." />
+              </p>
               <p
                 className="text-4xl font-bold tabular-nums text-[var(--bk-gold)]"
                 style={{ fontFamily: 'var(--bk-font-heading)' }}
@@ -107,20 +114,28 @@ export default function MetricsScreen() {
             <KpiChip
               label="Оценка админа"
               value={branchKpi.admin_avg != null ? `${branchKpi.admin_avg}` : '—'}
+              tip="Средний балл работы админа из гостевых опросов (0–100): приветствие, зона ожидания, напитки, рассказ про акции, предложение перезаписи и вежливость общения."
             />
-            <KpiChip label="Подтверждения" value={`${branchKpi.confirmation_rate}%`} />
+            <KpiChip
+              label="Подтверждения"
+              value={`${branchKpi.confirmation_rate}%`}
+              tip="Доля ближайших записей, подтверждённых клиентами (флаг подтверждения из YClients). Показывает, что записи обзвонены/подтверждены."
+            />
             <KpiChip
               label="Рекоменд. (NPS)"
               value={branchKpi.nps != null ? `${branchKpi.nps}%` : '—'}
+              tip="Доля гостей, готовых порекомендовать барбершоп — из ответа «Порекомендуете?» в опросе."
             />
             <KpiChip
               label="Средн. звёзды"
               value={branchKpi.stars_avg != null ? `${branchKpi.stars_avg}` : '—'}
+              tip="Средняя оценка визита в звёздах (1–5) по гостевым опросам за месяц."
             />
           </div>
           {branchKpi.negatives > 0 && (
-            <p className="mt-2 text-xs text-[var(--bk-red)]">
+            <p className="mt-2 flex items-center text-xs text-[var(--bk-red)]">
               Негативных отзывов за месяц: {branchKpi.negatives}
+              <InfoTip text="Сколько гостевых опросов за месяц отмечены негативными: низкие звёзды, «не порекомендую» или резкое общение. Их стоит разобрать." />
             </p>
           )}
         </div>
