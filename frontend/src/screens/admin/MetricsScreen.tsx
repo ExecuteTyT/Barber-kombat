@@ -105,6 +105,9 @@ export default function MetricsScreen() {
                 {branchKpi.composite_score ?? '—'}
                 <span className="text-lg text-[var(--bk-text-dim)]">/100</span>
               </p>
+              <p className="mt-0.5 text-[10px] text-[var(--bk-text-dim)]">
+                60% опросы + 40% подтверждения
+              </p>
             </div>
             <p className="text-xs text-[var(--bk-text-dim)]">
               {branchKpi.survey_count} опросов за месяц

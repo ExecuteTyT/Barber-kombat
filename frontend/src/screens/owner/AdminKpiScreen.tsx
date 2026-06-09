@@ -47,6 +47,11 @@ export default function AdminKpiScreen() {
         Рейтинг филиалов {'•'} {networkKpi.month}
         <InfoTip text={KPI_TIP} />
       </p>
+      <p className="mt-2 rounded-lg bg-[var(--bk-bg-elevated)] px-3 py-2 text-[11px] leading-snug text-[var(--bk-text-secondary)]">
+        Балл = <b className="text-[var(--bk-text)]">60%</b> оценка гостей из опросов +{' '}
+        <b className="text-[var(--bk-text)]">40%</b> подтверждённые записи. Чем выше — тем лучше.
+        «Реком.» — готовы рекомендовать; «Негатив» — число плохих опросов за месяц.
+      </p>
 
       {networkKpi.branches.length === 0 ? (
         <p className="mt-8 text-center text-sm text-[var(--bk-text-secondary)]">
