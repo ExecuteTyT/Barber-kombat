@@ -79,6 +79,28 @@ class TestGetCallList:
         assert data["to_call"] == []
 
 
+class TestGetHistory:
+    @pytest.mark.asyncio
+    async def test_confirmed_rate_uses_flag_and_completed_only(self):
+        main = MagicMock()
+        main.all.return_value = [
+            MagicMock(date=date(2026, 6, 8), records_count=10, products_sold=2, revenue=100000),
+        ]
+        conf = MagicMock()
+        conf.all.return_value = [MagicMock(date=date(2026, 6, 8), confirmed_count=6)]
+        db = AsyncMock()
+        db.execute = AsyncMock(side_effect=[main, conf])
+
+        svc = AdminService(db=db)
+        data = await svc.get_history(BRANCH_ID, 2026, 6)
+
+        assert len(data["days"]) == 1
+        day = data["days"][0]
+        assert day["records_count"] == 10
+        assert day["revenue"] == 100000
+        assert day["confirmed_rate"] == 60  # 6 / 10
+
+
 class TestMarkCall:
     @pytest.mark.asyncio
     async def test_upserts_call_log(self):

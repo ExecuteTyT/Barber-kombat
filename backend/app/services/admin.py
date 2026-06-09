@@ -232,7 +232,8 @@ class AdminService:
         else:
             month_end = date(year, month + 1, 1) - timedelta(days=1)
 
-        # Query daily aggregates
+        # Daily aggregates — only completed visits count as realized business,
+        # so future (scheduled) bookings don't inflate revenue or appear here.
         stmt = (
             select(
                 Visit.date,
@@ -244,6 +245,7 @@ class AdminService:
                 Visit.branch_id == branch_id,
                 Visit.date >= month_start,
                 Visit.date <= month_end,
+                Visit.status == "completed",
             )
             .group_by(Visit.date)
             .order_by(Visit.date)
@@ -251,7 +253,7 @@ class AdminService:
         result = await self.db.execute(stmt)
         rows = result.all()
 
-        # Count confirmed per day
+        # Confirmed per day — by the YClients confirmation flag (same as Calls).
         confirmed_stmt = (
             select(
                 Visit.date,
@@ -261,7 +263,8 @@ class AdminService:
                 Visit.branch_id == branch_id,
                 Visit.date >= month_start,
                 Visit.date <= month_end,
-                Visit.status.in_(["completed", "confirmed"]),
+                Visit.status == "completed",
+                Visit.confirmed.is_(True),
             )
             .group_by(Visit.date)
         )
