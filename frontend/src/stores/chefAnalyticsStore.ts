@@ -8,7 +8,7 @@ interface ChefAnalyticsState {
   loading: boolean
   error: string | null
 
-  fetchAnalytics: (branchId: string) => Promise<void>
+  fetchAnalytics: (branchId: string, targetDate?: string) => Promise<void>
   reset: () => void
 }
 
@@ -17,10 +17,14 @@ export const useChefAnalyticsStore = create<ChefAnalyticsState>((set) => ({
   loading: false,
   error: null,
 
-  fetchAnalytics: async (branchId) => {
+  fetchAnalytics: async (branchId, targetDate) => {
     set({ loading: true, error: null })
     try {
-      const { data } = await api.get<BranchAnalytics>(`/reports/branch-analytics/${branchId}`)
+      const params = targetDate ? { target_date: targetDate } : {}
+      const { data } = await api.get<BranchAnalytics>(
+        `/reports/branch-analytics/${branchId}`,
+        { params },
+      )
       set({ analytics: data, loading: false })
     } catch {
       set({ error: 'Не удалось загрузить аналитику', loading: false })

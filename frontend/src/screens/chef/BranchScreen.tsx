@@ -9,6 +9,7 @@ import {
   IconCrown,
   IconStar,
 } from '../../components/Icons'
+import DatePickerBar, { todayIso } from '../../components/DatePickerBar'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { useAuthStore } from '../../stores/authStore'
@@ -34,10 +35,11 @@ function formatMoney(kopecks: number): string {
 
 // --- Analytics KPI cards ---
 
-function KPIGrid({ analytics }: { analytics: BranchAnalytics }) {
+function KPIGrid({ analytics, isToday }: { analytics: BranchAnalytics; isToday: boolean }) {
+  const day = isToday ? 'сегодня' : 'за день'
   const kpis = [
     {
-      label: 'Выручка сегодня',
+      label: `Выручка ${day}`,
       value: formatMoney(analytics.revenue_today),
       sub: `За месяц: ${formatMoney(analytics.revenue_mtd)}`,
       accent: true,
@@ -48,13 +50,13 @@ function KPIGrid({ analytics }: { analytics: BranchAnalytics }) {
       sub: `За месяц: ${formatMoney(analytics.avg_check_mtd)}`,
     },
     {
-      label: 'Визитов сегодня',
+      label: `Визитов ${day}`,
       value: String(analytics.visits_today),
       sub: `За месяц: ${analytics.visits_mtd}`,
       hint: 'оказанных услуг',
     },
     {
-      label: 'Клиентов сегодня',
+      label: `Клиентов ${day}`,
       value: String(analytics.clients_today),
       sub: `${analytics.new_clients_today} нов. · ${analytics.returning_clients_today} повт.`,
       hint: 'уникальных человек',
@@ -125,7 +127,8 @@ function PlanProgress({ analytics }: { analytics: BranchAnalytics }) {
 
 // --- Monthly metrics row ---
 
-function MonthlyMetrics({ analytics }: { analytics: BranchAnalytics }) {
+function MonthlyMetrics({ analytics, isToday }: { analytics: BranchAnalytics; isToday: boolean }) {
+  const day = isToday ? 'сегодня' : 'за день'
   return (
     <div className="mx-4 mt-3 flex gap-2">
       <div className="bk-card flex-1 p-3">
@@ -135,7 +138,7 @@ function MonthlyMetrics({ analytics }: { analytics: BranchAnalytics }) {
         </div>
         <p className="mt-0.5 text-base font-bold tabular-nums text-[var(--bk-text)]">
           {analytics.total_products_today}
-          <span className="ml-1 text-xs font-normal text-[var(--bk-text-dim)]">сегодня</span>
+          <span className="ml-1 text-xs font-normal text-[var(--bk-text-dim)]">{day}</span>
         </p>
         <p className="text-[10px] text-[var(--bk-text-dim)]">
           За месяц: {analytics.total_products_mtd}
@@ -150,7 +153,7 @@ function MonthlyMetrics({ analytics }: { analytics: BranchAnalytics }) {
         </div>
         <p className="mt-0.5 text-base font-bold tabular-nums text-[var(--bk-text)]">
           {analytics.total_extras_today}
-          <span className="ml-1 text-xs font-normal text-[var(--bk-text-dim)]">сегодня</span>
+          <span className="ml-1 text-xs font-normal text-[var(--bk-text-dim)]">{day}</span>
         </p>
         <p className="text-[10px] text-[var(--bk-text-dim)]">
           За месяц: {analytics.total_extras_mtd}
@@ -316,19 +319,28 @@ export default function BranchScreen() {
 
   const [activeTab, setActiveTab] = useState<ReviewFilterTab>('all')
   const [processingReview, setProcessingReview] = useState<ReviewResponse | null>(null)
+  const [dateIso, setDateIso] = useState(todayIso())
+  const isToday = dateIso === todayIso()
   const unprocessedCount = useMemo(
     () => reviews.filter((r) => r.status === 'new' || r.status === 'in_progress').length,
     [reviews],
   )
 
+  // Current-state sections (rating, PVR, thresholds) — not date-scoped.
   useEffect(() => {
     if (branchId) {
       fetchTodayRating(branchId)
       fetchBranchPvr(branchId)
       fetchThresholds()
-      fetchAnalytics(branchId)
     }
-  }, [branchId, fetchTodayRating, fetchBranchPvr, fetchThresholds, fetchAnalytics])
+  }, [branchId, fetchTodayRating, fetchBranchPvr, fetchThresholds])
+
+  // Analytics KPIs follow the selected day.
+  useEffect(() => {
+    if (branchId) {
+      fetchAnalytics(branchId, dateIso)
+    }
+  }, [branchId, dateIso, fetchAnalytics])
 
   useEffect(() => {
     if (branchId) {
@@ -389,13 +401,18 @@ export default function BranchScreen() {
         <h1 className="bk-heading text-xl">{branchName}</h1>
       </div>
 
+      {/* Day selector for the analytics KPIs */}
+      <div className="mx-4 mt-3">
+        <DatePickerBar value={dateIso} onChange={setDateIso} />
+      </div>
+
       {/* Analytics KPIs */}
-      <div className="mt-3">
+      <div>
         {analytics ? (
           <>
-            <KPIGrid analytics={analytics} />
+            <KPIGrid analytics={analytics} isToday={isToday} />
             <PlanProgress analytics={analytics} />
-            <MonthlyMetrics analytics={analytics} />
+            <MonthlyMetrics analytics={analytics} isToday={isToday} />
           </>
         ) : (
           <div className="mx-4">
