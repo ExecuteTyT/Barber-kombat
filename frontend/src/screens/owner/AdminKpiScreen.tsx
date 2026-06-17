@@ -78,7 +78,10 @@ export default function AdminKpiScreen() {
               </div>
               <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
                 <Stat label="Админ" value={b.admin_avg != null ? `${b.admin_avg}` : '—'} />
-                <Stat label="Подтв." value={`${b.confirmation_rate}%`} />
+                <Stat
+                  label="Подтв."
+                  value={b.confirmation_rate != null ? `${b.confirmation_rate}%` : '—'}
+                />
                 <Stat label="Реком." value={b.nps != null ? `${b.nps}%` : '—'} />
                 <Stat label="Негатив" value={`${b.negatives}`} danger={b.negatives > 0} />
               </div>

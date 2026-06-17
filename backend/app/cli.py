@@ -797,6 +797,106 @@ async def _seed_demo_admin():
         )
 
 
+@cli.command("finance-check")
+@click.option("--org-slug", default=None, help="Limit to a single organization by slug")
+def finance_check(org_slug: str | None):
+    """Audit financial data integrity. Exits non-zero if hard anomalies are found.
+
+    Catches the bug classes we've already hit: negative revenue (product returns
+    eroding visits), completed visits dated in the future, and products counted
+    on non-completed visits. Also prints per-branch today/MTD revenue for an
+    eyeball sanity-check against YClients.
+    """
+    raise SystemExit(_run_async(_finance_check(org_slug)))
+
+
+async def _finance_check(org_slug: str | None) -> int:
+    """Async implementation of finance-check. Returns process exit code."""
+    from sqlalchemy import func, select
+
+    from app.database import async_session
+    from app.models.branch import Branch
+    from app.models.organization import Organization
+    from app.models.visit import Visit
+    from app.services.reports import ReportService
+
+    today = date.today()
+    month_start = today.replace(day=1)
+    problems = 0
+
+    async with async_session() as db:
+        orgs_q = select(Organization).where(Organization.is_active.is_(True))
+        if org_slug:
+            orgs_q = orgs_q.where(Organization.slug == org_slug)
+        orgs = (await db.execute(orgs_q)).scalars().all()
+        if not orgs:
+            click.echo("No active organizations found.")
+            return 1
+
+        for org in orgs:
+            click.echo("")
+            click.echo(f"=== {org.name} ({org.slug}) — на {today} ===")
+
+            def org_count(*conds, _org_id=org.id):
+                return select(func.count()).select_from(Visit).where(
+                    Visit.organization_id == _org_id, *conds
+                )
+
+            future_completed = (
+                await db.execute(org_count(Visit.status == "completed", Visit.date > today))
+            ).scalar_one()
+            neg_revenue = (await db.execute(org_count(Visit.revenue < 0))).scalar_one()
+            neg_products = (await db.execute(org_count(Visit.products_revenue < 0))).scalar_one()
+            inconsistent = (
+                await db.execute(
+                    org_count(Visit.revenue != Visit.services_revenue + Visit.products_revenue)
+                )
+            ).scalar_one()
+            products_non_completed = (
+                await db.execute(
+                    select(func.coalesce(func.sum(Visit.products_count), 0)).where(
+                        Visit.organization_id == org.id,
+                        Visit.status != "completed",
+                        Visit.date >= month_start,
+                    )
+                )
+            ).scalar_one()
+
+            def hard_check(label: str, value: int) -> None:
+                nonlocal problems
+                ok = value == 0
+                if not ok:
+                    problems += 1
+                click.echo(f"  [{'OK' if ok else '!!'}] {label}: {value}")
+
+            hard_check("completed-визиты в будущем", future_completed)
+            hard_check("отрицательная выручка", neg_revenue)
+            hard_check("отрицательные товары", neg_products)
+            click.echo(f"  [i ] revenue != услуги+товары (скидки/прочее): {inconsistent}")
+            click.echo(f"  [i ] товаров на незавершённых визитах (мес): {products_non_completed}")
+
+            svc = ReportService(db=db)
+            branches = (
+                await db.execute(
+                    select(Branch).where(
+                        Branch.organization_id == org.id, Branch.is_active.is_(True)
+                    )
+                )
+            ).scalars().all()
+            for branch in branches:
+                live_today = await svc._sum_revenue(branch.id, today, today)
+                live_mtd = await svc._sum_revenue(branch.id, month_start, today)
+                click.echo(
+                    f"  • {branch.name}: сегодня {live_today // 100} ₽, "
+                    f"с начала месяца {live_mtd // 100} ₽"
+                )
+
+        click.echo("")
+        click.echo(f"Аномалий (требуют внимания): {problems}")
+        click.echo("Подсказка: per-branch суммы сверьте с отчётом «Выручка» в YClients.")
+        return 1 if problems else 0
+
+
 @cli.command("seed-real")
 def seed_real():
     """Create MAKON organization with real YClients branches.

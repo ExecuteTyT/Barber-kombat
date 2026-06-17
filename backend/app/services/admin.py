@@ -328,6 +328,7 @@ class AdminService:
         ).where(
             Visit.branch_id == branch_id,
             Visit.date == target_date,
+            Visit.status == "completed",
         )
         result = await self.db.execute(stmt)
         return result.scalar_one()

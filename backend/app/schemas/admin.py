@@ -109,7 +109,7 @@ class BranchAdminKpi(BaseModel):
     stars_avg: float | None
     nps: int | None
     negatives: int
-    confirmation_rate: int
+    confirmation_rate: int | None
     composite_score: int | None
     rank: int | None = None
 

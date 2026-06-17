@@ -474,7 +474,7 @@ export interface BranchAdminKpi {
   stars_avg: number | null
   nps: number | null
   negatives: number
-  confirmation_rate: number
+  confirmation_rate: number | null
   composite_score: number | null
   rank: number | null
 }

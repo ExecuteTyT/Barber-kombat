@@ -423,3 +423,36 @@ class TestGetBingoMonthlyReport:
         standings = data["branches"][0]["standings"]
         assert standings[0]["name"] == "Pavel"
         assert standings[0]["wins"] == 12
+
+    @pytest.mark.asyncio
+    async def test_current_month_recomputes_live(self):
+        """Current month must be recomputed live, not served from stale cache."""
+        user = make_user(role="owner")
+
+        # A cached report exists, but for the current month it must be ignored.
+        stale = make_report_obj(
+            report_type="kombat_monthly", data={"month": "STALE", "branches": []}
+        )
+        mock_db = AsyncMock()
+        report_result = MagicMock()
+        report_result.scalar_one_or_none.return_value = stale
+        mock_db.execute = AsyncMock(return_value=report_result)
+
+        fresh = {"month": str(date.today().replace(day=1)), "branches": []}
+
+        app.dependency_overrides[get_current_user] = lambda: user
+        app.dependency_overrides[get_db] = lambda: mock_db
+
+        with patch(
+            "app.api.reports.ReportService.generate_kombat_monthly",
+            new_callable=AsyncMock,
+            return_value=fresh,
+        ) as gen:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.get("/api/v1/reports/bingo/monthly")  # no month → current
+
+        assert response.status_code == 200
+        gen.assert_awaited_once()  # recomputed live, did not return the stale cache
+        assert response.json()["month"] == fresh["month"]

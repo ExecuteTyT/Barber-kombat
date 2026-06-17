@@ -121,7 +121,7 @@ export default function MetricsScreen() {
             />
             <KpiChip
               label="Подтверждения"
-              value={`${branchKpi.confirmation_rate}%`}
+              value={branchKpi.confirmation_rate != null ? `${branchKpi.confirmation_rate}%` : '—'}
               tip="Доля ближайших записей, подтверждённых клиентами (флаг подтверждения из YClients). Показывает, что записи обзвонены/подтверждены."
             />
             <KpiChip

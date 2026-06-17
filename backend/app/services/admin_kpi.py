@@ -38,7 +38,11 @@ class AdminKpiService:
         month_end = _next_month(month_start)
 
         survey = await self._survey_aggregates(branch_id, month_start, month_end)
-        confirmation_rate = await self._confirmation_rate(branch_id)
+        # Confirmation is a forward-looking snapshot of *upcoming* bookings, so it
+        # only makes sense for the current month. For past months it's not
+        # applicable (None) and the composite is survey-only.
+        is_current_month = month_start == date.today().replace(day=1)
+        confirmation_rate = await self._confirmation_rate(branch_id) if is_current_month else None
         composite = self._composite(survey["admin_avg"], confirmation_rate)
 
         return {
@@ -121,7 +125,11 @@ class AdminKpiService:
         return round((confirmed or 0) / total * 100) if total else 100
 
     @staticmethod
-    def _composite(admin_avg: int | None, confirmation_rate: int) -> int | None:
+    def _composite(admin_avg: int | None, confirmation_rate: int | None) -> int | None:
+        if admin_avg is None and confirmation_rate is None:
+            return None
         if admin_avg is None:
             return confirmation_rate
+        if confirmation_rate is None:
+            return admin_avg
         return round(_SURVEY_WEIGHT * admin_avg + _CONFIRMATION_WEIGHT * confirmation_rate)

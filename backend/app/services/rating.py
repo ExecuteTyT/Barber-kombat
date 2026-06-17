@@ -199,10 +199,17 @@ class RatingEngine:
 
         today = date.today()
         month_start = today.replace(day=1)
+        # Upper-bound the month so visits dated in a future month never inflate
+        # the current month's prize fund (mirrors _collect_monthly_raw).
+        if month_start.month == 12:
+            month_end = month_start.replace(year=month_start.year + 1, month=1)
+        else:
+            month_end = month_start.replace(month=month_start.month + 1)
 
         stmt = select(sa_func.coalesce(sa_func.sum(Visit.revenue), 0)).where(
             Visit.branch_id == branch_id,
             Visit.date >= month_start,
+            Visit.date < month_end,
             Visit.status == "completed",
         )
         result = await self.db.execute(stmt)

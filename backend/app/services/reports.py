@@ -12,8 +12,8 @@ import uuid
 from datetime import date
 
 import structlog
+from sqlalchemy import Date, cast, select
 from sqlalchemy import func as sa_func
-from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -249,8 +249,8 @@ class ReportService:
             rev_ret, vis_ret = await self._revenue_by_client_type(
                 branch.id, organization_id, month_start, target_date, new_only=False
             )
-            avg_check_new = rev_new // vis_new if vis_new > 0 else 0
-            avg_check_returning = rev_ret // vis_ret if vis_ret > 0 else 0
+            avg_check_new = _avg_check(rev_new, vis_new)
+            avg_check_returning = _avg_check(rev_ret, vis_ret)
 
             # Total visits MTD
             visits_mtd = await self._count_visits(branch.id, month_start, target_date)
@@ -283,13 +283,9 @@ class ReportService:
         network_retention = round(
             (network_returning_mtd / network_total_mtd * 100) if network_total_mtd > 0 else 0.0, 1
         )
-        network_avg_check_new = (
-            network_revenue_new // network_visits_new if network_visits_new > 0 else 0
-        )
-        network_avg_check_returning = (
-            network_revenue_returning // network_visits_returning
-            if network_visits_returning > 0
-            else 0
+        network_avg_check_new = _avg_check(network_revenue_new, network_visits_new)
+        network_avg_check_returning = _avg_check(
+            network_revenue_returning, network_visits_returning
         )
 
         report_data = {
@@ -491,8 +487,8 @@ class ReportService:
         # Visits count (for avg check)
         visits_today = await self._count_visits(branch_id, target_date, target_date)
         visits_mtd = await self._count_visits(branch_id, month_start, target_date)
-        avg_check_today = revenue_today // visits_today if visits_today > 0 else 0
-        avg_check_mtd = revenue_mtd // visits_mtd if visits_mtd > 0 else 0
+        avg_check_today = _avg_check(revenue_today, visits_today)
+        avg_check_mtd = _avg_check(revenue_mtd, visits_mtd)
 
         # Clients
         clients_today = await self._count_unique_clients(branch_id, target_date, target_date)
@@ -877,8 +873,8 @@ class ReportService:
         """Average review rating for a branch in a date range."""
         stmt = select(sa_func.avg(Review.rating)).where(
             Review.branch_id == branch_id,
-            Review.created_at >= date_from,
-            Review.created_at <= date_to,
+            cast(Review.created_at, Date) >= date_from,
+            cast(Review.created_at, Date) <= date_to,
         )
         result = await self.db.execute(stmt)
         avg = result.scalar_one()
@@ -979,6 +975,11 @@ class ReportService:
 # ------------------------------------------------------------------
 # Module-level helpers
 # ------------------------------------------------------------------
+
+
+def _avg_check(revenue: int, visits: int) -> int:
+    """Average check in kopecks, rounded (not floored) to avoid losing kopecks."""
+    return round(revenue / visits) if visits > 0 else 0
 
 
 def _prev_month(d: date) -> date:

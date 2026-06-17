@@ -190,11 +190,14 @@ async def get_bingo_monthly_report(
     month_start = (month or date.today()).replace(day=1)
     report_service = ReportService(db=db)
 
-    report = await report_service.get_report(
-        current_user.organization_id, "kombat_monthly", month_start
-    )
-    if report and report.data:
-        return KombatMonthlyReport(**report.data)
+    # Current month is still changing — recompute live; past months from cache.
+    is_current_month = month_start == date.today().replace(day=1)
+    if not is_current_month:
+        report = await report_service.get_report(
+            current_user.organization_id, "kombat_monthly", month_start
+        )
+        if report and report.data:
+            return KombatMonthlyReport(**report.data)
 
     data = await report_service.generate_kombat_monthly(current_user.organization_id, month_start)
     return KombatMonthlyReport(**data)
