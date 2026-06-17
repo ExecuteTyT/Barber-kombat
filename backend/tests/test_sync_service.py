@@ -288,6 +288,37 @@ class TestMapRecordToVisitDict:
         assert result["payment_type"] == "card"
         assert result["status"] == "completed"
 
+    def test_product_return_does_not_erode_revenue(
+        self, org_id, branch_id, barber_id, client_id
+    ):
+        """A product return must not reduce a visit's revenue below its services."""
+        record = YClientRecord(
+            id=4001,
+            company_id=555,
+            staff_id=10,
+            date="2026-06-14 12:00:00",
+            services=[YClientService(id=1, title="Стрижка", cost=630.0)],
+            goods_transactions=[
+                YClientGoodsTransaction(
+                    id=99, title="Возврат косметики", cost=3990.0, amount=-1, good_id=200
+                ),
+            ],
+            cost=-3360.0,  # YClients net total (haircut minus the return)
+            paid_full=1,
+            visit_attendance=1,
+        )
+        result = map_record_to_visit_dict(
+            record=record,
+            organization_id=org_id,
+            branch_id=branch_id,
+            barber_id=barber_id,
+            client_id=client_id,
+            extra_services_list=[],
+        )
+        assert result["products_revenue"] == 0  # return excluded from revenue
+        assert result["revenue"] == 63000  # 630 RUB haircut, never negative
+        assert result["products_count"] == 0  # returns don't count as sold
+
     def test_confirmed_flag_mapped(self, org_id, branch_id, barber_id, client_id):
         """YClients `confirmed` flag (upcoming bookings) maps to Visit.confirmed."""
         record = YClientRecord(

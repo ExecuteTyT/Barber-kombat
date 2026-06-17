@@ -113,13 +113,19 @@ def map_record_to_visit_dict(
     ]
 
     services_revenue = rubles_to_kopecks(sum(s.cost for s in record.services))
-    products_revenue = rubles_to_kopecks(sum(g.cost * g.amount for g in record.goods_transactions))
+    # Only product SALES (positive amounts) count toward a visit's revenue.
+    # Returns (negative amounts) are refunds of earlier sales — counting them
+    # here would erode the haircut revenue and even make a completed visit
+    # negative (e.g. a 630 RUB haircut + a 3990 RUB product return = -3360).
+    products_revenue = rubles_to_kopecks(
+        sum(g.cost * g.amount for g in record.goods_transactions if g.amount > 0)
+    )
 
-    # YClients returns cost=0 for records that haven't been fully settled yet,
-    # but individual service/product costs are already populated.
-    # Fall back to sum of services + products when record.cost is zero.
+    # YClients returns cost=0 for not-yet-settled records, and may net returns
+    # to a non-positive total; in both cases fall back to services + sales so a
+    # real completed visit never shows zero or negative revenue.
     record_cost = rubles_to_kopecks(record.cost)
-    if record_cost == 0:
+    if record_cost <= 0:
         record_cost = services_revenue + products_revenue
 
     # Mark extras in services list (substring matching, multi-hit per combo).
