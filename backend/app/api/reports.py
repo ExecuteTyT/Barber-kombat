@@ -53,13 +53,16 @@ async def get_revenue_report(
     report_date = target_date or date.today()
     report_service = ReportService(db=db)
 
-    report = await report_service.get_report(
-        current_user.organization_id, "daily_revenue", report_date
-    )
-    if report and report.data:
-        return DailyRevenueReport(**report.data)
+    # Today is still changing (visits sync every ~10 min), so always recompute it
+    # live — otherwise the dashboard lags behind the branch screen and YClients.
+    # Past days are immutable and served from cache.
+    if report_date < date.today():
+        report = await report_service.get_report(
+            current_user.organization_id, "daily_revenue", report_date
+        )
+        if report and report.data:
+            return DailyRevenueReport(**report.data)
 
-    # Generate on-the-fly if not pre-generated
     data = await report_service.generate_daily_revenue(current_user.organization_id, report_date)
     return DailyRevenueReport(**data)
 
@@ -124,12 +127,16 @@ async def get_clients_report(
     report_date = target_date or date.today()
     report_service = ReportService(db=db)
 
-    report = await report_service.get_report(current_user.organization_id, "clients", report_date)
-    if report and report.data:
-        try:
-            return ClientsReport(**report.data)
-        except Exception:
-            pass  # Cached data has stale schema — regenerate below
+    # Today changes through the day — recompute it live; cache past days only.
+    if report_date < date.today():
+        report = await report_service.get_report(
+            current_user.organization_id, "clients", report_date
+        )
+        if report and report.data:
+            try:
+                return ClientsReport(**report.data)
+            except Exception:
+                pass  # Cached data has stale schema — regenerate below
 
     data = await report_service.generate_clients_report(current_user.organization_id, report_date)
     return ClientsReport(**data)
@@ -153,11 +160,13 @@ async def get_bingo_report(
     report_date = target_date or date.today()
     report_service = ReportService(db=db)
 
-    report = await report_service.get_report(
-        current_user.organization_id, "kombat_daily", report_date
-    )
-    if report and report.data:
-        return KombatDailyReport(**report.data)
+    # Today's standings shift as visits sync — recompute live; cache past days.
+    if report_date < date.today():
+        report = await report_service.get_report(
+            current_user.organization_id, "kombat_daily", report_date
+        )
+        if report and report.data:
+            return KombatDailyReport(**report.data)
 
     data = await report_service.generate_kombat_daily(current_user.organization_id, report_date)
     return KombatDailyReport(**data)
