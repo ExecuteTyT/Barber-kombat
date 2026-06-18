@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     # Yandex Forms (guest survey) webhook — shared secret sent by the form.
     yandex_forms_secret: str = ""
 
+    # DataHeroes (Platrum BFF) scraper — pulls quality-control call tasks.
+    dataheroes_enabled: bool = False
+    dataheroes_email: str = ""
+    dataheroes_password: str = ""
+    dataheroes_company: str = ""  # workspace code in the BFF path, e.g. "GCB2"
+
     # WhatsApp (optional — GreenAPI)
     whatsapp_api_url: str = ""
     whatsapp_api_token: str = ""
