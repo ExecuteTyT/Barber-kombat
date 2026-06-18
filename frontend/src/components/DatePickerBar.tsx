@@ -1,14 +1,28 @@
 import { IconArrowLeft, IconArrowRight } from './Icons'
 
-/** ISO date (YYYY-MM-DD) for today in local time. */
-export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
+/** Format a Date as YYYY-MM-DD using its LOCAL calendar fields. */
+function fmtLocal(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
+/** ISO date (YYYY-MM-DD) for today in local time. */
+export function todayIso(): string {
+  return fmtLocal(new Date())
+}
+
+/**
+ * Shift an ISO date by whole days, staying entirely in local time.
+ * (Using toISOString() here would convert to UTC and drop/keep a day in
+ * non-UTC zones — e.g. UTC+3 made "next day" resolve back to the same date.)
+ */
 function shiftIso(iso: string, deltaDays: number): string {
-  const d = new Date(iso + 'T00:00:00')
-  d.setDate(d.getDate() + deltaDays)
-  return d.toISOString().slice(0, 10)
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  dt.setDate(dt.getDate() + deltaDays)
+  return fmtLocal(dt)
 }
 
 /** Prev / date / next picker with a "Сегодня" shortcut. Cannot go past today. */
