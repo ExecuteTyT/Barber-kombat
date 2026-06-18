@@ -96,6 +96,35 @@ class MarkCallRequest(BaseModel):
     result: str = "confirmed"
 
 
+# --- DataHeroes quality-control call tasks ---
+
+
+class QcCallTask(BaseModel):
+    task_id: str
+    client_name: str
+    phone: str | None
+    reason: str | None
+    visit_count: int | None
+    status: str
+    result: str | None
+
+
+class QcCallListResponse(BaseModel):
+    """QC call tasks synced from DataHeroes + handling progress."""
+
+    branch_id: str
+    tasks: list[QcCallTask]
+    total: int
+    pending_count: int
+    contacted_count: int
+    progress: int
+
+
+class MarkQcCallRequest(BaseModel):
+    task_id: str
+    result: str | None = None
+
+
 # --- KPI ---
 
 

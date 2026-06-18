@@ -47,6 +47,10 @@ celery_app.conf.beat_schedule = {
         "task": "check_unprocessed_reviews",
         "schedule": crontab(minute="*/30"),
     },
+    "sync-dataheroes-tasks-every-15-min": {
+        "task": "sync_dataheroes_tasks",
+        "schedule": crontab(minute="*/15"),
+    },
     # Notification delivery (runs after report generation)
     "deliver-daily-notifications": {
         "task": "deliver_daily_notifications",
@@ -74,4 +78,5 @@ celery_app.conf.include = [
     "app.tasks.review_tasks",
     "app.tasks.webhook_tasks",
     "app.tasks.monthly_reset_tasks",
+    "app.tasks.dataheroes_tasks",
 ]

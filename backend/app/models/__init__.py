@@ -3,6 +3,7 @@ from app.models.base import Base
 from app.models.branch import Branch
 from app.models.client import Client
 from app.models.daily_rating import DailyRating
+from app.models.dh_call_task import DHCallTask
 from app.models.notification_config import NotificationConfig
 from app.models.organization import Organization
 from app.models.plan import Plan
@@ -20,6 +21,7 @@ __all__ = [
     "Base",
     "Branch",
     "Client",
+    "DHCallTask",
     "DailyRating",
     "NotificationConfig",
     "Organization",

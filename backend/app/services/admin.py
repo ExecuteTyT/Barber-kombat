@@ -1,18 +1,23 @@
 """Admin service — metrics, tasks, and history for branch admins."""
 
 import uuid
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
+import structlog
 from sqlalchemy import func as sa_func
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.admin_call_log import AdminCallLog
 from app.models.branch import Branch
 from app.models.client import Client
+from app.models.dh_call_task import DHCallTask
 from app.models.user import User
 from app.models.visit import Visit
+
+logger = structlog.stdlib.get_logger()
 
 
 class AdminService:
@@ -218,6 +223,110 @@ class AdminService:
         )
         await self.db.execute(stmt)
         await self.db.commit()
+
+    # ------------------------------------------------------------------
+    # DataHeroes quality-control call tasks
+    # ------------------------------------------------------------------
+
+    async def get_qc_call_list(self, branch_id: uuid.UUID) -> dict:
+        """Quality-control call tasks (synced from DataHeroes) for a branch.
+
+        Pending tasks come first; contacted ones stay visible (faded) for the
+        rest of the day. Mirrors the shape of ``get_call_list``'s progress block.
+        """
+        stmt = (
+            select(DHCallTask)
+            .where(DHCallTask.branch_id == branch_id)
+            .order_by(DHCallTask.status.desc(), DHCallTask.synced_at.desc())
+        )
+        rows = list((await self.db.execute(stmt)).scalars().all())
+
+        tasks = [
+            {
+                "task_id": t.dataheroes_task_id,
+                "client_name": t.client_name or "Без имени",
+                "phone": t.phone or None,
+                "reason": t.reason,
+                "visit_count": t.visit_count,
+                "status": t.status,
+                "result": t.result,
+            }
+            for t in rows
+        ]
+        total = len(rows)
+        contacted_count = sum(1 for t in rows if t.status == "contacted")
+        pending_count = total - contacted_count
+        progress = round(contacted_count / total * 100) if total else 100
+
+        return {
+            "branch_id": str(branch_id),
+            "tasks": tasks,
+            "total": total,
+            "pending_count": pending_count,
+            "contacted_count": contacted_count,
+            "progress": progress,
+        }
+
+    async def mark_qc_call(
+        self,
+        branch_id: uuid.UUID,
+        admin_id: uuid.UUID,
+        task_id: str,
+        result: str | None = None,
+    ) -> dict:
+        """Mark a DataHeroes QC task as contacted — locally first, then push.
+
+        The local row is the source of truth: we commit the "contacted" status
+        before calling DataHeroes, so a failed push never loses the admin's
+        action. Unpushed rows are retried by the periodic sync task.
+        """
+        row = (
+            await self.db.execute(
+                select(DHCallTask).where(
+                    DHCallTask.branch_id == branch_id,
+                    DHCallTask.dataheroes_task_id == task_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            return {"ok": False, "error": "not_found"}
+
+        row.status = "contacted"
+        row.result = result
+        row.contacted_by = admin_id
+        row.contacted_at = datetime.now(UTC)
+        row.pushed = False
+        await self.db.commit()
+
+        pushed = await self._push_qc_contacted(row)
+        return {"ok": True, "pushed": pushed}
+
+    async def _push_qc_contacted(self, row: DHCallTask) -> bool:
+        """Push a contacted mark to DataHeroes; tolerate failure (retry later)."""
+        if not settings.dataheroes_enabled or not row.dh_project_id:
+            return False
+        from app.integrations.dataheroes.client import DataHeroesClient
+
+        client = DataHeroesClient()
+        try:
+            await client.mark_contacted(
+                communication_id=row.dataheroes_task_id,
+                project_id=row.dh_project_id,
+                client_id=row.dh_client_id,
+            )
+            row.pushed = True
+            await self.db.commit()
+            return True
+        except Exception:
+            await self.db.rollback()
+            await logger.aexception(
+                "DataHeroes mark-contacted push failed; kept local, will retry",
+                branch_id=str(row.branch_id),
+                task_id=row.dataheroes_task_id,
+            )
+            return False
+        finally:
+            await client.close()
 
     async def get_history(
         self,

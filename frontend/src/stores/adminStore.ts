@@ -8,6 +8,7 @@ import type {
   BranchAdminKpi,
   CallListResponse,
   NetworkAdminKpiResponse,
+  QcCallListResponse,
 } from '../types'
 
 interface AdminState {
@@ -15,6 +16,7 @@ interface AdminState {
   tasks: AdminTasksResponse | null
   history: AdminHistoryResponse | null
   calls: CallListResponse | null
+  qcCalls: QcCallListResponse | null
   branchKpi: BranchAdminKpi | null
   networkKpi: NetworkAdminKpiResponse | null
   loading: boolean
@@ -26,6 +28,8 @@ interface AdminState {
   fetchHistory: (branchId: string, month?: string) => Promise<void>
   fetchCalls: (branchId: string) => Promise<void>
   markCall: (branchId: string, yclientsRecordId: number, result?: string) => Promise<void>
+  fetchQcCalls: (branchId: string) => Promise<void>
+  markQcCall: (branchId: string, taskId: string, result?: string) => Promise<void>
   fetchBranchKpi: (branchId: string) => Promise<void>
   fetchNetworkKpi: () => Promise<void>
   reset: () => void
@@ -36,6 +40,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   tasks: null,
   history: null,
   calls: null,
+  qcCalls: null,
   branchKpi: null,
   networkKpi: null,
   loading: false,
@@ -124,6 +129,34 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     }
   },
 
+  fetchQcCalls: async (branchId) => {
+    set({ loading: true, error: null })
+    try {
+      const { data } = await api.get<QcCallListResponse>(`/admin/qc-calls/${branchId}`)
+      set({ qcCalls: data, loading: false })
+    } catch {
+      set({ error: 'Не удалось загрузить задачи контроля качества', loading: false })
+    }
+  },
+
+  markQcCall: async (branchId, taskId, result) => {
+    try {
+      await api.post(`/admin/qc-calls/${branchId}/mark`, { task_id: taskId, result })
+      const { qcCalls } = get()
+      if (qcCalls) {
+        const tasks = qcCalls.tasks.map((t) =>
+          t.task_id === taskId ? { ...t, status: 'contacted', result: result ?? t.result } : t,
+        )
+        const contacted_count = tasks.filter((t) => t.status === 'contacted').length
+        const pending_count = tasks.length - contacted_count
+        const progress = tasks.length ? Math.round((contacted_count / tasks.length) * 100) : 100
+        set({ qcCalls: { ...qcCalls, tasks, contacted_count, pending_count, progress } })
+      }
+    } catch {
+      set({ error: 'Не удалось отметить задачу' })
+    }
+  },
+
   fetchBranchKpi: async (branchId) => {
     set({ loading: true, error: null })
     try {
@@ -150,6 +183,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       tasks: null,
       history: null,
       calls: null,
+      qcCalls: null,
       branchKpi: null,
       networkKpi: null,
       loading: false,

@@ -7,6 +7,9 @@ API) — gated behind settings.dataheroes_enabled and re-logs-in on 401.
 """
 
 import asyncio
+import base64
+import binascii
+import json
 
 import httpx
 import structlog
@@ -19,6 +22,23 @@ logger = structlog.stdlib.get_logger()
 DH_BASE_URL = "https://bff.dataheroes.pro/api"
 RETRY_DELAYS = [5, 15, 45]  # seconds
 DEFAULT_STATUS = "Нужно связаться"
+# actionType sent to taskList/action to mark a task as handled ("Связались").
+ACTION_CONTACT = "CONTACT"
+
+
+def _jwt_sub(token: str) -> str | None:
+    """Decode the ``sub`` claim from a JWT without verifying the signature.
+
+    DataHeroes needs the acting ``userId`` in the mark-contacted payload, and it
+    equals the token's ``sub`` (e.g. "auth0|UycEDxcVivWfeodGSbvfB").
+    """
+    try:
+        payload_b64 = token.split(".")[1]
+        payload_b64 += "=" * (-len(payload_b64) % 4)  # pad to a multiple of 4
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+        return payload.get("sub")
+    except (IndexError, ValueError, binascii.Error, json.JSONDecodeError):
+        return None
 
 
 class DataHeroesClient:
@@ -122,13 +142,40 @@ class DataHeroesClient:
         rows = (data or {}).get("data") or []
         return [DHTask.model_validate(r) for r in rows]
 
-    async def mark_contacted(self, communication_id: str, project_id: str) -> None:
-        """Mark a task as contacted in DataHeroes.
+    async def mark_contacted(
+        self,
+        communication_id: str,
+        project_id: str,
+        client_id: str | None = None,
+        status_text: str = DEFAULT_STATUS,
+        comment: str = "",
+        tags: list[str] | None = None,
+    ) -> dict:
+        """Mark a task as handled ("Связались") in DataHeroes.
 
-        TODO(Phase 0): wire to the real endpoint once the "обработать/связался"
-        request is captured. Until then this raises so callers fall back to
-        local-only marking.
+        Mirrors the SPA's POST to ``taskList/action`` with ``actionType=CONTACT``.
+        ``userId`` is taken from the logged-in token's ``sub`` claim. ``socketId``
+        (used by the SPA only to skip echoing the change back over its websocket)
+        is intentionally omitted server-side.
         """
-        raise NotImplementedError(
-            "DataHeroes mark-contacted endpoint not captured yet (Phase 0 recon)."
-        )
+        token = await self._ensure_token()
+        user_id = _jwt_sub(token)
+        email = (self.email or "").lower()
+        body = {
+            "actionType": ACTION_CONTACT,
+            "projectId": project_id,
+            "communicationId": communication_id,
+            "statusText": status_text,
+            "data": {
+                "commType": "no",
+                "projectId": project_id,
+                "communicationId": communication_id,
+                "clientId": client_id,
+                "userId": user_id,
+                "userName": email,
+                "email": email,
+                "comment": comment,
+                "communicationTags": tags or [],
+            },
+        }
+        return await self._post(f"/{self.company}/taskList/action", body)

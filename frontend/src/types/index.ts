@@ -462,6 +462,27 @@ export interface CallListResponse {
   call_progress: number
 }
 
+// --- DataHeroes quality-control call tasks ---
+
+export interface QcCallTask {
+  task_id: string
+  client_name: string
+  phone: string | null
+  reason: string | null
+  visit_count: number | null
+  status: string
+  result: string | null
+}
+
+export interface QcCallListResponse {
+  branch_id: string
+  tasks: QcCallTask[]
+  total: number
+  pending_count: number
+  contacted_count: number
+  progress: number
+}
+
 // --- Admin KPI (Stage C) ---
 
 export interface BranchAdminKpi {

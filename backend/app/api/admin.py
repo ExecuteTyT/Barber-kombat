@@ -23,7 +23,9 @@ from app.schemas.admin import (
     CallListResponse,
     ConfirmRequest,
     MarkCallRequest,
+    MarkQcCallRequest,
     NetworkAdminKpiResponse,
+    QcCallListResponse,
 )
 from app.services.admin import AdminService
 from app.services.admin_kpi import AdminKpiService
@@ -126,6 +128,40 @@ async def mark_admin_call(
         call_date=date.today(),
     )
     return {"ok": True}
+
+
+@router.get("/qc-calls/{branch_id}", response_model=QcCallListResponse)
+async def get_qc_calls(
+    branch_id: uuid.UUID,
+    current_user: Annotated[
+        User,
+        Depends(require_branch_access(UserRole.ADMIN, UserRole.OWNER)),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Quality-control call tasks (synced from DataHeroes) for a branch."""
+    service = AdminService(db=db)
+    return await service.get_qc_call_list(branch_id)
+
+
+@router.post("/qc-calls/{branch_id}/mark")
+async def mark_qc_call(
+    branch_id: uuid.UUID,
+    body: MarkQcCallRequest,
+    current_user: Annotated[
+        User,
+        Depends(require_branch_access(UserRole.ADMIN, UserRole.OWNER)),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Mark a DataHeroes QC task as contacted (local first, then push to DH)."""
+    service = AdminService(db=db)
+    return await service.mark_qc_call(
+        branch_id=branch_id,
+        admin_id=current_user.id,
+        task_id=body.task_id,
+        result=body.result,
+    )
 
 
 @router.get("/kpi/network/all", response_model=NetworkAdminKpiResponse)
