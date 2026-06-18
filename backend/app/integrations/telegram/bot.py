@@ -9,6 +9,7 @@ import re
 import structlog
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
+from telegram.request import HTTPXRequest
 
 from app.config import settings
 
@@ -282,7 +283,14 @@ class TelegramBot:
     @property
     def bot(self) -> Bot:
         if self._bot is None:
-            self._bot = Bot(token=self.token)
+            # Route through a proxy when configured (api.telegram.org is blocked
+            # on some hosts, e.g. RU). Without it, default direct connection.
+            request = (
+                HTTPXRequest(proxy=settings.telegram_proxy)
+                if settings.telegram_proxy
+                else None
+            )
+            self._bot = Bot(token=self.token, request=request)
         return self._bot
 
     async def send_message(

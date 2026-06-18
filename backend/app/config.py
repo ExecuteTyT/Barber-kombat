@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     # Telegram
     telegram_bot_token: str = ""
     telegram_mini_app_url: str = ""
+    # Optional HTTP/SOCKS proxy for reaching api.telegram.org from networks where
+    # it is blocked (e.g. RU hosting). Example: http://87.120.108.123:8888
+    telegram_proxy: str = ""
 
     # YClients
     yclients_partner_token: str = ""
