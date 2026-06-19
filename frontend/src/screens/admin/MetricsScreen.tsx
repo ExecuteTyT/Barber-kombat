@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-import { IconClipboard, IconShoppingBag, IconCheckCircle, IconGift } from '../../components/Icons'
+import { IconClipboard, IconShoppingBag, IconCheckCircle } from '../../components/Icons'
 import InfoTip from '../../components/InfoTip'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useAdminStore } from '../../stores/adminStore'
@@ -72,13 +72,6 @@ export default function MetricsScreen() {
       hint: 'записей',
       icon: <IconCheckCircle size={24} className="text-[var(--bk-green)]" />,
       color: 'var(--bk-green)',
-    },
-    {
-      label: 'Заполненных дн. рожд.',
-      value: `${metrics.filled_birthdays} / ${metrics.total_clients}`,
-      hint: 'клиентов',
-      icon: <IconGift size={24} className="text-[var(--bk-score-extras)]" />,
-      color: 'var(--bk-score-extras)',
     },
   ]
 

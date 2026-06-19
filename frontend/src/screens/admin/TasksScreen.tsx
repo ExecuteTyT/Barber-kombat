@@ -4,7 +4,7 @@ import { IconCheckCircle } from '../../components/Icons'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useAdminStore } from '../../stores/adminStore'
 import { useAuthStore } from '../../stores/authStore'
-import type { UnconfirmedRecord, UnfilledBirthday, UnprocessedCheck } from '../../types'
+import type { UnconfirmedRecord, UnprocessedCheck } from '../../types'
 
 function formatTime(datetime: string): string {
   try {
@@ -75,43 +75,6 @@ function UnconfirmedSection({
       )}
       {count === 0 && (
         <p className="px-4 pb-3 text-sm text-[var(--bk-text-secondary)]">Все записи подтверждены</p>
-      )}
-    </div>
-  )
-}
-
-function BirthdaysSection({ clients }: { clients: UnfilledBirthday[] }) {
-  const count = clients.length
-  return (
-    <div className="bk-card overflow-hidden">
-      <div className="flex items-center gap-2 px-4 pb-1 pt-3">
-        {count > 0 ? (
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--bk-gold)] px-1.5 text-xs font-bold text-[var(--bk-bg-primary)]">
-            {count}
-          </span>
-        ) : (
-          <IconCheckCircle size={18} className="text-[var(--bk-green)]" />
-        )}
-        <span className="text-sm font-medium text-[var(--bk-text)]">Незаполненные ДР</span>
-      </div>
-      {count > 0 && (
-        <div className="divide-y divide-[var(--bk-border)] px-4 pb-2">
-          {clients.map((c) => (
-            <div key={c.client_id} className="flex items-center justify-between py-2.5">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-[var(--bk-text)]">{c.client_name}</p>
-                {c.last_visit && (
-                  <p className="text-xs text-[var(--bk-text-dim)]">
-                    Последний визит: {c.last_visit}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {count === 0 && (
-        <p className="px-4 pb-3 text-sm text-[var(--bk-text-secondary)]">Все ДР заполнены</p>
       )}
     </div>
   )
@@ -191,9 +154,7 @@ export default function TasksScreen() {
   if (!tasks) return null
 
   const totalPending =
-    tasks.unconfirmed_records.length +
-    tasks.unfilled_birthdays.length +
-    tasks.unprocessed_checks.length
+    tasks.unconfirmed_records.length + tasks.unprocessed_checks.length
 
   return (
     <div className="pb-4 pt-4">
@@ -215,7 +176,6 @@ export default function TasksScreen() {
           onConfirmAll={handleConfirmAll}
           confirming={confirming}
         />
-        <BirthdaysSection clients={tasks.unfilled_birthdays} />
         <ChecksSection checks={tasks.unprocessed_checks} />
       </div>
     </div>
