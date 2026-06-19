@@ -80,6 +80,58 @@ class TestAssign:
         db.commit.assert_awaited_once()
 
 
+class TestSetRole:
+    @pytest.mark.asyncio
+    async def test_bad_role_rejected(self):
+        db = AsyncMock()
+        out = await PeopleService(db=db).set_role(ORG, str(uuid.uuid4()), role="superuser")
+        assert out == {"ok": False, "error": "bad_role"}
+        db.commit.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_deprecated_role_rejected(self):
+        db = AsyncMock()
+        out = await PeopleService(db=db).set_role(ORG, str(uuid.uuid4()), role="chef")
+        assert out == {"ok": False, "error": "bad_role"}
+        db.commit.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_not_found(self):
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=_result(None))
+        out = await PeopleService(db=db).set_role(ORG, str(uuid.uuid4()), role="admin")
+        assert out == {"ok": False, "error": "user_not_found"}
+        db.commit.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_reclassify_barber_to_admin(self):
+        user = MagicMock()
+        user.id = uuid.uuid4()
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=_result(user))
+        db.commit = AsyncMock()
+
+        out = await PeopleService(db=db).set_role(ORG, str(user.id), role="admin")
+        assert out["ok"] is True
+        assert str(user.role) == "admin"
+        db.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_set_role_with_branch(self):
+        user = MagicMock()
+        user.id = uuid.uuid4()
+        bid = uuid.uuid4()
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=_result(user))
+        db.commit = AsyncMock()
+
+        out = await PeopleService(db=db).set_role(
+            ORG, str(user.id), role="admin", branch_id=str(bid)
+        )
+        assert out["ok"] is True
+        assert user.branch_id == bid
+
+
 class TestDeactivate:
     @pytest.mark.asyncio
     async def test_deactivate_sets_inactive(self):

@@ -180,6 +180,48 @@ class PeopleService:
         )
         return {"ok": True, "user_id": str(user.id)}
 
+    async def set_role(
+        self,
+        organization_id: uuid.UUID,
+        user_id: str,
+        role: str,
+        branch_id: str | None = None,
+    ) -> dict:
+        """Change an existing user's role (and optionally branch) without Telegram.
+
+        Used to reclassify YClients-synced staff who are actually admins (no
+        visit records), or to fix branch assignment. Role is NOT touched by the
+        YClients sync, so this change is durable.
+        """
+        try:
+            role_enum = UserRole(role.lower())
+        except ValueError:
+            return {"ok": False, "error": "bad_role"}
+        if role_enum not in ASSIGNABLE_ROLES:
+            return {"ok": False, "error": "bad_role"}
+
+        user = (
+            await self.db.execute(
+                select(User).where(
+                    User.id == uuid.UUID(user_id),
+                    User.organization_id == organization_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if user is None:
+            return {"ok": False, "error": "user_not_found"}
+
+        user.role = role_enum
+        if branch_id:
+            user.branch_id = uuid.UUID(branch_id)
+        await self.db.commit()
+        await logger.ainfo(
+            "Person role changed",
+            user_id=str(user.id),
+            role=str(role_enum),
+        )
+        return {"ok": True, "user_id": str(user.id)}
+
     async def deactivate(self, organization_id: uuid.UUID, user_id: str) -> dict:
         user = (
             await self.db.execute(

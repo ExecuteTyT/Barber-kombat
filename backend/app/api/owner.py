@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import require_role
 from app.database import get_db
 from app.models.user import User, UserRole
-from app.schemas.people import AssignRequest, DeactivateRequest, PeopleResponse
+from app.schemas.people import (
+    AssignRequest,
+    DeactivateRequest,
+    PeopleResponse,
+    SetRoleRequest,
+)
 from app.services.people import PeopleService
 
 router = APIRouter(prefix="/owner", tags=["owner"])
@@ -39,6 +44,22 @@ async def assign_person(
         user_id=body.user_id,
         branch_id=body.branch_id,
         name=body.name,
+    )
+
+
+@router.post("/people/set-role")
+async def set_person_role(
+    body: SetRoleRequest,
+    current_user: Annotated[User, Depends(require_role(UserRole.OWNER))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Change an existing user's role (e.g. reclassify a non-working barber as admin)."""
+    service = PeopleService(db=db)
+    return await service.set_role(
+        organization_id=current_user.organization_id,
+        user_id=body.user_id,
+        role=body.role,
+        branch_id=body.branch_id,
     )
 
 

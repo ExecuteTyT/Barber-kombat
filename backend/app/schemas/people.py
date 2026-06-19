@@ -40,5 +40,11 @@ class AssignRequest(BaseModel):
     name: str | None = None  # required when creating a new manager (no user_id)
 
 
+class SetRoleRequest(BaseModel):
+    user_id: str
+    role: str  # owner | admin | barber
+    branch_id: str | None = None
+
+
 class DeactivateRequest(BaseModel):
     user_id: str

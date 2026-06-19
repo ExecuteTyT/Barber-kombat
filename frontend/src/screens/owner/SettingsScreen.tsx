@@ -1178,7 +1178,8 @@ function AssignForm({
 }
 
 function AccessSection() {
-  const { people, settingsSaving, fetchPeople, assignPerson, deactivatePerson } = useOwnerStore()
+  const { people, settingsSaving, fetchPeople, assignPerson, deactivatePerson, setPersonRole } =
+    useOwnerStore()
   const [assignTg, setAssignTg] = useState<number | null>(null)
   const [manualOpen, setManualOpen] = useState(false)
 
@@ -1258,13 +1259,32 @@ function AccessSection() {
                   {m.linked ? '' : ' · не привязан'}
                 </p>
               </div>
-              <button
-                type="button"
-                className="text-xs font-medium text-[var(--bk-red)]"
-                onClick={() => deactivatePerson(m.user_id)}
-              >
-                Отключить
-              </button>
+              <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                {m.role === 'admin' && (
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-[var(--bk-gold)] disabled:opacity-40"
+                    disabled={settingsSaving}
+                    onClick={() => {
+                      if (window.confirm(`Перевести ${m.name} в барберы?`))
+                        setPersonRole(m.user_id, 'barber')
+                    }}
+                  >
+                    В барберы
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="text-xs font-medium text-[var(--bk-red)] disabled:opacity-40"
+                  disabled={settingsSaving}
+                  onClick={() => {
+                    if (window.confirm(`Отключить доступ для ${m.name}?`))
+                      deactivatePerson(m.user_id)
+                  }}
+                >
+                  Отключить
+                </button>
+              </div>
             </div>
           ))}
           {managers.length === 0 && (
@@ -1273,25 +1293,36 @@ function AccessSection() {
         </div>
       </div>
 
-      {/* Staff (barbers) — link status */}
+      {/* Staff (barbers) — link status + reclassify */}
       <div>
         <p className="mb-2 text-sm font-medium text-[var(--bk-text)]">Сотрудники (барберы)</p>
+        <p className="mb-2 -mt-1 text-xs text-[var(--bk-text-dim)]">
+          Если человек не стрижёт (администратор) — переведите его в админы, чтобы он не
+          попадал в рейтинг и премии.
+        </p>
         <div className="space-y-2">
           {staff.map((s) => (
-            <div key={s.user_id} className="bk-card flex items-center justify-between p-3">
+            <div key={s.user_id} className="bk-card flex items-center justify-between gap-2 p-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-[var(--bk-text)]">{s.name}</p>
                 <p className="text-xs text-[var(--bk-text-dim)]">
-                  {s.branch_name ?? 'без филиала'}
+                  {s.branch_name ?? 'без филиала'} ·{' '}
+                  <span className={s.linked ? 'text-[var(--bk-green)]' : 'text-[var(--bk-text-dim)]'}>
+                    {s.linked ? 'привязан' : 'не привязан'}
+                  </span>
                 </p>
               </div>
-              <span
-                className={`text-xs font-medium ${
-                  s.linked ? 'text-[var(--bk-green)]' : 'text-[var(--bk-text-dim)]'
-                }`}
+              <button
+                type="button"
+                className="flex-shrink-0 text-xs font-medium text-[var(--bk-gold)] disabled:opacity-40"
+                disabled={settingsSaving}
+                onClick={() => {
+                  if (window.confirm(`Перевести ${s.name} в администраторы?`))
+                    setPersonRole(s.user_id, 'admin')
+                }}
               >
-                {s.linked ? 'привязан' : 'не привязан'}
-              </span>
+                В админы
+              </button>
             </div>
           ))}
           {staff.length === 0 && (

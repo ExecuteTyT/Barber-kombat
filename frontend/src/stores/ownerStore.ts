@@ -95,6 +95,7 @@ type OwnerState = DashboardState &
     fetchPeople: () => Promise<void>
     assignPerson: (data: AssignPersonRequest) => Promise<boolean>
     deactivatePerson: (userId: string) => Promise<boolean>
+    setPersonRole: (userId: string, role: string, branchId?: string) => Promise<boolean>
   }
 
 export const useOwnerStore = create<OwnerState>((set) => ({
@@ -420,6 +421,23 @@ export const useOwnerStore = create<OwnerState>((set) => ({
       const { data: people } = await api.get<PeopleResponse>('/owner/people')
       set({ people, settingsSaving: false })
       return true
+    } catch {
+      set({ settingsSaving: false })
+      return false
+    }
+  },
+
+  setPersonRole: async (userId: string, role: string, branchId?: string): Promise<boolean> => {
+    set({ settingsSaving: true })
+    try {
+      const { data } = await api.post<{ ok: boolean }>('/owner/people/set-role', {
+        user_id: userId,
+        role,
+        branch_id: branchId ?? null,
+      })
+      const { data: people } = await api.get<PeopleResponse>('/owner/people')
+      set({ people, settingsSaving: false })
+      return data?.ok === true
     } catch {
       set({ settingsSaving: false })
       return false
