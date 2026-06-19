@@ -175,6 +175,9 @@ export default function KombatScreen() {
         <div>
           <h1 className="bk-heading text-xl">{branch_name}</h1>
           <p className="mt-0.5 text-sm text-[var(--bk-text-secondary)]">{formatDate(date)}</p>
+          {user?.name && (
+            <p className="mt-0.5 text-xs font-semibold text-[var(--bk-gold)]">Вы: {user.name}</p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <InfoButton onClick={() => setInfoOpen(true)} />

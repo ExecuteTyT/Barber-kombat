@@ -1273,6 +1273,35 @@ function AccessSection() {
         </div>
       </div>
 
+      {/* Staff (barbers) — link status */}
+      <div>
+        <p className="mb-2 text-sm font-medium text-[var(--bk-text)]">Сотрудники (барберы)</p>
+        <div className="space-y-2">
+          {staff.map((s) => (
+            <div key={s.user_id} className="bk-card flex items-center justify-between p-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-[var(--bk-text)]">{s.name}</p>
+                <p className="text-xs text-[var(--bk-text-dim)]">
+                  {s.branch_name ?? 'без филиала'}
+                </p>
+              </div>
+              <span
+                className={`text-xs font-medium ${
+                  s.linked ? 'text-[var(--bk-green)]' : 'text-[var(--bk-text-dim)]'
+                }`}
+              >
+                {s.linked ? 'привязан' : 'не привязан'}
+              </span>
+            </div>
+          ))}
+          {staff.length === 0 && (
+            <p className="text-sm text-[var(--bk-text-secondary)]">
+              Барберы появятся после синка YClients.
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* Manual add by telegram id */}
       <div>
         {!manualOpen ? (
