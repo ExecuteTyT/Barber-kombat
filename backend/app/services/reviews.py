@@ -18,6 +18,7 @@ from app.models.branch import Branch
 from app.models.client import Client
 from app.models.review import Review, ReviewStatus
 from app.models.user import User
+from app.models.visit import Visit
 
 logger = structlog.stdlib.get_logger()
 
@@ -285,12 +286,23 @@ class ReviewService:
                 client_name = client.name
                 client_phone = client.phone
 
+        # The actual visit date (when the client was served), if the review is
+        # tied to a YClients visit. Form/guest reviews have no visit.
+        visit_date = None
+        if review.visit_id:
+            vd = (
+                await self.db.execute(select(Visit.date).where(Visit.id == review.visit_id))
+            ).scalar_one_or_none()
+            if vd is not None:
+                visit_date = str(vd)
+
         return {
             "id": review.id,
             "branch_id": review.branch_id,
             "barber_id": review.barber_id,
             "barber_name": barber_name,
             "visit_id": review.visit_id,
+            "visit_date": visit_date,
             "client_id": review.client_id,
             "client_name": client_name,
             "client_phone": client_phone,

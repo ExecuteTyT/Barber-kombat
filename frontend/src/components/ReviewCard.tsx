@@ -14,6 +14,11 @@ export default function ReviewCard({
   const timeStr = createdAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
   const dateStr = createdAt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
 
+  // visit_date is an ISO "YYYY-MM-DD" (when the client was actually served)
+  const visitStr = review.visit_date
+    ? review.visit_date.split('-').reverse().join('.')
+    : null
+
   // The whole card opens the process modal for new / in-progress reviews.
   const clickable = review.status !== 'processed'
 
@@ -37,14 +42,20 @@ export default function ReviewCard({
       <div className="flex items-start justify-between">
         <div>
           <StarRating rating={review.rating} />
-          <p className="mt-1 text-sm font-medium text-[var(--bk-text)]">{review.barber_name}</p>
+          <p className="mt-1 text-sm font-medium text-[var(--bk-text)]">
+            Мастер: {review.barber_name}
+          </p>
         </div>
         <span className="text-xs text-[var(--bk-text-dim)]">
           {dateStr}, {timeStr}
         </span>
       </div>
-      {review.client_name && (
-        <p className="mt-1 text-xs text-[var(--bk-text-secondary)]">{review.client_name}</p>
+      {(review.client_name || visitStr) && (
+        <p className="mt-1 text-xs text-[var(--bk-text-secondary)]">
+          {review.client_name ? `Клиент: ${review.client_name}` : ''}
+          {review.client_name && visitStr ? ' · ' : ''}
+          {visitStr ? `Визит: ${visitStr}` : ''}
+        </p>
       )}
       {review.comment ? (
         <p className="mt-2 text-sm text-[var(--bk-text)]">{review.comment}</p>

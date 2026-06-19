@@ -33,6 +33,7 @@ class ReviewResponse(BaseModel):
     barber_id: uuid.UUID
     barber_name: str
     visit_id: uuid.UUID | None
+    visit_date: str | None = None
     client_id: uuid.UUID | None
     client_name: str | None
     client_phone: str | None

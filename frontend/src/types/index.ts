@@ -190,6 +190,7 @@ export interface ReviewResponse {
   barber_id: string
   barber_name: string
   visit_id: string | null
+  visit_date: string | null
   client_id: string | null
   client_name: string | null
   client_phone: string | null
