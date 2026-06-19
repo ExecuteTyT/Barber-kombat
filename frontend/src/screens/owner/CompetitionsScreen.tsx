@@ -176,9 +176,11 @@ function RatingRow({ entry, weights }: { entry: RatingEntry; weights: RatingWeig
 function PVRRow({
   barber,
   weights,
+  isCurrentMonth,
 }: {
   barber: BarberPVRResponse
   weights: RatingWeights | null
+  isCurrentMonth: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
   const blocked =
@@ -205,12 +207,14 @@ function PVRRow({
       {barber.bonus_amount > 0 && (
         <div className="mt-1 flex items-center justify-between">
           <span className="text-xs text-[var(--bk-text-dim)]">
-            {lastReached
-              ? `Достигнут порог ${lastReached.score} баллов`
-              : `Текущий порог ${barber.current_threshold ?? 0} баллов`}
+            {isCurrentMonth
+              ? `Сейчас выше порога ${lastReached?.score ?? barber.current_threshold ?? 0}`
+              : lastReached
+                ? `Достигнут порог ${lastReached.score} баллов`
+                : `Текущий порог ${barber.current_threshold ?? 0} баллов`}
           </span>
           <span className="text-xs font-semibold text-[var(--bk-gold)]">
-            Премия: +{formatMoney(barber.bonus_amount)}
+            {isCurrentMonth ? 'Прогноз' : 'Премия'}: +{formatMoney(barber.bonus_amount)}
           </span>
         </div>
       )}
@@ -470,6 +474,12 @@ export default function CompetitionsScreen() {
                   баллов, поэтому отличается от баллов за отдельный день. Премия — когда
                   балл достигает порога.
                 </p>
+                {isCurrentMonth && (
+                  <p className="mt-1 text-[10px] leading-relaxed text-[var(--bk-gold)]">
+                    Месяц не закрыт: суммы — <b>прогноз на сегодня</b>, а не начисленный
+                    долг. Баллы меняются каждый день; итог фиксируется 1-го числа.
+                  </p>
+                )}
               </div>
               <div className="divide-y divide-[var(--bk-border)]">
                 {[...branchPvr.barbers]
@@ -479,6 +489,7 @@ export default function CompetitionsScreen() {
                       key={b.barber_id}
                       barber={b}
                       weights={todayRating?.weights ?? null}
+                      isCurrentMonth={isCurrentMonth}
                     />
                   ))}
               </div>
