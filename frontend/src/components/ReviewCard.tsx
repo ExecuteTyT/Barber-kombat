@@ -46,7 +46,11 @@ export default function ReviewCard({
       {review.client_name && (
         <p className="mt-1 text-xs text-[var(--bk-text-secondary)]">{review.client_name}</p>
       )}
-      {review.comment && <p className="mt-2 text-sm text-[var(--bk-text)]">{review.comment}</p>}
+      {review.comment ? (
+        <p className="mt-2 text-sm text-[var(--bk-text)]">{review.comment}</p>
+      ) : (
+        <p className="mt-2 text-sm italic text-[var(--bk-text-dim)]">Без комментария — только оценка</p>
+      )}
 
       <div className="mt-3 flex items-center justify-between">
         {review.status === 'processed' ? (
