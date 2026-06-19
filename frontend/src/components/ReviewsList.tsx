@@ -1,3 +1,4 @@
+import Button from './Button'
 import ReviewCard from './ReviewCard'
 import { IconStar } from './Icons'
 import type { ReviewResponse } from '../types'
@@ -67,14 +68,14 @@ export default function ReviewsList({
         )}
 
         {onLoadMore && reviews.length > 0 && reviews.length < total && (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            className="w-full"
             onClick={onLoadMore}
             disabled={isLoadingMore}
-            className="w-full rounded-xl bg-[var(--bk-bg-elevated)] py-3 text-sm font-semibold text-[var(--bk-text-secondary)] disabled:opacity-50"
           >
             {isLoadingMore ? 'Загрузка...' : `Показать ещё (${total - reviews.length})`}
-          </button>
+          </Button>
         )}
       </div>
     </div>

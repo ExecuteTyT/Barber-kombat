@@ -11,6 +11,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/barlow-condensed": "^5.2.8",
+    "@fontsource/outfit": "^5.2.8",
     "@telegram-apps/sdk": "^3.11.8",
     "@telegram-apps/sdk-react": "^3.3.9",
     "axios": "^1.13.5",

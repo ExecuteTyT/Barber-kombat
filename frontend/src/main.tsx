@@ -4,6 +4,16 @@ import { BrowserRouter } from 'react-router-dom'
 
 import ErrorBoundary from './components/ErrorBoundary'
 import App from './App'
+
+// Self-hosted brand fonts (versioned, offline-friendly, font-display: swap).
+// Barlow Condensed (headings) + Outfit (body). Without these the app falls back
+// to Arial Narrow / system-ui and the intended typographic identity never renders.
+import '@fontsource/barlow-condensed/600.css'
+import '@fontsource/outfit/400.css'
+import '@fontsource/outfit/500.css'
+import '@fontsource/outfit/600.css'
+import '@fontsource/outfit/700.css'
+
 import './index.css'
 
 // Signal to Telegram that the Mini App is ready and expand to full screen

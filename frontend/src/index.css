@@ -24,7 +24,8 @@
   --bk-bronze: #b87333;
   --bk-text: #e8e5df;
   --bk-text-secondary: #8a877f;
-  --bk-text-dim: #555249;
+  --bk-text-dim: #8a8578; /* ~5:1 on dark — readable hints/timestamps (WCAG AA) */
+  --bk-text-faint: #4a473f; /* decorative only — scrollbar, empty stars */
   --bk-red: #e54545;
   --bk-green: #4a9d5b;
   --bk-border: rgba(255, 255, 255, 0.06);
@@ -75,8 +76,17 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--bk-text-dim);
+  background: var(--bk-text-faint);
   border-radius: 2px;
+}
+
+/* Keyboard focus ring on interactive elements (themed; both modes) */
+button:focus-visible,
+a:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--bk-gold);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* Golden shimmer skeleton */
@@ -149,6 +159,30 @@ body {
   text-transform: uppercase;
 }
 
+/*
+ * Typography system — semantic classes replace scattered inline
+ * style={{ fontFamily: 'var(--bk-font-heading)' }}.
+ * Type scale (px): 12 / 14 / 16 / 20 / 28 / 36.
+ */
+.bk-title {
+  font-family: var(--bk-font-heading);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.bk-stat {
+  font-family: var(--bk-font-heading);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.bk-label {
+  font-family: var(--bk-font-body);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 /* Progress bar gold gradient fill */
 .bk-progress-fill {
   background: linear-gradient(90deg, var(--bk-gold-dim), var(--bk-gold), var(--bk-gold-bright));
@@ -198,6 +232,7 @@ body {
   border-top: 1px solid var(--bk-border-gold);
 }
 
+
 /* Input focus glow */
 input:focus,
 textarea:focus,
@@ -207,7 +242,7 @@ select:focus {
   box-shadow: 0 0 0 2px var(--bk-gold-glow);
 }
 
-/* Select arrow color fix for dark theme */
+/* Select arrow color fix for dark themes (barber + graphite admin) */
 select {
   color-scheme: dark;
 }

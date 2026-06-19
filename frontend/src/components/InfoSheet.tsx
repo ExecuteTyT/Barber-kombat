@@ -40,16 +40,12 @@ export default function InfoSheet({ open, onClose, title, children }: InfoSheetP
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pb-3 pt-1">
-          <h2
-            className="text-lg font-bold text-[var(--bk-text)]"
-            style={{ fontFamily: 'var(--bk-font-heading)' }}
-          >
-            {title}
-          </h2>
+        <div className="flex items-center justify-between px-4 pb-3 pt-1">
+          <h2 className="bk-title text-lg font-bold text-[var(--bk-text)]">{title}</h2>
           <button
             type="button"
             onClick={onClose}
+            aria-label="Закрыть"
             className="rounded-full p-1.5 text-[var(--bk-text-dim)] active:bg-[var(--bk-bg-elevated)]"
           >
             <IconX size={18} />
@@ -57,7 +53,7 @@ export default function InfoSheet({ open, onClose, title, children }: InfoSheetP
         </div>
 
         {/* Content */}
-        <div className="max-h-[65vh] overflow-y-auto px-5">{children}</div>
+        <div className="max-h-[65vh] overflow-y-auto px-4">{children}</div>
       </div>
     </div>
   )

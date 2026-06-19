@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
+import Button from './Button'
 import { IconCopy, IconMessageCircle, IconPhone, StarRating } from './Icons'
 import { phoneDigits, telLink, waLink } from '../lib/contact'
 import { useToastStore } from '../stores/toastStore'
@@ -264,21 +265,17 @@ export default function ReviewProcessModal({ review, onClose, onSubmit }: Review
         {error && <p className="mt-2 text-sm text-[var(--bk-red)]">{error}</p>}
 
         <div className="mt-4 flex gap-3">
-          <button
-            type="button"
-            className="min-h-[44px] flex-1 rounded-xl bg-[var(--bk-bg-elevated)] py-3 text-sm font-semibold text-[var(--bk-text-secondary)]"
-            onClick={onClose}
-          >
+          <Button variant="secondary" className="flex-1" onClick={onClose}>
             Отмена
-          </button>
-          <button
-            type="button"
-            className="min-h-[44px] flex-1 rounded-xl bg-[var(--bk-gold)] py-3 text-sm font-semibold text-[var(--bk-bg-primary)] disabled:opacity-50"
+          </Button>
+          <Button
+            variant="primary"
+            className="flex-1"
             disabled={isSubmitting || !comment.trim()}
             onClick={handleSubmit}
           >
             {isSubmitting ? 'Сохранение...' : 'Сохранить'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

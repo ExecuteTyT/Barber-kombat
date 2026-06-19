@@ -1,4 +1,5 @@
-import { IconCheckCircle, IconRefresh, StarRating } from './Icons'
+import Button from './Button'
+import { IconAlertCircle, IconCheckCircle, IconRefresh, StarRating } from './Icons'
 import type { ReviewResponse } from '../types'
 
 /** A single review with status and a "process" action. Shared by owner and admin. */
@@ -57,19 +58,19 @@ export default function ReviewCard({
             <IconRefresh size={14} /> В работе
           </span>
         ) : (
-          <span className="text-xs font-medium text-[var(--bk-red)]">Новый</span>
+          <span className="flex items-center gap-1 text-xs font-medium text-[var(--bk-red)]">
+            <IconAlertCircle size={14} /> Новый
+          </span>
         )}
         {review.status !== 'processed' && (
-          <button
-            type="button"
-            className="min-h-[44px] rounded-lg bg-[var(--bk-gold)] px-4 py-2 text-sm font-semibold text-[var(--bk-bg-primary)]"
+          <Button
             onClick={(e) => {
               e.stopPropagation()
               onProcess(review)
             }}
           >
             Обработать
-          </button>
+          </Button>
         )}
       </div>
 

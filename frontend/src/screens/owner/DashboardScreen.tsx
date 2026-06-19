@@ -34,17 +34,9 @@ function BranchCard({ branch, onClick }: { branch: BranchRevenue; onClick: () =>
         </span>
       </div>
 
-      <p
-        className="mt-1.5 font-bold tabular-nums text-lg"
-        style={{ fontFamily: 'var(--bk-font-heading)' }}
-      >
+      <p className="bk-stat mt-1.5 text-lg">
         {formatMoney(branch.revenue_today)}{' '}
-        <span
-          className="text-sm font-normal text-[var(--bk-text-secondary)]"
-          style={{ fontFamily: 'var(--bk-font-body)' }}
-        >
-          сегодня
-        </span>
+        <span className="text-sm font-normal text-[var(--bk-text-secondary)]">сегодня</span>
       </p>
 
       <div className="mt-3">

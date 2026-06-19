@@ -41,12 +41,7 @@ function RatingRow({
             >
               {entry.name}
             </span>
-            <span
-              className="ml-2 font-bold tabular-nums text-lg"
-              style={{ fontFamily: 'var(--bk-font-heading)' }}
-            >
-              {entry.total_score.toFixed(1)}
-            </span>
+            <span className="bk-stat ml-2 text-lg">{entry.total_score.toFixed(1)}</span>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex-1">
