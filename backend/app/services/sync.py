@@ -400,14 +400,28 @@ class SyncService:
 
             try:
                 async with self.db.begin_nested():
-                    # Idempotency: skip comments we've already synced.
-                    existing = await self.db.execute(
-                        select(Review.id).where(
-                            Review.organization_id == organization_id,
-                            Review.yclients_comment_id == comment.id,
+                    # Idempotency: skip comments we've already synced — but
+                    # backfill the client/visit link if it was missing and the
+                    # visit has since been synced (so outreach gets a phone).
+                    existing_review = (
+                        await self.db.execute(
+                            select(Review).where(
+                                Review.organization_id == organization_id,
+                                Review.yclients_comment_id == comment.id,
+                            )
                         )
-                    )
-                    if existing.scalar_one_or_none() is not None:
+                    ).scalar_one_or_none()
+                    if existing_review is not None:
+                        if existing_review.client_id is None and comment.record_id:
+                            vres = await self.db.execute(
+                                select(Visit.id, Visit.client_id).where(
+                                    Visit.yclients_record_id == comment.record_id,
+                                    Visit.organization_id == organization_id,
+                                )
+                            )
+                            row = vres.first()
+                            if row is not None and row[1] is not None:
+                                existing_review.visit_id, existing_review.client_id = row
                         continue
 
                     barber = await self._resolve_barber(comment.master_id, organization_id)
