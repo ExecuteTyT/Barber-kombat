@@ -151,8 +151,7 @@ export default function DashboardScreen() {
               onClick={() => navigate(`/owner/branch/${targetBranchId}?reviews=negative`)}
               className="mt-3 flex w-full items-center gap-2 rounded-lg bg-[color-mix(in_srgb,var(--bk-red)_12%,transparent)] px-3 py-2 text-sm text-[var(--bk-red)] active:opacity-70"
             >
-              <span className="bk-live-pulse inline-block h-2.5 w-2.5 rounded-full bg-[var(--bk-red)]" />
-              <IconStar size={15} />
+              <IconStar size={15} className="shrink-0" />
               <span className="text-left">
                 {alarumTotal} необработанн{alarumTotal === 1 ? 'ый' : 'ых'} отзыв
                 {alarumTotal === 1 ? '' : alarumTotal < 5 ? 'а' : 'ов'}
