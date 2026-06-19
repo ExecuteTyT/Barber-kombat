@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 
 import {
   IconArrowLeft,
@@ -319,6 +319,8 @@ export default function BranchScreen() {
 
   const [activeTab, setActiveTab] = useState<ReviewFilterTab>('all')
   const [processingReview, setProcessingReview] = useState<ReviewResponse | null>(null)
+  const reviewsRef = useRef<HTMLDivElement>(null)
+  const [searchParams] = useSearchParams()
   const [dateIso, setDateIso] = useState(todayIso())
   const isToday = dateIso === todayIso()
   const unprocessedCount = useMemo(
@@ -365,6 +367,20 @@ export default function BranchScreen() {
     },
     [setFilters],
   )
+
+  // Deep link from the dashboard alarm banner: ?reviews=unprocessed|negative
+  // opens that review filter and scrolls straight to the reviews block.
+  useEffect(() => {
+    const r = searchParams.get('reviews')
+    if (branchId && (r === 'unprocessed' || r === 'negative')) {
+      handleTabChange(r)
+      const t = setTimeout(
+        () => reviewsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+        350,
+      )
+      return () => clearTimeout(t)
+    }
+  }, [branchId, searchParams, handleTabChange])
 
   const handleWSMessage = useCallback(
     (message: WSMessage) => {
@@ -434,6 +450,7 @@ export default function BranchScreen() {
       )}
 
       {/* Reviews */}
+      <div ref={reviewsRef} />
       {reviewsLoading && reviews.length === 0 ? (
         <div className="mx-4 mt-4">
           <LoadingSkeleton lines={4} />

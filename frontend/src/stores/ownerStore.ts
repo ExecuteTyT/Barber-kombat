@@ -6,6 +6,7 @@ import type {
   DayToDayReport,
   ClientsReport,
   AlarumResponse,
+  ReviewResponse,
   RatingWeightsConfig,
   PVRThresholdsConfig,
   PVRThreshold,
@@ -26,6 +27,7 @@ import type {
 interface DashboardState {
   revenue: DailyRevenueReport | null
   alarumTotal: number
+  alarumReviews: ReviewResponse[]
   isLoading: boolean
   error: string | null
 }
@@ -99,6 +101,7 @@ export const useOwnerStore = create<OwnerState>((set) => ({
   // Dashboard
   revenue: null,
   alarumTotal: 0,
+  alarumReviews: [],
   isLoading: false,
   error: null,
 
@@ -137,7 +140,7 @@ export const useOwnerStore = create<OwnerState>((set) => ({
   fetchAlarum: async () => {
     try {
       const { data } = await api.get<AlarumResponse>('/reviews/alarum/feed')
-      set({ alarumTotal: data.total })
+      set({ alarumTotal: data.total, alarumReviews: data.reviews ?? [] })
     } catch {
       // Non-critical
     }
