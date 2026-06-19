@@ -17,6 +17,8 @@ import type {
   NotificationConfig,
   NotificationConfigListResponse,
   PlanNetworkResponse,
+  PeopleResponse,
+  AssignPersonRequest,
 } from '../types'
 
 // --- Dashboard ---
@@ -48,6 +50,7 @@ interface SettingsState {
   users: UserConfig[]
   notifications: NotificationConfig[]
   plans: PlanNetworkResponse | null
+  people: PeopleResponse | null
   settingsLoading: boolean
   settingsError: string | null
   settingsSaving: boolean
@@ -87,6 +90,9 @@ type OwnerState = DashboardState &
     deleteNotification: (id: string) => Promise<boolean>
     fetchPlans: (month?: string) => Promise<void>
     savePlan: (branchId: string, month: string, targetAmount: number) => Promise<boolean>
+    fetchPeople: () => Promise<void>
+    assignPerson: (data: AssignPersonRequest) => Promise<boolean>
+    deactivatePerson: (userId: string) => Promise<boolean>
   }
 
 export const useOwnerStore = create<OwnerState>((set) => ({
@@ -111,6 +117,7 @@ export const useOwnerStore = create<OwnerState>((set) => ({
   users: [],
   notifications: [],
   plans: null,
+  people: null,
   settingsLoading: false,
   settingsError: null,
   settingsSaving: false,
@@ -373,6 +380,42 @@ export const useOwnerStore = create<OwnerState>((set) => ({
       // Refresh plans
       const { data } = await api.get<PlanNetworkResponse>('/plans/network/all')
       set({ plans: data, settingsSaving: false })
+      return true
+    } catch {
+      set({ settingsSaving: false })
+      return false
+    }
+  },
+
+  fetchPeople: async () => {
+    set({ settingsLoading: true })
+    try {
+      const { data } = await api.get<PeopleResponse>('/owner/people')
+      set({ people: data, settingsLoading: false })
+    } catch {
+      set({ settingsError: 'Не удалось загрузить пользователей', settingsLoading: false })
+    }
+  },
+
+  assignPerson: async (payload: AssignPersonRequest): Promise<boolean> => {
+    set({ settingsSaving: true })
+    try {
+      const { data } = await api.post<{ ok: boolean }>('/owner/people/assign', payload)
+      const { data: people } = await api.get<PeopleResponse>('/owner/people')
+      set({ people, settingsSaving: false })
+      return data?.ok === true
+    } catch {
+      set({ settingsSaving: false })
+      return false
+    }
+  },
+
+  deactivatePerson: async (userId: string): Promise<boolean> => {
+    set({ settingsSaving: true })
+    try {
+      await api.post('/owner/people/deactivate', { user_id: userId })
+      const { data: people } = await api.get<PeopleResponse>('/owner/people')
+      set({ people, settingsSaving: false })
       return true
     } catch {
       set({ settingsSaving: false })

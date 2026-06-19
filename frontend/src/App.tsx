@@ -8,6 +8,7 @@ import { useTelegramTheme } from './hooks/useTelegramTheme'
 import DevToolbar from './components/DevToolbar'
 import DevLoginScreen from './screens/DevLoginScreen'
 import LoginScreen from './screens/LoginScreen'
+import PendingScreen from './screens/PendingScreen'
 import ReviewPublicScreen from './screens/public/ReviewPublicScreen'
 import BarberLayout from './screens/barber/BarberLayout'
 import KombatScreen from './screens/barber/KombatScreen'
@@ -60,7 +61,7 @@ function getInitDataRaw(): string | undefined {
 function AuthenticatedApp() {
   useTelegramTheme()
 
-  const { user, token, isLoading, error, login, hydrate } = useAuthStore()
+  const { user, token, isLoading, error, pending, login, hydrate } = useAuthStore()
 
   // Deep link: parse startapp param and navigate after auth
   useDeepLink(user?.role)
@@ -86,6 +87,11 @@ function AuthenticatedApp() {
 
   if (isLoading) {
     return <LoginScreen />
+  }
+
+  // Opened inside Telegram but not linked to a user yet
+  if (pending) {
+    return <PendingScreen info={pending} />
   }
 
   if (error) {

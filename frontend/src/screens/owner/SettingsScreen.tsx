@@ -20,6 +20,10 @@ import type {
   NotificationConfig,
   UserConfig,
   UserRole,
+  PendingPerson,
+  PersonItem,
+  PeopleBranch,
+  AssignPersonRequest,
 } from '../../types'
 
 function formatMoney(kopecks: number): string {
@@ -27,9 +31,10 @@ function formatMoney(kopecks: number): string {
   return rubles.toLocaleString('ru-RU') + '\u{00A0}\u{20BD}'
 }
 
-type Section = 'kombat' | 'pvr' | 'plans' | 'branches' | 'staff' | 'notifications'
+type Section = 'access' | 'kombat' | 'pvr' | 'plans' | 'branches' | 'staff' | 'notifications'
 
 const SECTIONS: { key: Section; label: string }[] = [
+  { key: 'access', label: 'Доступы' },
   { key: 'kombat', label: 'Рейтинг' },
   { key: 'pvr', label: 'Премии' },
   { key: 'plans', label: 'Планы' },
@@ -37,6 +42,12 @@ const SECTIONS: { key: Section; label: string }[] = [
   { key: 'staff', label: 'Сотрудники' },
   { key: 'notifications', label: 'Уведомления' },
 ]
+
+const PEOPLE_ROLE_LABELS: Record<string, string> = {
+  owner: 'Владелец',
+  admin: 'Администратор',
+  barber: 'Барбер',
+}
 
 function WeightSlider({
   label,
@@ -1038,6 +1049,261 @@ function NotificationsSection() {
   )
 }
 
+function AssignForm({
+  telegramId,
+  manual,
+  defaultName,
+  staff,
+  branches,
+  saving,
+  onSubmit,
+  onCancel,
+}: {
+  telegramId?: number
+  manual?: boolean
+  defaultName?: string | null
+  staff: PersonItem[]
+  branches: PeopleBranch[]
+  saving: boolean
+  onSubmit: (payload: AssignPersonRequest) => Promise<void>
+  onCancel: () => void
+}) {
+  const [role, setRole] = useState('barber')
+  const [userId, setUserId] = useState('')
+  const [branchId, setBranchId] = useState('')
+  const [name, setName] = useState(defaultName ?? '')
+  const [tgInput, setTgInput] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  const inputCls =
+    'w-full rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-input)] px-2 py-1.5 text-sm text-[var(--bk-text)]'
+
+  const submit = async () => {
+    const tg = manual ? Number(tgInput) : telegramId
+    if (!tg) {
+      setError('Укажите Telegram ID')
+      return
+    }
+    if (role === 'barber') {
+      if (!userId) {
+        setError('Выберите сотрудника из списка')
+        return
+      }
+      setError(null)
+      await onSubmit({ telegram_id: tg, role, user_id: userId, branch_id: branchId || undefined })
+      return
+    }
+    if (!name.trim()) {
+      setError('Введите имя')
+      return
+    }
+    setError(null)
+    await onSubmit({
+      telegram_id: tg,
+      role,
+      name: name.trim(),
+      branch_id: role === 'admin' ? branchId || undefined : undefined,
+    })
+  }
+
+  return (
+    <div className="mt-2 space-y-2">
+      {manual && (
+        <input
+          type="number"
+          placeholder="Telegram ID *"
+          className={inputCls}
+          value={tgInput}
+          onChange={(e) => setTgInput(e.target.value)}
+        />
+      )}
+      <select className={inputCls} value={role} onChange={(e) => setRole(e.target.value)}>
+        <option value="barber">Барбер (из YClients)</option>
+        <option value="admin">Администратор</option>
+        <option value="owner">Владелец</option>
+      </select>
+
+      {role === 'barber' ? (
+        <select className={inputCls} value={userId} onChange={(e) => setUserId(e.target.value)}>
+          <option value="">Выберите сотрудника</option>
+          {staff.map((s) => (
+            <option key={s.user_id} value={s.user_id}>
+              {s.name}
+              {s.linked ? ' (уже привязан)' : ''}
+              {s.branch_name ? ` · ${s.branch_name}` : ''}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type="text"
+          placeholder="Имя"
+          className={inputCls}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      )}
+
+      {(role === 'admin' || role === 'barber') && (
+        <select className={inputCls} value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+          <option value="">{role === 'admin' ? 'Филиал *' : 'Филиал (необязательно)'}</option>
+          {branches.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {error && <p className="text-sm text-[var(--bk-red)]">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="flex-1 rounded-lg bg-[var(--bk-gold)] py-1.5 text-sm font-semibold text-[var(--bk-bg-primary)] disabled:opacity-50"
+          disabled={saving}
+          onClick={submit}
+        >
+          {saving ? 'Сохранение...' : 'Привязать'}
+        </button>
+        <button
+          type="button"
+          className="rounded-lg bg-[var(--bk-bg-elevated)] px-3 py-1.5 text-sm text-[var(--bk-text-secondary)]"
+          onClick={onCancel}
+        >
+          Отмена
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function AccessSection() {
+  const { people, settingsSaving, fetchPeople, assignPerson, deactivatePerson } = useOwnerStore()
+  const [assignTg, setAssignTg] = useState<number | null>(null)
+  const [manualOpen, setManualOpen] = useState(false)
+
+  useEffect(() => {
+    fetchPeople()
+  }, [fetchPeople])
+
+  if (!people) return <LoadingSkeleton lines={4} />
+
+  const { managers, staff, pending, branches } = people
+
+  return (
+    <div className="space-y-5">
+      {/* Pending registrations */}
+      <div>
+        <p className="text-sm font-medium text-[var(--bk-text)]">Ожидают привязки</p>
+        <p className="mb-2 mt-0.5 text-xs text-[var(--bk-text-dim)]">
+          Сотрудник открывает бота — и появляется здесь. Привяжите его к сотруднику YClients или
+          назначьте админом/владельцем.
+        </p>
+        {pending.length === 0 ? (
+          <p className="text-sm text-[var(--bk-text-secondary)]">
+            Пока никто не ждёт привязки.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {pending.map((p: PendingPerson) => (
+              <div key={p.telegram_id} className="bk-card p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-[var(--bk-text)]">
+                      {p.name || p.username || `id ${p.telegram_id}`}
+                    </p>
+                    <p className="text-xs text-[var(--bk-text-dim)]">
+                      {p.username ? `@${p.username} · ` : ''}id {p.telegram_id}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-lg bg-[var(--bk-gold)] px-3 py-1 text-xs font-semibold text-[var(--bk-bg-primary)]"
+                    onClick={() => setAssignTg(assignTg === p.telegram_id ? null : p.telegram_id)}
+                  >
+                    Привязать
+                  </button>
+                </div>
+                {assignTg === p.telegram_id && (
+                  <AssignForm
+                    telegramId={p.telegram_id}
+                    defaultName={p.name}
+                    staff={staff}
+                    branches={branches}
+                    saving={settingsSaving}
+                    onSubmit={async (payload) => {
+                      const ok = await assignPerson(payload)
+                      if (ok) setAssignTg(null)
+                    }}
+                    onCancel={() => setAssignTg(null)}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Current access (managers) */}
+      <div>
+        <p className="mb-2 text-sm font-medium text-[var(--bk-text)]">Доступы</p>
+        <div className="space-y-2">
+          {managers.map((m) => (
+            <div key={m.user_id} className="bk-card flex items-center justify-between p-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-[var(--bk-text)]">{m.name}</p>
+                <p className="text-xs text-[var(--bk-text-dim)]">
+                  {PEOPLE_ROLE_LABELS[m.role] ?? m.role}
+                  {m.branch_name ? ` · ${m.branch_name}` : ''}
+                  {m.linked ? '' : ' · не привязан'}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="text-xs font-medium text-[var(--bk-red)]"
+                onClick={() => deactivatePerson(m.user_id)}
+              >
+                Отключить
+              </button>
+            </div>
+          ))}
+          {managers.length === 0 && (
+            <p className="text-sm text-[var(--bk-text-secondary)]">Нет администраторов/владельцев.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Manual add by telegram id */}
+      <div>
+        {!manualOpen ? (
+          <button
+            type="button"
+            className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-[var(--bk-border)] py-3 text-sm font-medium text-[var(--bk-gold)]"
+            onClick={() => setManualOpen(true)}
+          >
+            <IconPlus size={14} /> Добавить по Telegram ID вручную
+          </button>
+        ) : (
+          <div className="bk-card p-3">
+            <p className="text-sm font-medium text-[var(--bk-text)]">Привязка вручную</p>
+            <AssignForm
+              manual
+              staff={staff}
+              branches={branches}
+              saving={settingsSaving}
+              onSubmit={async (payload) => {
+                const ok = await assignPerson(payload)
+                if (ok) setManualOpen(false)
+              }}
+              onCancel={() => setManualOpen(false)}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function SettingsScreen() {
   const [activeSection, setActiveSection] = useState<Section | null>(null)
 
@@ -1080,6 +1346,7 @@ export default function SettingsScreen() {
       </div>
 
       <div className="mx-4 mt-4">
+        {activeSection === 'access' && <AccessSection />}
         {activeSection === 'kombat' && <KombatSection />}
         {activeSection === 'pvr' && <PVRSection />}
         {activeSection === 'plans' && <PlansSection />}

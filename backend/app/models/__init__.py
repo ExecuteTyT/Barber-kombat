@@ -13,6 +13,7 @@ from app.models.rating_config import RatingConfig
 from app.models.report import Report
 from app.models.review import Review, ReviewStatus
 from app.models.survey_response import SurveyResponse
+from app.models.telegram_registration import TelegramRegistration
 from app.models.user import User, UserRole
 from app.models.visit import Visit
 
@@ -33,6 +34,7 @@ __all__ = [
     "Review",
     "ReviewStatus",
     "SurveyResponse",
+    "TelegramRegistration",
     "User",
     "UserRole",
     "Visit",

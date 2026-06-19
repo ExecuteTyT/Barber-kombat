@@ -1,13 +1,15 @@
+import axios from 'axios'
 import { create } from 'zustand'
 
 import { authApi } from '../api/client'
-import type { User } from '../types'
+import type { PendingInfo, User } from '../types'
 
 interface AuthState {
   user: User | null
   token: string | null
   isLoading: boolean
   error: string | null
+  pending: PendingInfo | null
   login: (initData: string) => Promise<void>
   devLogin: (telegramId: number) => Promise<void>
   fetchMe: () => Promise<void>
@@ -20,9 +22,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   token: localStorage.getItem('access_token'),
   isLoading: false,
   error: null,
+  pending: null,
 
   login: async (initData: string) => {
-    set({ isLoading: true, error: null })
+    set({ isLoading: true, error: null, pending: null })
     try {
       const response = await authApi.login(initData)
       localStorage.setItem('access_token', response.access_token)
@@ -31,7 +34,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         user: response.user,
         isLoading: false,
       })
-    } catch {
+    } catch (e) {
+      // 403 with code "pending_registration" → user opened the bot but isn't
+      // linked yet; show the waiting screen instead of a generic error.
+      if (axios.isAxiosError(e) && e.response?.status === 403) {
+        const d = e.response.data?.detail
+        if (d && d.code === 'pending_registration') {
+          set({
+            isLoading: false,
+            pending: {
+              telegram_id: d.telegram_id,
+              username: d.username ?? null,
+              name: d.name ?? null,
+            },
+          })
+          return
+        }
+      }
       set({ isLoading: false, error: 'Ошибка авторизации' })
     }
   },
@@ -70,7 +89,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: () => {
     localStorage.removeItem('access_token')
-    set({ user: null, token: null, error: null })
+    set({ user: null, token: null, error: null, pending: null })
   },
 
   hydrate: async () => {

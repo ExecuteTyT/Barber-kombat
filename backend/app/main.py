@@ -15,6 +15,7 @@ from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.config import router as config_router
 from app.api.kombat import router as kombat_router
+from app.api.owner import router as owner_router
 from app.api.plans import router as plans_router
 from app.api.pvr import router as pvr_router
 from app.api.reports import router as reports_router
@@ -103,6 +104,7 @@ app.include_router(admin_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(config_router, prefix="/api/v1")
 app.include_router(kombat_router, prefix="/api/v1")
+app.include_router(owner_router, prefix="/api/v1")
 app.include_router(plans_router, prefix="/api/v1")
 app.include_router(pvr_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")

@@ -483,6 +483,51 @@ export interface QcCallListResponse {
   progress: number
 }
 
+// --- People / access management (owner) ---
+
+export interface PersonItem {
+  user_id: string
+  name: string
+  role: string
+  branch_id: string | null
+  branch_name: string | null
+  telegram_id: number | null
+  yclients_staff_id: number | null
+  linked: boolean
+}
+
+export interface PendingPerson {
+  telegram_id: number
+  username: string | null
+  name: string | null
+}
+
+export interface PeopleBranch {
+  id: string
+  name: string
+}
+
+export interface PeopleResponse {
+  managers: PersonItem[]
+  staff: PersonItem[]
+  pending: PendingPerson[]
+  branches: PeopleBranch[]
+}
+
+export interface PendingInfo {
+  telegram_id: number
+  username: string | null
+  name: string | null
+}
+
+export interface AssignPersonRequest {
+  telegram_id: number
+  role: string
+  user_id?: string
+  branch_id?: string
+  name?: string
+}
+
 // --- Admin KPI (Stage C) ---
 
 export interface BranchAdminKpi {

@@ -1,8 +1,10 @@
+import uuid
 from typing import Annotated
 
 import structlog
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -11,12 +13,50 @@ from app.auth.jwt import create_access_token
 from app.auth.telegram import validate_init_data
 from app.config import settings
 from app.database import get_db
+from app.models.organization import Organization
+from app.models.telegram_registration import TelegramRegistration
 from app.models.user import User
 from app.schemas.auth import AuthUserResponse, MeResponse, TelegramAuthRequest, TokenResponse
 
 logger = structlog.stdlib.get_logger()
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+async def _record_pending_registration(db: AsyncSession, tg_data: dict) -> None:
+    """Upsert a pending Telegram registration so the owner can link it later.
+
+    Best-effort: needs an organization to attach to (single-tenant deployment).
+    On conflict, refresh the profile fields but keep the existing status (so an
+    owner-set "ignored"/"linked" isn't reset).
+    """
+    org_id = (
+        await db.execute(
+            select(Organization.id).where(Organization.is_active.is_(True)).limit(1)
+        )
+    ).scalar_one_or_none()
+    if org_id is None:
+        return
+
+    stmt = pg_insert(TelegramRegistration).values(
+        id=uuid.uuid4(),
+        organization_id=org_id,
+        telegram_id=tg_data["telegram_id"],
+        username=tg_data.get("username") or None,
+        first_name=tg_data.get("first_name") or None,
+        last_name=tg_data.get("last_name") or None,
+        status="pending",
+    )
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_tg_reg_org_tgid",
+        set_={
+            "username": stmt.excluded.username,
+            "first_name": stmt.excluded.first_name,
+            "last_name": stmt.excluded.last_name,
+        },
+    )
+    await db.execute(stmt)
+    await db.commit()
 
 
 @router.post("/telegram", response_model=TokenResponse)
@@ -41,10 +81,21 @@ async def auth_telegram(
     user = result.scalar_one_or_none()
 
     if user is None:
-        await logger.awarning("Auth failed: user not registered", telegram_id=telegram_id)
+        # Not linked yet — record the Telegram user as "pending" so the owner can
+        # map them to an employee/manager, then tell the client to wait.
+        await _record_pending_registration(db, tg_data)
+        await logger.awarning("Auth: pending registration", telegram_id=telegram_id)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not registered in the system",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "pending_registration",
+                "telegram_id": telegram_id,
+                "username": tg_data.get("username") or None,
+                "name": (
+                    f"{tg_data.get('first_name', '')} {tg_data.get('last_name', '')}".strip()
+                    or None
+                ),
+            },
         )
 
     if not user.is_active:
