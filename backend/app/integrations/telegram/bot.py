@@ -43,6 +43,21 @@ def _format_money_escaped(kopecks: int) -> str:
     return _escape_md(_format_money(kopecks))
 
 
+_RU_MONTHS = (
+    "января", "февраля", "марта", "апреля", "мая", "июня",
+    "июля", "августа", "сентября", "октября", "ноября", "декабря",
+)
+
+
+def _ru_date(iso: str) -> str:
+    """ISO date -> e.g. 21 June (russian). Falls back to raw on parse error."""
+    try:
+        _, m, d = iso.split("-")
+        return f"{int(d)} {_RU_MONTHS[int(m) - 1]}"
+    except (ValueError, IndexError):
+        return iso
+
+
 def _miniapp_url(path: str = "") -> str:
     """Build Mini App deep link URL."""
     base = settings.telegram_mini_app_url.rstrip("/")
@@ -82,11 +97,11 @@ def format_kombat_report(report_data: dict, branch_data: dict) -> str:
         report_data: Full kombat_daily report dict.
         branch_data: Single branch entry from report_data["branches"].
     """
-    date_str = _escape_md(report_data["date"])
+    date_str = _escape_md(_ru_date(report_data["date"]))
     standings = branch_data.get("standings", [])
 
     lines = [
-        f"\U0001f3c6 *MAKON* \u2014 {date_str}",
+        f"\U0001f3c6 *MAKON* \u00b7 {date_str}",
         "",
     ]
 
@@ -104,7 +119,7 @@ def format_kombat_report(report_data: dict, branch_data: dict) -> str:
             medal = _MEDALS.get(rank, f"{rank}\\.")
             name = _escape_md(entry["name"])
             score = _escape_md(f"{entry['total_score']:.1f}")
-            lines.append(f"{medal} {name} \u2014 *{score}*")
+            lines.append(f"{medal} {name} \u00b7 *{score}*")
     else:
         lines.append(
             "_\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445 \u0437\u0430 \u0434\u0435\u043d\u044c_"
@@ -119,7 +134,7 @@ def format_kombat_monthly(report_data: dict, branch_data: dict) -> str:
     standings = branch_data.get("standings", [])
 
     lines = [
-        "\U0001f3c6 *MAKON \u2014 \u0418\u0442\u043e\u0433\u0438 \u043c\u0435\u0441\u044f\u0446\u0430*",
+        "\U0001f3c6 *MAKON \u00b7 \u0418\u0442\u043e\u0433\u0438 \u043c\u0435\u0441\u044f\u0446\u0430*",
         f"\U0001f4c5 {month}",
         "",
     ]
@@ -140,7 +155,7 @@ def format_kombat_monthly(report_data: dict, branch_data: dict) -> str:
             wins = entry.get("wins", 0)
             days = entry.get("days_worked", 0)
             lines.append(
-                f"{medal} {name} \u2014 *{avg}* "
+                f"{medal} {name} \u00b7 *{avg}* "
                 f"\\({_escape_md(str(wins))} \u043f\u043e\u0431\\. / "
                 f"{_escape_md(str(days))} \u0434\u043d\\.\\)"
             )
@@ -153,10 +168,10 @@ def format_kombat_monthly(report_data: dict, branch_data: dict) -> str:
 def format_revenue_report(report_data: dict) -> str:
     """Format daily revenue report for the owner (MarkdownV2)."""
     e = _escape_md
-    date_str = e(report_data["date"])
+    date_str = e(_ru_date(report_data["date"]))
     branches = report_data.get("branches", [])
 
-    lines = [f"\U0001f4b0 *{e('\u0418\u0442\u043e\u0433\u0438 \u0434\u043d\u044f')}* \u2014 {date_str}", ""]
+    lines = [f"\U0001f4b0 *{e('\u0418\u0442\u043e\u0433\u0438 \u0434\u043d\u044f')}* \u00b7 {date_str}", ""]
 
     for b in branches:
         name = e(b["name"])
@@ -176,7 +191,7 @@ def format_revenue_report(report_data: dict) -> str:
         top = b.get("top_barber")
         if top and top.get("revenue"):
             lines.append(
-                f"  {e('\u0422\u043e\u043f \u0434\u043d\u044f:')} {e(top['name'])} \u2014 {_format_money_escaped(top['revenue'])}"
+                f"  {e('\u0422\u043e\u043f \u0434\u043d\u044f:')} {e(top['name'])} \u00b7 {_format_money_escaped(top['revenue'])}"
             )
 
         if b.get("plan_target", 0) > 0:
@@ -205,7 +220,7 @@ def format_revenue_report(report_data: dict) -> str:
 
 def format_day_to_day(report_data: dict) -> str:
     """Format day-to-day comparison report."""
-    period_end = _escape_md(report_data.get("period_end", ""))
+    period_end = _escape_md(_ru_date(report_data.get("period_end", "")))
     comparison = report_data.get("comparison", {})
     current = report_data.get("current_month", {})
     prev = report_data.get("prev_month", {})
@@ -220,7 +235,7 @@ def format_day_to_day(report_data: dict) -> str:
     pp_amount = pp_total[-1]["amount"] if pp_total else 0
 
     lines = [
-        f"\U0001f4c8 *Day\\-to\\-Day* \u2014 {period_end}",
+        f"\U0001f4c8 *Day\\-to\\-Day* \u00b7 {period_end}",
         "",
         f"\U0001f4c5 *{_escape_md(current.get('name', ''))}:* {_format_money_escaped(cur_amount)}",
         f"\U0001f4c5 *{_escape_md(prev.get('name', ''))}:* {_format_money_escaped(prev_amount)}",

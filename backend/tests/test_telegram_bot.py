@@ -218,7 +218,7 @@ class TestFormatKombatReport:
         text = format_kombat_report(data, branch)
 
         assert "MAKON" in text
-        assert "2026\\-02\\-22" in text
+        assert "22 февраля" in text  # date is now russified
         assert "Павел" in text
 
     def test_contains_all_barbers(self):
