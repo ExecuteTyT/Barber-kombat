@@ -56,6 +56,10 @@ class ReportService:
         branch_data: list[dict] = []
         network_today = 0
         network_mtd = 0
+        network_visits = 0
+        network_clients = 0
+        network_new = 0
+        network_forecast = 0
 
         for branch in branches:
             # Revenue today
@@ -72,6 +76,17 @@ class ReportService:
             barbers_in_shift = await self._count_barbers_in_shift(branch.id, target_date)
             barbers_total = await self._count_barbers_total(branch.id)
 
+            visits_today = await self._count_visits(branch.id, target_date, target_date)
+            avg_check_today = round(revenue_today / visits_today) if visits_today else 0
+            clients_today = await self._count_unique_clients(
+                branch.id, target_date, target_date
+            )
+            new_clients_today = await self._count_new_clients(
+                branch.id, organization_id, target_date, target_date
+            )
+            top_barber = await self._top_barber_day(branch.id, target_date)
+            forecast_month = await self._forecast_month(branch.id, month_start, target_date)
+
             branch_data.append(
                 {
                     "branch_id": str(branch.id),
@@ -82,17 +97,31 @@ class ReportService:
                     "plan_percentage": plan_pct,
                     "barbers_in_shift": barbers_in_shift,
                     "barbers_total": barbers_total,
+                    "visits_today": visits_today,
+                    "avg_check_today": avg_check_today,
+                    "clients_today": clients_today,
+                    "new_clients_today": new_clients_today,
+                    "top_barber": top_barber,
+                    "forecast_month": forecast_month,
                 }
             )
 
             network_today += revenue_today
             network_mtd += revenue_mtd
+            network_visits += visits_today
+            network_clients += clients_today
+            network_new += new_clients_today
+            network_forecast += forecast_month
 
         report_data = {
             "date": str(target_date),
             "branches": branch_data,
             "network_total_today": network_today,
             "network_total_mtd": network_mtd,
+            "network_avg_check": round(network_today / network_visits) if network_visits else 0,
+            "network_clients_today": network_clients,
+            "network_new_clients": network_new,
+            "network_forecast_month": network_forecast,
         }
 
         await self._save_report(
@@ -925,6 +954,87 @@ class ReportService:
             }
             for row in rows
         ]
+
+    async def _top_barber_day(
+        self,
+        branch_id: uuid.UUID,
+        target_date: date,
+    ) -> dict | None:
+        """Top barber by revenue for a single day: {name, revenue} or None."""
+        stmt = (
+            select(User.name, sa_func.coalesce(sa_func.sum(Visit.revenue), 0).label("rev"))
+            .join(User, User.id == Visit.barber_id)
+            .where(
+                Visit.branch_id == branch_id,
+                Visit.date == target_date,
+                Visit.status == "completed",
+            )
+            .group_by(User.name)
+            .order_by(sa_func.sum(Visit.revenue).desc())
+            .limit(1)
+        )
+        row = (await self.db.execute(stmt)).first()
+        if row and row.rev:
+            return {"name": row.name, "revenue": int(row.rev)}
+        return None
+
+    async def _revenue_by_day(
+        self,
+        branch_id: uuid.UUID,
+        month_start: date,
+        today: date,
+    ) -> dict[date, int]:
+        """Per-day completed revenue for the elapsed month: {date: kopecks}."""
+        stmt = (
+            select(Visit.date, sa_func.coalesce(sa_func.sum(Visit.revenue), 0).label("rev"))
+            .where(
+                Visit.branch_id == branch_id,
+                Visit.date >= month_start,
+                Visit.date <= today,
+                Visit.status == "completed",
+            )
+            .group_by(Visit.date)
+        )
+        rows = (await self.db.execute(stmt)).all()
+        return {row.date: int(row.rev) for row in rows}
+
+    async def _forecast_month(
+        self,
+        branch_id: uuid.UUID,
+        month_start: date,
+        today: date,
+    ) -> int:
+        """Day-of-week-weighted month-end revenue forecast (kopecks).
+
+        Projects each day after `today` by the average revenue of the same
+        weekday observed so far this month (fallback: overall daily average),
+        so the weekend/weekday rhythm is reflected. Returns actual month-to-date
+        plus that projection.
+        """
+        import calendar
+        from collections import defaultdict
+
+        rev_by_day = await self._revenue_by_day(branch_id, month_start, today)
+        mtd_actual = sum(rev_by_day.values())
+
+        active = [rev for rev in rev_by_day.values() if rev > 0]
+        if not active:
+            return mtd_actual
+        overall_avg = sum(active) / len(active)
+
+        by_weekday: dict[int, list[int]] = defaultdict(list)
+        for d, rev in rev_by_day.items():
+            if rev > 0:
+                by_weekday[d.weekday()].append(rev)
+        weekday_avg = {wd: sum(v) / len(v) for wd, v in by_weekday.items()}
+
+        days_in_month = calendar.monthrange(month_start.year, month_start.month)[1]
+        projected = 0.0
+        for day_num in range(today.day + 1, days_in_month + 1):
+            d = month_start.replace(day=day_num)
+            projected += weekday_avg.get(d.weekday(), overall_avg)
+
+        return int(mtd_actual + projected)
 
     async def _save_report(
         self,

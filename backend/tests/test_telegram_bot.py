@@ -272,7 +272,8 @@ class TestFormatRevenueReport:
         text = format_revenue_report(data)
 
         assert "8 марта" in text
-        assert "77\\.1" in text  # plan percentage
+        assert "77%" in text  # plan percentage (now integer)
+        assert "прогноз" in text  # month-end forecast line
 
     def test_contains_network_totals(self):
         data = _revenue_data()

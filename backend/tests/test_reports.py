@@ -172,6 +172,16 @@ class TestGenerateDailyRevenue:
 
         # _save_report (upsert execute + commit)
         save_result = MagicMock()
+        visits_result = MagicMock()
+        visits_result.scalar_one.return_value = 4
+        clients_result = MagicMock()
+        clients_result.scalar_one.return_value = 4
+        new_result = MagicMock()
+        new_result.scalar_one.return_value = 1
+        top_result = MagicMock()
+        top_result.first.return_value = None
+        revday_result = MagicMock()
+        revday_result.all.return_value = []
 
         mock_db.execute = AsyncMock(
             side_effect=[
@@ -181,6 +191,11 @@ class TestGenerateDailyRevenue:
                 plan_result,
                 shift_result,
                 total_result,
+                visits_result,
+                clients_result,
+                new_result,
+                top_result,
+                revday_result,
                 save_result,
             ]
         )
@@ -225,6 +240,16 @@ class TestGenerateDailyRevenue:
         total_result.scalar_one.return_value = 3
 
         save_result = MagicMock()
+        visits_result = MagicMock()
+        visits_result.scalar_one.return_value = 4
+        clients_result = MagicMock()
+        clients_result.scalar_one.return_value = 4
+        new_result = MagicMock()
+        new_result.scalar_one.return_value = 1
+        top_result = MagicMock()
+        top_result.first.return_value = None
+        revday_result = MagicMock()
+        revday_result.all.return_value = []
 
         mock_db.execute = AsyncMock(
             side_effect=[
@@ -234,6 +259,11 @@ class TestGenerateDailyRevenue:
                 plan_result,
                 shift_result,
                 total_result,
+                visits_result,
+                clients_result,
+                new_result,
+                top_result,
+                revday_result,
                 save_result,
             ]
         )
@@ -264,6 +294,33 @@ class TestGenerateDailyRevenue:
         assert data["branches"] == []
         assert data["network_total_today"] == 0
         assert data["network_total_mtd"] == 0
+
+
+class TestForecastMonth:
+    @pytest.mark.asyncio
+    async def test_projects_remaining_days(self):
+        """700 actual (days 1-7) + 23 remaining days x 100 avg = 3000."""
+        service = ReportService(db=AsyncMock())
+        rev = {date(2026, 6, i): 100 for i in range(1, 8)}  # 7 days = all weekdays
+        service._revenue_by_day = AsyncMock(return_value=rev)
+        f = await service._forecast_month(uuid.uuid4(), date(2026, 6, 1), date(2026, 6, 7))
+        assert f == 3000
+
+    @pytest.mark.asyncio
+    async def test_no_data_returns_zero(self):
+        service = ReportService(db=AsyncMock())
+        service._revenue_by_day = AsyncMock(return_value={})
+        f = await service._forecast_month(uuid.uuid4(), date(2026, 6, 1), date(2026, 6, 7))
+        assert f == 0
+
+    @pytest.mark.asyncio
+    async def test_last_day_equals_mtd(self):
+        """On the last day there are no remaining days to project."""
+        service = ReportService(db=AsyncMock())
+        rev = {date(2026, 6, i): 100 for i in range(1, 31)}
+        service._revenue_by_day = AsyncMock(return_value=rev)
+        f = await service._forecast_month(uuid.uuid4(), date(2026, 6, 1), date(2026, 6, 30))
+        assert f == 3000
 
 
 # --- Tests: generate_day_to_day ---

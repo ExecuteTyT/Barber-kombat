@@ -139,35 +139,54 @@ def format_kombat_monthly(report_data: dict, branch_data: dict) -> str:
 
 
 def format_revenue_report(report_data: dict) -> str:
-    """Format daily revenue report for the owner."""
-    date_str = _escape_md(report_data["date"])
+    """Format daily revenue report for the owner (MarkdownV2)."""
+    e = _escape_md
+    date_str = e(report_data["date"])
     branches = report_data.get("branches", [])
 
-    lines = [
-        f"\U0001f4b0 *\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0437\u0430 \u0434\u0435\u043d\u044c* \u2014 {date_str}",
-        "",
-    ]
+    lines = [f"\U0001f4b0 *{e('\u0418\u0442\u043e\u0433\u0438 \u0434\u043d\u044f')}* \u2014 {date_str}", ""]
 
     for b in branches:
-        name = _escape_md(b["name"])
+        name = e(b["name"])
         today = _format_money_escaped(b["revenue_today"])
+        avg = _format_money_escaped(b.get("avg_check_today", 0))
+        clients = e(str(b.get("clients_today", 0)))
+        new = e(str(b.get("new_clients_today", 0)))
         mtd = _format_money_escaped(b["revenue_mtd"])
-        pct = _escape_md(f"{b['plan_percentage']:.1f}%")
-        barbers = _escape_md(f"{b['barbers_in_shift']}/{b['barbers_total']}")
+        forecast = _format_money_escaped(b.get("forecast_month", 0))
 
         lines.append(f"\U0001f4cd *{name}*")
-        lines.append(f"  \u0421\u0435\u0433\u043e\u0434\u043d\u044f: *{today}*")
+        lines.append(f"  {e('\u0412\u044b\u0440\u0443\u0447\u043a\u0430:')} *{today}*")
         lines.append(
-            f"  \u041c\u0435\u0441\u044f\u0446: {mtd} \\({pct} \u043f\u043b\u0430\u043d\u0430\\)"
+            f"  {e('\u0421\u0440. \u0447\u0435\u043a:')} {avg} \u00b7 {e('\u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432')} {clients} {e(f'(\u043d\u043e\u0432. {new})')}"
         )
-        lines.append(f"  \u0411\u0430\u0440\u0431\u0435\u0440\u044b: {barbers}")
+
+        top = b.get("top_barber")
+        if top and top.get("revenue"):
+            lines.append(
+                f"  {e('\u0422\u043e\u043f \u0434\u043d\u044f:')} {e(top['name'])} \u2014 {_format_money_escaped(top['revenue'])}"
+            )
+
+        if b.get("plan_target", 0) > 0:
+            pct = e(f"{b['plan_percentage']:.0f}%")
+            lines.append(
+                f"  {e('\u041c\u0435\u0441\u044f\u0446:')} {mtd} \u00b7 {pct} {e('\u043f\u043b\u0430\u043d\u0430')} \u00b7 {e('\u043f\u0440\u043e\u0433\u043d\u043e\u0437 ~')}{forecast}"
+            )
+        else:
+            lines.append(f"  {e('\u041c\u0435\u0441\u044f\u0446:')} {mtd} \u00b7 {e('\u043f\u0440\u043e\u0433\u043d\u043e\u0437 ~')}{forecast}")
         lines.append("")
 
-    network_today = _format_money_escaped(report_data.get("network_total_today", 0))
-    network_mtd = _format_money_escaped(report_data.get("network_total_mtd", 0))
+    net_today = _format_money_escaped(report_data.get("network_total_today", 0))
+    net_avg = _format_money_escaped(report_data.get("network_avg_check", 0))
+    net_clients = e(str(report_data.get("network_clients_today", 0)))
+    net_mtd = _format_money_escaped(report_data.get("network_total_mtd", 0))
+    net_forecast = _format_money_escaped(report_data.get("network_forecast_month", 0))
+
     lines.append(
-        f"\U0001f310 *\u0421\u0435\u0442\u044c:* {network_today} \\(\u043c\u0435\u0441\u044f\u0446: {network_mtd}\\)"
+        f"\U0001f310 *{e('\u0421\u0435\u0442\u044c:')}* {net_today} \u00b7 {e('\u0441\u0440. \u0447\u0435\u043a')} {net_avg} "
+        f"\u00b7 {net_clients} {e('\u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432')}"
     )
+    lines.append(f"  {e('\u041c\u0435\u0441\u044f\u0446:')} {net_mtd} \u00b7 {e('\u043f\u0440\u043e\u0433\u043d\u043e\u0437 ~')}{net_forecast}")
 
     return "\n".join(lines)
 
