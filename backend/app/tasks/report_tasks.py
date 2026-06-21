@@ -6,13 +6,13 @@ Schedule (Moscow time):
 - Last day of month, 23:00 — monthly reports: kombat monthly
 """
 
-import asyncio
 import calendar
 from datetime import date
 
 import structlog
 from sqlalchemy import select
 
+from app.tasks._async import run_async
 from app.tasks.celery_app import celery_app
 
 logger = structlog.stdlib.get_logger()
@@ -151,7 +151,7 @@ def generate_daily_reports(self) -> dict:
     """Scheduled at 22:30 — generates daily revenue, clients, and kombat reports."""
     logger.info("Starting daily reports task", task_id=self.request.id)
     try:
-        return asyncio.run(_generate_daily())
+        return run_async(_generate_daily())
     except Exception as exc:
         logger.exception("Daily reports task failed", task_id=self.request.id)
         raise self.retry(exc=exc) from exc
@@ -167,7 +167,7 @@ def generate_day_to_day(self) -> dict:
     """Scheduled at 11:00 — generates day-to-day comparison reports."""
     logger.info("Starting day-to-day reports task", task_id=self.request.id)
     try:
-        return asyncio.run(_generate_day_to_day())
+        return run_async(_generate_day_to_day())
     except Exception as exc:
         logger.exception("Day-to-day reports task failed", task_id=self.request.id)
         raise self.retry(exc=exc) from exc
@@ -199,7 +199,7 @@ def generate_monthly_reports(self) -> dict:
 
     logger.info("Starting monthly reports task", task_id=self.request.id)
     try:
-        return asyncio.run(_generate_monthly())
+        return run_async(_generate_monthly())
     except Exception as exc:
         logger.exception("Monthly reports task failed", task_id=self.request.id)
         raise self.retry(exc=exc) from exc

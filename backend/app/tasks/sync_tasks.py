@@ -1,11 +1,11 @@
 """Celery tasks for periodic polling and full sync of YClients data."""
 
-import asyncio
 from datetime import date, timedelta
 
 import structlog
 from sqlalchemy import select
 
+from app.tasks._async import run_async
 from app.tasks.celery_app import celery_app
 
 logger = structlog.stdlib.get_logger()
@@ -288,7 +288,7 @@ def poll_yclients(self) -> dict:
     """Periodic task: poll YClients every 10 minutes."""
     logger.info("Starting polling task", task_id=self.request.id)
     try:
-        return asyncio.run(_poll_all_branches())
+        return run_async(_poll_all_branches())
     except Exception as exc:
         logger.exception("Polling task failed", task_id=self.request.id)
         raise self.retry(exc=exc) from exc
@@ -304,7 +304,7 @@ def full_sync_yclients(self) -> dict:
     """Daily task: full sync at 04:00 Moscow time."""
     logger.info("Starting full sync task", task_id=self.request.id)
     try:
-        return asyncio.run(_full_sync_all_branches())
+        return run_async(_full_sync_all_branches())
     except Exception as exc:
         logger.exception("Full sync task failed", task_id=self.request.id)
         raise self.retry(exc=exc) from exc

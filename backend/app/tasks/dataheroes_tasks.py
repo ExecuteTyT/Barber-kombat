@@ -6,7 +6,6 @@ them on the Calls screen. Also retries pushing any locally-marked-contacted
 rows that haven't reached DataHeroes yet. Gated by ``dataheroes_enabled``.
 """
 
-import asyncio
 import uuid
 from datetime import UTC, date, datetime
 
@@ -15,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.config import settings
+from app.tasks._async import run_async
 from app.tasks.celery_app import celery_app
 
 logger = structlog.stdlib.get_logger()
@@ -164,7 +164,7 @@ def sync_dataheroes_tasks(self) -> dict:
     """Periodic task: pull DataHeroes QC call tasks for all branches."""
     logger.info("Starting DataHeroes sync task", task_id=self.request.id)
     try:
-        return asyncio.run(_sync_all_branches())
+        return run_async(_sync_all_branches())
     except Exception as exc:
         logger.exception("DataHeroes sync task failed", task_id=self.request.id)
         raise self.retry(exc=exc) from exc

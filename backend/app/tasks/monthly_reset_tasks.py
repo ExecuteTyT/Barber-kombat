@@ -9,11 +9,11 @@ Finalizes the previous month:
 - Copies plans to the new month
 """
 
-import asyncio
 from datetime import date
 
 import structlog
 
+from app.tasks._async import run_async
 from app.tasks.celery_app import celery_app
 
 logger = structlog.stdlib.get_logger()
@@ -57,7 +57,7 @@ def monthly_reset(self) -> dict:
     """Scheduled at 1st of month, 00:05 — finalizes the previous month."""
     logger.info("Starting monthly reset task", task_id=self.request.id)
     try:
-        return asyncio.run(_run_monthly_reset())
+        return run_async(_run_monthly_reset())
     except Exception as exc:
         logger.exception("Monthly reset task failed", task_id=self.request.id)
         raise self.retry(exc=exc) from exc

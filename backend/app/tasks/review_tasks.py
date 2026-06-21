@@ -4,11 +4,11 @@
 - send_review_request: delayed task, sends review form link to client after visit via WhatsApp/Telegram.
 """
 
-import asyncio
 import uuid
 
 import structlog
 
+from app.tasks._async import run_async
 from app.tasks.celery_app import celery_app
 
 logger = structlog.stdlib.get_logger()
@@ -146,7 +146,7 @@ def check_unprocessed_reviews(self) -> dict:
     """Scheduled every 30 min — sends reminders for overdue unprocessed reviews."""
     logger.info("Starting unprocessed reviews check", task_id=self.request.id)
     try:
-        return asyncio.run(_check_unprocessed())
+        return run_async(_check_unprocessed())
     except Exception as exc:
         logger.exception("Unprocessed reviews check failed", task_id=self.request.id)
         raise self.retry(exc=exc) from exc
@@ -165,7 +165,7 @@ def send_review_request(self, visit_id: str) -> dict:
     """
     logger.info("Sending review request", task_id=self.request.id, visit_id=visit_id)
     try:
-        return asyncio.run(_send_review_request(visit_id))
+        return run_async(_send_review_request(visit_id))
     except Exception as exc:
         logger.exception("Review request task failed", task_id=self.request.id, visit_id=visit_id)
         raise self.retry(exc=exc) from exc

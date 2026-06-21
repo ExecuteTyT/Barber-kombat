@@ -1,11 +1,11 @@
 """Celery tasks for processing YClients webhook events."""
 
-import asyncio
 from datetime import date
 
 import structlog
 from sqlalchemy import select
 
+from app.tasks._async import run_async
 from app.tasks.celery_app import celery_app
 
 logger = structlog.stdlib.get_logger()
@@ -124,7 +124,7 @@ def process_yclients_webhook(
 ) -> dict:
     """Process a single YClients webhook event.
 
-    Bridges synchronous Celery with async SyncService via asyncio.run().
+    Bridges synchronous Celery with async SyncService via run_async().
     """
     logger.info(
         "Processing webhook task",
@@ -135,7 +135,7 @@ def process_yclients_webhook(
     )
 
     try:
-        asyncio.run(_process_record(company_id, record_id, event_status))
+        run_async(_process_record(company_id, record_id, event_status))
         return {
             "status": "ok",
             "company_id": company_id,

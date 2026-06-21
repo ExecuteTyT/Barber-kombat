@@ -11,6 +11,7 @@ engine = create_async_engine(
     echo=settings.is_development,
     pool_size=10,
     max_overflow=20,
+    pool_pre_ping=True,  # revive stale pooled connections (long-lived Celery worker loop)
 )
 
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

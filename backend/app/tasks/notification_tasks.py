@@ -5,13 +5,13 @@ Handles two categories:
 2. Event-driven notifications — PVR bell, negative review alerts
 """
 
-import asyncio
 import uuid
 from datetime import UTC, datetime
 
 import structlog
 from sqlalchemy import select, update
 
+from app.tasks._async import run_async
 from app.tasks.celery_app import celery_app
 
 logger = structlog.stdlib.get_logger()
@@ -414,7 +414,7 @@ def deliver_daily_notifications(self) -> dict:
     """
     logger.info("Starting daily notification delivery", task_id=self.request.id)
     try:
-        return asyncio.run(_deliver_daily_reports())
+        return run_async(_deliver_daily_reports())
     except Exception as exc:
         logger.exception("Daily notification delivery failed", task_id=self.request.id)
         raise self.retry(exc=exc) from exc
@@ -433,7 +433,7 @@ def deliver_day_to_day_notifications(self) -> dict:
     """
     logger.info("Starting day-to-day notification delivery", task_id=self.request.id)
     try:
-        return asyncio.run(_deliver_day_to_day_reports())
+        return run_async(_deliver_day_to_day_reports())
     except Exception as exc:
         logger.exception("Day-to-day notification delivery failed", task_id=self.request.id)
         raise self.retry(exc=exc) from exc
@@ -452,7 +452,7 @@ def deliver_monthly_notifications(self) -> dict:
     """
     logger.info("Starting monthly notification delivery", task_id=self.request.id)
     try:
-        return asyncio.run(_deliver_monthly_reports())
+        return run_async(_deliver_monthly_reports())
     except Exception as exc:
         logger.exception("Monthly notification delivery failed", task_id=self.request.id)
         raise self.retry(exc=exc) from exc
@@ -480,7 +480,7 @@ def send_pvr_bell(
         threshold=threshold,
     )
     try:
-        return asyncio.run(
+        return run_async(
             _send_pvr_bell_notification(organization_id, branch_id, barber_name, threshold, bonus)
         )
     except Exception as exc:
@@ -514,7 +514,7 @@ def send_negative_review_alert(
         rating=rating,
     )
     try:
-        return asyncio.run(
+        return run_async(
             _send_negative_review_notification(
                 organization_id,
                 branch_name,
