@@ -7,6 +7,7 @@ import { useDeepLink } from './hooks/useDeepLink'
 import { useTelegramTheme } from './hooks/useTelegramTheme'
 import DevToolbar from './components/DevToolbar'
 import DevLoginScreen from './screens/DevLoginScreen'
+import OutsideTelegramScreen from './screens/OutsideTelegramScreen'
 import LoginScreen from './screens/LoginScreen'
 import PendingScreen from './screens/PendingScreen'
 import ReviewPublicScreen from './screens/public/ReviewPublicScreen'
@@ -97,7 +98,7 @@ function AuthenticatedApp() {
   if (error) {
     // In dev mode (outside Telegram), show dev login on error
     if (!initDataRaw) {
-      return <DevLoginScreen />
+      return import.meta.env.DEV ? <DevLoginScreen /> : <OutsideTelegramScreen />
     }
     return <LoginScreen error={error} onRetry={handleLogin} />
   }
@@ -105,13 +106,13 @@ function AuthenticatedApp() {
   if (!user) {
     // Outside Telegram and no saved token — show dev login selector
     if (!initDataRaw) {
-      return <DevLoginScreen />
+      return import.meta.env.DEV ? <DevLoginScreen /> : <OutsideTelegramScreen />
     }
     return <LoginScreen />
   }
 
   const defaultRoute = DEFAULT_ROUTES[user.role] ?? '/barber/kombat'
-  const isDevMode = !initDataRaw
+  const isDevMode = !initDataRaw && import.meta.env.DEV
 
   return (
     <>

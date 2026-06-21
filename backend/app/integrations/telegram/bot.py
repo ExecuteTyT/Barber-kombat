@@ -7,7 +7,7 @@ with inline keyboard buttons linking to the Mini App.
 import re
 
 import structlog
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.constants import ParseMode
 from telegram.request import HTTPXRequest
 
@@ -56,6 +56,18 @@ def _detail_keyboard(
 ) -> InlineKeyboardMarkup:
     """Create an inline keyboard with a single 'Подробнее →' button."""
     return InlineKeyboardMarkup([[InlineKeyboardButton(label, url=_miniapp_url(path))]])
+
+
+def _detail_keyboard_webapp(path: str, label: str = "Подробнее →") -> InlineKeyboardMarkup:
+    """Inline button that opens the Mini App INSIDE Telegram (authenticated).
+
+    Uses a web_app button, which Telegram allows only in private chats — so this
+    is for the owner's private-DM reports (revenue, day-to-day). Group messages
+    (kombat/PVR) keep the plain url button via ``_detail_keyboard``.
+    """
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(label, web_app=WebAppInfo(url=_miniapp_url(path)))]]
+    )
 
 
 # ------------------------------------------------------------------
@@ -374,7 +386,7 @@ class TelegramBot:
     ) -> bool:
         """Send daily revenue report to the owner."""
         text = format_revenue_report(report_data)
-        keyboard = _detail_keyboard("revenue")
+        keyboard = _detail_keyboard_webapp("revenue")
         return await self.send_message(chat_id, text, keyboard)
 
     async def send_day_to_day(
@@ -384,7 +396,7 @@ class TelegramBot:
     ) -> bool:
         """Send day-to-day comparison report to the owner."""
         text = format_day_to_day(report_data)
-        keyboard = _detail_keyboard("day_to_day")
+        keyboard = _detail_keyboard_webapp("day_to_day")
         return await self.send_message(chat_id, text, keyboard)
 
     async def send_pvr_bell(
