@@ -58,6 +58,32 @@ def _ru_date(iso: str) -> str:
         return iso
 
 
+_RU_MONTHS_NOM = (
+    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
+)
+
+
+def _ru_month(iso: str) -> str:
+    """'2026-02-01' -> 'Февраль 2026'. Falls back to raw on parse error."""
+    try:
+        parts = iso.split("-")
+        return f"{_RU_MONTHS_NOM[int(parts[1]) - 1]} {parts[0]}"
+    except (ValueError, IndexError):
+        return iso
+
+
+def _ru_datetime(iso: str) -> str:
+    """'2026-06-21T14:30:00' -> '21 июня, 14:30'. Falls back to raw on error."""
+    try:
+        date_part, _, time_part = iso.partition("T")
+        hhmm = ":".join(time_part.split(":")[:2]) if time_part else ""
+        rd = _ru_date(date_part)
+        return f"{rd}, {hhmm}" if hhmm else rd
+    except (ValueError, IndexError):
+        return iso
+
+
 def _miniapp_url(path: str = "") -> str:
     """Build Mini App deep link URL."""
     base = settings.telegram_mini_app_url.rstrip("/")
@@ -91,76 +117,57 @@ def _detail_keyboard_webapp(path: str, label: str = "Подробнее →") ->
 
 
 def format_kombat_report(report_data: dict, branch_data: dict) -> str:
-    """Format daily Kombat report for a branch.
-
-    Args:
-        report_data: Full kombat_daily report dict.
-        branch_data: Single branch entry from report_data["branches"].
-    """
+    """Format daily Kombat report for a branch."""
     date_str = _escape_md(_ru_date(report_data["date"]))
     standings = branch_data.get("standings", [])
 
     lines = [
-        f"\U0001f3c6 *MAKON* \u00b7 {date_str}",
+        f"🏆 *MAKON · Рейтинг дня* · {date_str}",
         "",
     ]
 
     if standings:
         winner = standings[0]
-        lines.append(
-            f"*\u041f\u043e\u0431\u0435\u0434\u0438\u0442\u0435\u043b\u044c \u0434\u043d\u044f: "
-            f"{_escape_md(winner['name'])}* \U0001f947"
-        )
+        lines.append(f"*Победитель дня: {_escape_md(winner['name'])}* 🥇")
         lines.append("")
-        lines.append("*\u0420\u0435\u0439\u0442\u0438\u043d\u0433:*")
-
+        lines.append("*Рейтинг:*")
         for entry in standings[:10]:
             rank = entry["rank"]
             medal = _MEDALS.get(rank, f"{rank}\\.")
             name = _escape_md(entry["name"])
             score = _escape_md(f"{entry['total_score']:.1f}")
-            lines.append(f"{medal} {name} \u00b7 *{score}*")
+            lines.append(f"{medal} {name} · *{score}*")
     else:
-        lines.append(
-            "_\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445 \u0437\u0430 \u0434\u0435\u043d\u044c_"
-        )
+        lines.append("_Нет данных за день_")
 
     return "\n".join(lines)
 
 
 def format_kombat_monthly(report_data: dict, branch_data: dict) -> str:
     """Format monthly Kombat summary for a branch."""
-    month = _escape_md(report_data.get("month", ""))
+    month = _escape_md(_ru_month(report_data.get("month", "")))
     standings = branch_data.get("standings", [])
 
     lines = [
-        "\U0001f3c6 *MAKON \u00b7 \u0418\u0442\u043e\u0433\u0438 \u043c\u0435\u0441\u044f\u0446\u0430*",
-        f"\U0001f4c5 {month}",
+        "🏆 *MAKON · Итоги месяца*",
+        f"📅 {month}",
         "",
     ]
 
     if standings:
         champion = standings[0]
-        lines.append(
-            f"\U0001f451 *\u0427\u0435\u043c\u043f\u0438\u043e\u043d: "
-            f"{_escape_md(champion['name'])}*"
-        )
+        lines.append(f"👑 *Чемпион: {_escape_md(champion['name'])}*")
         lines.append("")
-
         for entry in standings[:10]:
             rank = entry["rank"]
             medal = _MEDALS.get(rank, f"{rank}\\.")
             name = _escape_md(entry["name"])
             avg = _escape_md(f"{entry['avg_score']:.1f}")
-            wins = entry.get("wins", 0)
-            days = entry.get("days_worked", 0)
-            lines.append(
-                f"{medal} {name} \u00b7 *{avg}* "
-                f"\\({_escape_md(str(wins))} \u043f\u043e\u0431\\. / "
-                f"{_escape_md(str(days))} \u0434\u043d\\.\\)"
-            )
+            wins = _escape_md(str(entry.get("wins", 0)))
+            days = _escape_md(str(entry.get("days_worked", 0)))
+            lines.append(f"{medal} {name} · *{avg}* \\({wins} побед, {days} дн\\.\\)")
     else:
-        lines.append("_\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445_")
+        lines.append("_Нет данных_")
 
     return "\n".join(lines)
 
@@ -171,7 +178,7 @@ def format_revenue_report(report_data: dict) -> str:
     date_str = e(_ru_date(report_data["date"]))
     branches = report_data.get("branches", [])
 
-    lines = [f"\U0001f4b0 *{e('\u0418\u0442\u043e\u0433\u0438 \u0434\u043d\u044f')}* \u00b7 {date_str}", ""]
+    lines = [f"💰 *Итоги дня* · {date_str}", ""]
 
     for b in branches:
         name = e(b["name"])
@@ -182,25 +189,19 @@ def format_revenue_report(report_data: dict) -> str:
         mtd = _format_money_escaped(b["revenue_mtd"])
         forecast = _format_money_escaped(b.get("forecast_month", 0))
 
-        lines.append(f"\U0001f4cd *{name}*")
-        lines.append(f"  {e('\u0412\u044b\u0440\u0443\u0447\u043a\u0430:')} *{today}*")
-        lines.append(
-            f"  {e('\u0421\u0440. \u0447\u0435\u043a:')} {avg} \u00b7 {e('\u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432')} {clients} {e(f'(\u043d\u043e\u0432. {new})')}"
-        )
+        lines.append(f"📍 *{name}*")
+        lines.append(f"  Выручка за день: *{today}*")
+        lines.append(f"  Средний чек: {avg} · клиентов: {clients} \\(новые: {new}\\)")
 
         top = b.get("top_barber")
         if top and top.get("revenue"):
-            lines.append(
-                f"  {e('\u0422\u043e\u043f \u0434\u043d\u044f:')} {e(top['name'])} \u00b7 {_format_money_escaped(top['revenue'])}"
-            )
+            lines.append(f"  Топ дня: {e(top['name'])} · {_format_money_escaped(top['revenue'])}")
 
         if b.get("plan_target", 0) > 0:
             pct = e(f"{b['plan_percentage']:.0f}%")
-            lines.append(
-                f"  {e('\u041c\u0435\u0441\u044f\u0446:')} {mtd} \u00b7 {pct} {e('\u043f\u043b\u0430\u043d\u0430')} \u00b7 {e('\u043f\u0440\u043e\u0433\u043d\u043e\u0437 ~')}{forecast}"
-            )
+            lines.append(f"  За месяц: {mtd} · {pct} плана · прогноз \\~{forecast}")
         else:
-            lines.append(f"  {e('\u041c\u0435\u0441\u044f\u0446:')} {mtd} \u00b7 {e('\u043f\u0440\u043e\u0433\u043d\u043e\u0437 ~')}{forecast}")
+            lines.append(f"  За месяц: {mtd} · прогноз \\~{forecast}")
         lines.append("")
 
     net_today = _format_money_escaped(report_data.get("network_total_today", 0))
@@ -210,40 +211,45 @@ def format_revenue_report(report_data: dict) -> str:
     net_forecast = _format_money_escaped(report_data.get("network_forecast_month", 0))
 
     lines.append(
-        f"\U0001f310 *{e('\u0421\u0435\u0442\u044c:')}* {net_today} \u00b7 {e('\u0441\u0440. \u0447\u0435\u043a')} {net_avg} "
-        f"\u00b7 {net_clients} {e('\u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432')}"
+        f"🌐 *Сеть за день:* {net_today} · средний чек: {net_avg} · клиентов: {net_clients}"
     )
-    lines.append(f"  {e('\u041c\u0435\u0441\u044f\u0446:')} {net_mtd} \u00b7 {e('\u043f\u0440\u043e\u0433\u043d\u043e\u0437 ~')}{net_forecast}")
+    lines.append(f"  За месяц: {net_mtd} · прогноз \\~{net_forecast}")
 
     return "\n".join(lines)
 
 
 def format_day_to_day(report_data: dict) -> str:
-    """Format day-to-day comparison report."""
-    period_end = _escape_md(_ru_date(report_data.get("period_end", "")))
+    """Format day-to-day comparison report (same period across 3 months)."""
+    period_iso = report_data.get("period_end", "")
+    period_end = _escape_md(_ru_date(period_iso))
+    try:
+        day_num = int(period_iso.split("-")[2])
+    except (ValueError, IndexError):
+        day_num = 0
+
+    def _at_day(month: dict) -> int:
+        cum = month.get("daily_cumulative") or []
+        for d in cum:
+            if d.get("day") == day_num:
+                return d["amount"]
+        return cum[-1]["amount"] if cum else 0
+
     comparison = report_data.get("comparison", {})
     current = report_data.get("current_month", {})
     prev = report_data.get("prev_month", {})
     prev_prev = report_data.get("prev_prev_month", {})
 
-    # Latest cumulative amounts
-    cur_total = current.get("daily_cumulative", [{}])
-    cur_amount = cur_total[-1]["amount"] if cur_total else 0
-    prev_total = prev.get("daily_cumulative", [{}])
-    prev_amount = prev_total[-1]["amount"] if prev_total else 0
-    pp_total = prev_prev.get("daily_cumulative", [{}])
-    pp_amount = pp_total[-1]["amount"] if pp_total else 0
-
     lines = [
-        f"\U0001f4c8 *Day\\-to\\-Day* \u00b7 {period_end}",
+        f"📈 *Динамика выручки* · {period_end}",
+        "_Сравниваем с тем же периодом прошлых месяцев_",
         "",
-        f"\U0001f4c5 *{_escape_md(current.get('name', ''))}:* {_format_money_escaped(cur_amount)}",
-        f"\U0001f4c5 *{_escape_md(prev.get('name', ''))}:* {_format_money_escaped(prev_amount)}",
-        f"\U0001f4c5 *{_escape_md(prev_prev.get('name', ''))}:* {_format_money_escaped(pp_amount)}",
+        f"📅 *{_escape_md(current.get('name', ''))}:* {_format_money_escaped(_at_day(current))}",
+        f"📅 {_escape_md(prev.get('name', ''))}: {_format_money_escaped(_at_day(prev))}",
+        f"📅 {_escape_md(prev_prev.get('name', ''))}: {_format_money_escaped(_at_day(prev_prev))}",
         "",
-        "\U0001f4ca \u0421\u0440\u0430\u0432\u043d\u0435\u043d\u0438\u0435:",
-        f"  \u0432\u0441\\. \u043f\u0440\u043e\u0448\u043b\\. \u043c\u0435\u0441\\.: *{_escape_md(comparison.get('vs_prev', '0.0%'))}*",
-        f"  \u0432\u0441\\. \u043f\u043e\u0437\u0430\u043f\u0440\u043e\u0448\u043b\\.: *{_escape_md(comparison.get('vs_prev_prev', '0.0%'))}*",
+        "📊 *Темп к прошлым месяцам:*",
+        f"  {_escape_md(prev.get('name', ''))}: *{_escape_md(comparison.get('vs_prev', '0.0%'))}*",
+        f"  {_escape_md(prev_prev.get('name', ''))}: *{_escape_md(comparison.get('vs_prev_prev', '0.0%'))}*",
     ]
 
     return "\n".join(lines)
@@ -256,12 +262,12 @@ def format_pvr_bell(barber_name: str, threshold: int, bonus: int) -> str:
     bonus_str = _format_money_escaped(bonus)
 
     lines = [
-        "\U0001f514\U0001f514\U0001f514",
+        "🔔🔔🔔",
         "",
-        f"*{name}* \u0441\u0434\u0435\u043b\u0430\u043b \u0432\u044b\u0440\u0443\u0447\u043a\u0443 *{threshold_str}*\\!",
-        f"\u041f\u0440\u0435\u043c\u0438\u044f: *\\+{bonus_str}* \U0001f389",
+        f"*{name}* заработал за месяц *{threshold_str}*\\!",
+        f"Премия: *\\+{bonus_str}* 🎉",
         "",
-        "\u0422\u0430\u043a \u0434\u0435\u0440\u0436\u0430\u0442\u044c\\! \U0001f4aa",
+        "Так держать\\! 💪",
     ]
 
     return "\n".join(lines)
@@ -290,26 +296,26 @@ def format_negative_review(
     created_at: str,
 ) -> str:
     """Format negative review alert."""
-    stars = "\u2b50" * rating
+    stars = "⭐" * rating
     rating_str = _escape_md(f"({rating}/5)")
 
     lines = [
-        "\u26a0\ufe0f *\u041d\u0435\u0433\u0430\u0442\u0438\u0432\u043d\u044b\u0439 \u043e\u0442\u0437\u044b\u0432*",
+        "⚠️ *Негативный отзыв*",
         "",
-        f"\U0001f4cd \u0424\u0438\u043b\u0438\u0430\u043b: {_escape_md(branch_name)}",
-        f"\U0001f464 \u041c\u0430\u0441\u0442\u0435\u0440: {_escape_md(barber_name)}",
+        f"📍 Филиал: {_escape_md(branch_name)}",
+        f"👤 Мастер: {_escape_md(barber_name)}",
     ]
 
     if client_name:
-        lines.append(f"\U0001f4de \u041a\u043b\u0438\u0435\u043d\u0442: {_escape_md(client_name)}")
+        lines.append(f"📞 Клиент: {_escape_md(client_name)}")
 
-    lines.append(f"\u2b50 \u041e\u0446\u0435\u043d\u043a\u0430: {stars} {rating_str}")
+    lines.append(f"⭐ Оценка: {stars} {rating_str}")
 
     if comment:
-        lines.append(f"\U0001f4ac _{_escape_md(comment)}_")
+        lines.append(f"💬 _{_escape_md(comment)}_")
 
     lines.append("")
-    lines.append(f"\U0001f550 {_escape_md(created_at)}")
+    lines.append(f"🕐 {_escape_md(_ru_datetime(created_at))}")
 
     return "\n".join(lines)
 

@@ -293,7 +293,7 @@ class TestFormatDayToDay:
         data = _day_to_day_data()
         text = format_day_to_day(data)
 
-        assert "Day\\-to\\-Day" in text
+        assert "Динамика выручки" in text
         assert "14\\.2" in text or "+14\\.2" in text
         assert "2\\.6" in text or "-2\\.6" in text
 
@@ -303,6 +303,28 @@ class TestFormatDayToDay:
 
         assert "Февраль" in text or "\u0424\u0435\u0432\u0440\u0430\u043b\u044c" in text
         assert "Январь" in text or "\u042f\u043d\u0432\u0430\u0440\u044c" in text
+
+    def test_shows_same_period_not_full_month(self):
+        # All three months must be shown for the SAME period (day 5), not full month.
+        data = {
+            "period_end": "2026-02-05",
+            "current_month": {
+                "name": "Февраль 2026",
+                "daily_cumulative": [{"day": d, "amount": d * 100000} for d in range(1, 6)],
+            },
+            "prev_month": {
+                "name": "Январь 2026",
+                "daily_cumulative": [{"day": d, "amount": d * 100000} for d in range(1, 32)],
+            },
+            "prev_prev_month": {
+                "name": "Декабрь 2025",
+                "daily_cumulative": [{"day": d, "amount": d * 90000} for d in range(1, 32)],
+            },
+            "comparison": {"vs_prev": "0.0%", "vs_prev_prev": "+11.1%"},
+        }
+        text = format_day_to_day(data)
+        assert "5 000" in text       # January cumulative at day 5 (same period)
+        assert "31 000" not in text  # NOT January full-month total
 
 
 class TestFormatPvrBell:
@@ -494,7 +516,7 @@ class TestTelegramBotHighLevelSend:
 
         assert result is True
         args = bot.send_message.call_args.args
-        assert "Day\\-to\\-Day" in args[1]
+        assert "Динамика выручки" in args[1]
 
     @pytest.mark.asyncio
     async def test_send_kombat_monthly(self):
