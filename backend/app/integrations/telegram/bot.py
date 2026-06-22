@@ -175,10 +175,11 @@ def format_kombat_monthly(report_data: dict, branch_data: dict) -> str:
 def format_revenue_report(report_data: dict) -> str:
     """Format daily revenue report for the owner (MarkdownV2)."""
     e = _escape_md
+    div = "─" * 16
     date_str = e(_ru_date(report_data["date"]))
     branches = report_data.get("branches", [])
 
-    lines = [f"💰 *Итоги дня* · {date_str}", ""]
+    lines = [f"💰 *Итоги дня* · {date_str}", div]
 
     for b in branches:
         name = e(b["name"])
@@ -202,7 +203,7 @@ def format_revenue_report(report_data: dict) -> str:
             lines.append(f"  За месяц: {mtd} · {pct} плана · прогноз \\~{forecast}")
         else:
             lines.append(f"  За месяц: {mtd} · прогноз \\~{forecast}")
-        lines.append("")
+        lines.append(div)
 
     net_today = _format_money_escaped(report_data.get("network_total_today", 0))
     net_avg = _format_money_escaped(report_data.get("network_avg_check", 0))
@@ -210,9 +211,7 @@ def format_revenue_report(report_data: dict) -> str:
     net_mtd = _format_money_escaped(report_data.get("network_total_mtd", 0))
     net_forecast = _format_money_escaped(report_data.get("network_forecast_month", 0))
 
-    lines.append(
-        f"🌐 *Сеть за день:* {net_today} · средний чек: {net_avg} · клиентов: {net_clients}"
-    )
+    lines.append(f"🌐 *Сеть за день:* {net_today} · средний чек: {net_avg} · клиентов: {net_clients}")
     lines.append(f"  За месяц: {net_mtd} · прогноз \\~{net_forecast}")
 
     return "\n".join(lines)
