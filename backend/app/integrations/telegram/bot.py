@@ -191,18 +191,19 @@ def format_revenue_report(report_data: dict) -> str:
         forecast = _format_money_escaped(b.get("forecast_month", 0))
 
         lines.append(f"📍 *{name}*")
-        lines.append(f"  Выручка за день: *{today}*")
-        lines.append(f"  Средний чек: {avg} · клиентов: {clients} \\(новые: {new}\\)")
+        lines.append(f"💵 Выручка: *{today}*")
+        lines.append(f"🧾 Средний чек: {avg}")
+        lines.append(f"👥 Клиентов: {clients} \\(новые: {new}\\)")
 
         top = b.get("top_barber")
         if top and top.get("revenue"):
-            lines.append(f"  Топ дня: {e(top['name'])} · {_format_money_escaped(top['revenue'])}")
+            lines.append(f"🏆 Топ дня: {e(top['name'])} · {_format_money_escaped(top['revenue'])}")
 
         if b.get("plan_target", 0) > 0:
             pct = e(f"{b['plan_percentage']:.0f}%")
-            lines.append(f"  За месяц: {mtd} · {pct} плана · прогноз \\~{forecast}")
+            lines.append(f"📈 За месяц: {mtd} · {pct} плана · прогноз \\~{forecast}")
         else:
-            lines.append(f"  За месяц: {mtd} · прогноз \\~{forecast}")
+            lines.append(f"📈 За месяц: {mtd} · прогноз \\~{forecast}")
         lines.append(div)
 
     net_today = _format_money_escaped(report_data.get("network_total_today", 0))
@@ -211,8 +212,11 @@ def format_revenue_report(report_data: dict) -> str:
     net_mtd = _format_money_escaped(report_data.get("network_total_mtd", 0))
     net_forecast = _format_money_escaped(report_data.get("network_forecast_month", 0))
 
-    lines.append(f"🌐 *Сеть за день:* {net_today} · средний чек: {net_avg} · клиентов: {net_clients}")
-    lines.append(f"  За месяц: {net_mtd} · прогноз \\~{net_forecast}")
+    lines.append("🌐 *Сеть*")
+    lines.append(f"💵 Выручка: *{net_today}*")
+    lines.append(f"🧾 Средний чек: {net_avg}")
+    lines.append(f"👥 Клиентов: {net_clients}")
+    lines.append(f"📈 За месяц: {net_mtd} · прогноз \\~{net_forecast}")
 
     return "\n".join(lines)
 
