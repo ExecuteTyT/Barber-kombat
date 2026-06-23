@@ -483,8 +483,9 @@ function PlansSection() {
 
   const handleSave = async (entry: PlanNetworkEntry) => {
     if (!editingPlan) return
-    const amount = Math.round(Number(editingPlan.value) * 100)
-    if (amount <= 0) return
+    const raw = editingPlan.value.trim()
+    const amount = raw === '' ? 0 : Math.round(Number(raw) * 100)
+    if (Number.isNaN(amount) || amount < 0) return // empty/0 removes the plan
     await savePlan(entry.branch_id, plans.month + '-01', amount)
     setEditingPlan(null)
   }
@@ -511,6 +512,7 @@ function PlansSection() {
                   className="flex-1 rounded-lg border border-[var(--bk-border)] bg-[var(--bk-bg-primary)] px-2 py-1 text-sm text-[var(--bk-text)]"
                   value={editingPlan.value}
                   onChange={(e) => setEditingPlan({ ...editingPlan, value: e.target.value })}
+                  placeholder="сумма ₽ · пусто = убрать"
                   autoFocus
                 />
                 <button

@@ -10,7 +10,7 @@ class PlanCreate(BaseModel):
     """Request body to create or update a plan for a branch."""
 
     month: date = Field(description="First day of the target month (e.g. 2024-10-01)")
-    target_amount: int = Field(gt=0, description="Target revenue in kopecks")
+    target_amount: int = Field(ge=0, description="Target revenue in kopecks (0 removes the plan)")
 
 
 class PlanResponse(BaseModel):

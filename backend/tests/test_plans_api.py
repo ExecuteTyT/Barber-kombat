@@ -307,7 +307,7 @@ class TestUpsertBranchPlan:
 
     @pytest.mark.asyncio
     async def test_invalid_target_amount(self):
-        """Returns 422 for invalid target_amount (must be > 0)."""
+        """Returns 422 for a negative target_amount (0 is allowed — removes the plan)."""
         user = make_user(role="owner")
 
         mock_db = AsyncMock()
@@ -320,7 +320,7 @@ class TestUpsertBranchPlan:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.put(
                 f"/api/v1/plans/{BRANCH_ID}",
-                json={"month": "2026-02-01", "target_amount": 0},
+                json={"month": "2026-02-01", "target_amount": -100},
             )
 
         assert response.status_code == 422
