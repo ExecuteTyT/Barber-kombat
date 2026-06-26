@@ -207,6 +207,61 @@ def flatten_yandex_answers(payload: dict) -> dict | None:
     return flat
 
 
+# Leading words of the admin-communication answer (4 levels).
+_COMM_WORDS = ("очень плохо", "плохо", "нормально", "хорошо")
+
+
+def canonicalize_survey(payload: dict) -> dict:
+    """Map a survey payload to our canonical answer keys.
+
+    Three cases:
+    1. Already flat ``{key: value}`` (form built to our contract) -> as-is.
+    2. Nested Yandex JSON whose question slugs already ARE our keys -> flatten.
+    3. Nested Yandex JSON with Yandex's own opaque slugs (the common case: the
+       form is not built for us). Yandex sends no question text, so we identify
+       fields by answer TYPE and VALUE content, form-agnostically:
+         - phone: answer_type ``answer_phone`` (or a phone-looking value)
+         - stars: a bare ``1``..``5``
+         - recommend: value contains "рекоменд"
+         - branch: value looks like an address (number next to letters)
+         - admin_communication: value starts with Хорошо/Нормально/Плохо/Очень плохо
+         - master_quality: value matches one of the cut-quality phrases
+       Yes/No checklist items can't be told apart without the question text, so
+       they're skipped — the admin score then falls back to the communication
+       answer, and the master score to the cut-quality answer.
+    """
+    data = (payload.get("answer") or {}).get("data")
+    if not isinstance(data, dict):
+        return payload  # already flat
+
+    flat = flatten_yandex_answers(payload) or {}
+    if "branch" in flat or "phone" in flat:
+        return flat  # form's question identifiers already match our keys
+
+    out: dict[str, str] = {}
+    for entry in data.values():
+        if not isinstance(entry, dict):
+            continue
+        atype = ((entry.get("question") or {}).get("answer_type") or {}).get("slug", "")
+        val = _extract_answer_value(entry.get("value"), atype).strip()
+        if not val:
+            continue
+        low = val.lower()
+        if "phone" not in out and (atype == "answer_phone" or re.fullmatch(r"[+\d][\d\s()\-]{6,}", val)):
+            out["phone"] = val
+        elif "stars" not in out and re.fullmatch(r"[1-5]", val):
+            out["stars"] = val
+        elif "recommend" not in out and "рекоменд" in low:
+            out["recommend"] = val
+        elif "branch" not in out and re.search(r"\d{1,3}\s?[А-Яа-яA-Za-z]", val):
+            out["branch"] = val
+        elif "admin_communication" not in out and any(low.startswith(w) for w in _COMM_WORDS):
+            out["admin_communication"] = val
+        elif "master_quality" not in out and _quality_score(val) is not None:
+            out["master_quality"] = val
+    return out
+
+
 class SurveyService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -218,7 +273,7 @@ class SurveyService:
         "Ответы на вопросы в виде json" shape (flattened here). The original
         payload is preserved in ``raw``.
         """
-        answers = flatten_yandex_answers(payload) or payload
+        answers = canonicalize_survey(payload)
 
         branch, organization_id = await self._resolve_branch_and_org(answers.get("branch"))
         if organization_id is None:

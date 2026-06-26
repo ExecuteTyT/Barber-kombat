@@ -11,6 +11,7 @@ from app.main import app
 from app.services.surveys import (
     SurveyService,
     _branch_matches,
+    canonicalize_survey,
     compute_admin_score,
     compute_master_score,
     flatten_yandex_answers,
@@ -148,6 +149,58 @@ class TestFlattenYandexAnswers:
 
     def test_returns_none_for_flat_payload(self):
         assert flatten_yandex_answers({"phone": "x"}) is None
+
+
+# --- canonicalize_survey (value-based mapping of real Yandex payloads) ---
+
+
+def _choice(text: str) -> dict:
+    return {"value": [{"text": text}], "question": {"answer_type": {"slug": "answer_choices"}}}
+
+
+def _yandex_real_payload() -> dict:
+    """Mirrors a real Yandex 'Ответы в виде json' payload: opaque slugs, no text."""
+    return {
+        "answer": {
+            "data": {
+                "answer_phone_900": {
+                    "value": "+7 999 999-99-99",
+                    "question": {"answer_type": {"slug": "answer_phone"}},
+                },
+                "answer_choices_a": _choice('Менделеева 17Б (ТЦ "Аяз")'),
+                "answer_choices_b": _choice("5"),
+                "answer_choices_c": _choice("Да, порекомендую"),
+                "answer_choices_d": _choice("Нормально: вежливо, но сухо"),
+                "answer_choices_e": _choice("Стрижка меня полностью устроила"),
+                "answer_choices_f": _choice("Да"),
+                "answer_choices_g": _choice("Да"),
+                "answer_choices_h": _choice("Все хорошо, мне было комфортно"),
+            }
+        }
+    }
+
+
+class TestCanonicalizeSurvey:
+    def test_maps_opaque_yandex_slugs_by_value(self):
+        a = canonicalize_survey(_yandex_real_payload())
+        assert a["phone"] == "+7 999 999-99-99"
+        assert "17" in a["branch"]
+        assert a["stars"] == "5"
+        assert a["recommend"].lower().startswith("да")
+        assert a["admin_communication"].lower().startswith("нормально")
+        assert "устроила" in a["master_quality"].lower()
+        # Yes/No checklist items are not mis-assigned to a scored field.
+        assert compute_admin_score(a) == 66  # communication only
+        assert compute_master_score(a) == 85  # quality only
+        assert is_negative(a, 5) is False
+
+    def test_flat_payload_passthrough(self):
+        flat = {"phone": "x", "branch": "53"}
+        assert canonicalize_survey(flat) == flat
+
+    def test_our_key_slugs_are_flattened(self):
+        payload = {"answer": {"data": {"branch": _choice("53")}}}
+        assert canonicalize_survey(payload)["branch"] == "53"
 
 
 # --- SurveyService.parse_and_store ---
