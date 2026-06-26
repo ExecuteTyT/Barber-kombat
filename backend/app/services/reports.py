@@ -1063,8 +1063,12 @@ class ReportService:
                 index_elements=["organization_id", "type", "date"],
                 index_where=Report.branch_id.is_(None),
                 set_={
+                    # Refresh the cached data only. Do NOT reset delivered_telegram:
+                    # re-generating a report (e.g. an owner opening a past date in
+                    # the app) must not make an already-sent report be delivered
+                    # again. A brand-new day's report still defaults to False on
+                    # INSERT (see `values`), so it is delivered exactly once.
                     "data": stmt.excluded.data,
-                    "delivered_telegram": False,
                 },
             )
         else:
@@ -1073,8 +1077,12 @@ class ReportService:
                 index_elements=["organization_id", "branch_id", "type", "date"],
                 index_where=Report.branch_id.isnot(None),
                 set_={
+                    # Refresh the cached data only. Do NOT reset delivered_telegram:
+                    # re-generating a report (e.g. an owner opening a past date in
+                    # the app) must not make an already-sent report be delivered
+                    # again. A brand-new day's report still defaults to False on
+                    # INSERT (see `values`), so it is delivered exactly once.
                     "data": stmt.excluded.data,
-                    "delivered_telegram": False,
                 },
             )
 
